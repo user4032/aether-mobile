@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "framework": null,
+  "installCommand": "git clone https://github.com/flutter/flutter.git --depth 1 -b stable ../flutter ; ../flutter/bin/flutter --disable-analytics ; ../flutter/bin/flutter pub get",
+  "buildCommand": "../flutter/bin/flutter build web --release",
+  "outputDirectory": "build/web",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
