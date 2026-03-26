@@ -994,7 +994,7 @@ class _AuthScreenState extends State<AuthScreen> {
     final pass = _passController.text.trim();
     if (name.isEmpty || pass.isEmpty) return;
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-mu-red.vercel.app/', {'transports': ['websocket'], 'forceNew': true});
+    io.Socket s = io.io('http://localhost:3000', {'transports': ['websocket'], 'forceNew': true});
     s.connect();
     s.onConnect((_) {
       s.emitWithAck('login', {'userName': name, 'password': pass, 'publicKey': widget.publicKey}, ack: (dynamic response) async {
@@ -1020,7 +1020,7 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-mu-red.vercel.app/', {'transports': ['websocket'], 'forceNew': true});
+    io.Socket s = io.io('http://localhost:3000', {'transports': ['websocket'], 'forceNew': true});
     s.connect();
     s.onConnect((_) {
       s.emitWithAck('send_verification_email', {
@@ -1042,7 +1042,7 @@ class _AuthScreenState extends State<AuthScreen> {
     final code = _codeController.text.trim();
     if (code.length != 6) return;
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-mu-red.vercel.app/', {'transports': ['websocket'], 'forceNew': true});
+    io.Socket s = io.io('http://localhost:3000', {'transports': ['websocket'], 'forceNew': true});
     s.connect();
     s.onConnect((_) {
       s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {
@@ -1241,7 +1241,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   @override
   void initState() {
     super.initState();
-    _bgSocket = io.io('https://aether-mu-red.vercel.app/', {'transports': ['websocket'], 'forceNew': true});
+    _bgSocket = io.io('http://localhost:3000', {'transports': ['websocket'], 'forceNew': true});
     _bgSocket.connect();
     _bgSocket.onConnect((_) { _bgSocket.emit('set_active', widget.userName); _loadData(); });
     _bgSocket.on('message', (data) {
@@ -2093,7 +2093,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _connect() {
-    socket = io.io('https://aether-mu-red.vercel.app/', {'transports': ['websocket'], 'forceNew': true});
+    socket = io.io('http://localhost:3000', {'transports': ['websocket'], 'forceNew': true});
     socket.connect();
     socket.onConnect((_) {
       socket.emit('set_active', widget.userName);
