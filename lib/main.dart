@@ -8,6 +8,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:uuid/uuid.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:image_picker/image_picker.dart';
@@ -480,7 +481,7 @@ class _HoldToRevealWrapperState extends State<HoldToRevealWrapper> {
     if (!widget.isEphemeral) return widget.child;
     return Listener(
       onPointerDown: (_) {
-        if (!mounted) return;
+        if (!context.mounted) return;
         setState(() => _isRevealed = true);
         if (!_hasBeenRevealedOnce) { _hasBeenRevealedOnce = true; widget.onRevealStarted?.call(); }
       },
@@ -874,7 +875,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
   @override
   void dispose() {
     _audioPlayer.dispose();
-    if (_filePath != null) { try { final f = File(_filePath!); if (f.existsSync()) f.deleteSync(); } catch (e) {} }
+    if (_filePath != null) { try { final f = File(_filePath!); if (f.existsSync()) f.deleteSync(); } catch (e) { debugPrint('Error deleting file'); } }
     super.dispose();
   }
 
@@ -1060,7 +1061,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _showSnack(String msg, {bool isError = false}) {
-    if (!mounted) return;
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg, style: const TextStyle(color: Colors.white)),
       backgroundColor: isError ? Colors.red.shade900 : const Color(0xFF333333),
@@ -1485,7 +1486,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         Map<String, dynamic>? chatSettings;
-        try { chatSettings = _recentChats.firstWhere((c) => c['partnerName'] == partnerName); } catch (e) {}
+        try { chatSettings = _recentChats.firstWhere((c) => c['partnerName'] == partnerName); } catch (e) { /* ignore */ }
         bool isBlocked = chatSettings?['isBlocked'] == true;
         bool isPinned = chatSettings?['isPinned'] == true;
         return StatefulBuilder(
@@ -1632,7 +1633,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   void _toggleVerification(String targetName, bool currentlyVerified) {
     final event = currentlyVerified ? 'revoke_verification' : 'grant_verification';
     _bgSocket.emitWithAck(event, {'adminName': widget.userName, 'targetName': targetName}, ack: (dynamic data) {
-      if (mounted) {
+      if (context.mounted) {
         _showSnack(data['success'] ? (currentlyVerified ? t('Верифікацію знято', 'Verification revoked') : t('Верифіковано!', 'Verified!')) : (data['message'] ?? 'Error'));
         _searchUsersForVerify(); // оновити список
       }
@@ -1640,7 +1641,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   void _showSnack(String msg) {
-    if (!mounted) return;
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg, style: const TextStyle(color: Colors.white)), backgroundColor: const Color(0xFF333333), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50))));
   }
 
@@ -1814,9 +1815,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
         GlassContainer(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(children: [
-            ListTile(title: const Text("Українська", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)), trailing: lang == 'uk' ? const Icon(Icons.check, color: Colors.white) : null, onTap: () => _changeLanguage('uk')),
+            ListTile(title: const Text("Українська", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)), trailing: lang == 'uk' ? const Icon(Icons.check, color: Colors.white) : null, onTap: () => _changeLanguage('uk')),
             Divider(height: 1, indent: 16, color: Colors.white.withValues(alpha: 0.05)),
-            ListTile(title: const Text("English", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)), trailing: lang == 'en' ? const Icon(Icons.check, color: Colors.white) : null, onTap: () => _changeLanguage('en')),
+            ListTile(title: const Text("English", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)), trailing: lang == 'en' ? const Icon(Icons.check, color: Colors.white) : null, onTap: () => _changeLanguage('en')),
           ]),
         ),
 
@@ -1994,12 +1995,10 @@ class _ChatScreenState extends State<ChatScreen> {
   List<double> _recordAmplitudes = [];
   int _recordDuration = 0;
   Timer? _recordTimer;
-  late Color _partnerColor;
 
   @override
   void initState() {
     super.initState();
-    _partnerColor = getProminentColor(widget.partnerAvatar);
     _currentPartnerKey = widget.partnerPublicKey;
     currentActiveChat = widget.partnerPublicKey.startsWith('GROUP_') ? widget.partnerPublicKey : widget.partnerName;
     _connect();
@@ -2028,7 +2027,15 @@ class _ChatScreenState extends State<ChatScreen> {
       if (await _audioRecorder.hasPermission()) {
         final dir = await getApplicationDocumentsDirectory();
         final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        await _audioRecorder.start(const RecordConfig(), path: path);
+       // Використовуємо AAC, який є рідним для iOS/Safari
+        await _audioRecorder.start(
+          const RecordConfig(
+            encoder: AudioEncoder.aacLc, 
+            bitRate: 128000,
+            sampleRate: 44100,
+          ), 
+          path: path
+        );
         setState(() { _isRecordingAudio = true; _recordDuration = 0; _recordAmplitudes = List.generate(30, (_) => 2.0); });
         _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) { if (mounted) setState(() => _recordDuration++); });
         _amplitudeSub = _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 50)).listen((amp) {
@@ -2081,6 +2088,10 @@ class _ChatScreenState extends State<ChatScreen> {
           final parsed = jsonDecode(dec);
           msg['text'] = parsed['text'];
           msg['replyTo'] = parsed['replyTo'];
+          // ДОДАЄМО ЦЕ, щоб читати картинку з JSON-пакета:
+          if (parsed['imageBytes'] != null) {
+            msg['imageBytes'] = base64Decode(parsed['imageBytes']);
+          }
         } else { msg['text'] = dec; }
       } catch (e) { msg['text'] = "Encrypted"; }
     }
@@ -2364,7 +2375,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 final originalText = msg['text'] ?? '';
                                 final box = await _aes.encrypt(utf8.encode(originalText), secretKey: key);
                                 socket.emit('message', {'type': 'text', 'text': originalText, 'ciphertext': base64Encode(box.cipherText), 'nonce': base64Encode(box.nonce), 'mac': base64Encode(box.mac.bytes), 'senderName': widget.userName, 'receiverName': f['userName']});
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${t("Переслано до", "Forwarded to")} ${f['userName']}', style: const TextStyle(color: Colors.white)), backgroundColor: const Color(0xFF333333), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50))));
+                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${t("Переслано до", "Forwarded to")} ${f['userName']}', style: const TextStyle(color: Colors.white)), backgroundColor: const Color(0xFF333333), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50))));
                               },
                               child: Padding(
                                 padding: const EdgeInsets.only(right: 16),
@@ -2395,8 +2406,8 @@ class _ChatScreenState extends State<ChatScreen> {
                             final originalText = msg['text'] ?? '';
                             final box = await _aes.encrypt(utf8.encode(originalText), secretKey: key);
                             socket.emit('message', {'type': 'text', 'text': originalText, 'ciphertext': base64Encode(box.cipherText), 'nonce': base64Encode(box.nonce), 'mac': base64Encode(box.mac.bytes), 'senderName': widget.userName, 'receiverName': target});
-                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${t("Переслано до", "Forwarded to")} $target', style: const TextStyle(color: Colors.white)), backgroundColor: const Color(0xFF333333), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50))));
-                          } else if (mounted) {
+                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${t("Переслано до", "Forwarded to")} $target', style: const TextStyle(color: Colors.white)), backgroundColor: const Color(0xFF333333), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50))));
+                          } else if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('Користувача не знайдено', 'User not found'), style: const TextStyle(color: Colors.white)), backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50))));
                           }
                         });
@@ -2414,8 +2425,118 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _pickAndSendImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 30);
-    if (image != null) { _send(textOverride: base64Encode(await image.readAsBytes()), type: 'image'); }
+    // 1. Оптимізація! Стискаємо фото відразу при виборі
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery, 
+      maxWidth: 1200, 
+      maxHeight: 1200, 
+      imageQuality: 75
+    );
+    if (image == null) return;
+
+    // 2. Обрізка фото (спрощені та правильні налаштування для всіх платформ)
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: image.path,
+      uiSettings: [
+        WebUiSettings(
+          context: context,
+        ),
+        AndroidUiSettings(
+          toolbarTitle: t('Обрізати', 'Crop'),
+          toolbarColor: Colors.black,
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: false,
+        ),
+        IOSUiSettings(
+          title: t('Обрізати', 'Crop'),
+        ),
+      ],
+    );
+
+    // ФІКС: Правильно читаємо байти з різних типів файлів
+    final bytes = croppedFile != null 
+        ? await croppedFile.readAsBytes() 
+        : await image.readAsBytes();
+
+    final base64Image = base64Encode(bytes);
+
+    // 3. Вікно попереднього перегляду з підписом
+    if (!context.mounted) return;
+    final captionController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: GlassContainer(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                // ФІКС: використовуємо просто height замість maxHeight
+                child: Image.memory(bytes, height: 300, fit: BoxFit.contain),
+              ),
+              const SizedBox(height: 16),
+              GlassInput(
+                controller: captionController, 
+                hintText: t("Додати підпис...", "Add a caption...")
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx), 
+                    child: Text(t("Скасувати", "Cancel"), style: const TextStyle(color: Colors.white54))
+                  ),
+                  const SizedBox(width: 8),
+                  ShineButton(
+                    text: t("Відправити", "Send"),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _sendWithImage(captionController.text.trim(), base64Image);
+                    },
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
+      )
+    );
+  }
+
+  // Спеціальний метод для відправки картинки + тексту одночасно
+  void _sendWithImage(String caption, String base64Image) async {
+    final key = await _getSecretKey(_currentPartnerKey);
+    
+    // Пакуємо і текст, і картинку в один JSON
+    String payloadStr = jsonEncode({
+      'text': caption,
+      'imageBytes': base64Image,
+      if (_replyingTo != null) 'replyTo': {
+        'senderName': _replyingTo!['senderName'] ?? 'Unknown', 
+        'text': _replyingTo!['type'] == 'image' ? 'Фото' : _replyingTo!['text']
+      }
+    });
+
+    final box = await _aes.encrypt(utf8.encode(payloadStr), secretKey: key);
+    
+    socket.emit('message', {
+      'type': 'image', 
+      'text': 'encrypted_payload', // Бекенду байдуже, що тут, головне - зашифрований пакет
+      'ciphertext': base64Encode(box.cipherText), 
+      'nonce': base64Encode(box.nonce), 
+      'mac': base64Encode(box.mac.bytes), 
+      'senderName': widget.userName, 
+      'receiverName': _currentPartnerKey.startsWith('GROUP_') ? _currentPartnerKey : widget.partnerName
+    });
+    
+    setState(() { _replyingTo = null; });
   }
 
   void _showMessageOptions(Map<String, dynamic> m, bool isMe) {
@@ -2851,7 +2972,8 @@ class _ChatScreenState extends State<ChatScreen> {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          // ФІКС: Збільшили відступ ЗНИЗУ (з 8 до 24 пикселів)
+          padding: const EdgeInsets.fromLTRB(12, 8, 16, 24),
           decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), border: Border(top: BorderSide(color: _isAetherMode ? const Color(0xFFB026FF).withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.1), width: 1))),
           child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
             if (!isEditingMode && !_isRecordingAudio) Padding(padding: const EdgeInsets.only(bottom: 0), child: GestureDetector(onTap: _pickAndSendImage, child: Icon(Icons.add, color: _isAetherMode ? const Color(0xFFB026FF) : Colors.white, size: 26))),
@@ -2869,7 +2991,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       const SizedBox(width: 12),
                       Expanded(child: CustomPaint(size: const Size(double.infinity, 30), painter: WaveformPainter(amplitudes: _recordAmplitudes, progress: 1.0, activeColor: const Color(0xFFFF3B30), inactiveColor: const Color(0xFFFF3B30)))),
                       const SizedBox(width: 8),
-                      Text(t("Свайп вліво скасувати", "Swipe left to cancel"), style: const TextStyle(color: Colors.white30, fontSize: 10)),
+                      const Text("Свайп вліво скасувати", style: TextStyle(color: Colors.white30, fontSize: 10)),
                     ]),
                   )
                 : Container(
@@ -2895,29 +3017,28 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.only(bottom: 2),
               child: (_hasText || isEditingMode)
                 ? GestureDetector(
-                    onTap: _send,
-                    onLongPress: (!isEditingMode && !_isAetherMode) ? _showScheduleDialog : null,
-                    child: Container(
-                      height: 40, width: 40,
-                      decoration: BoxDecoration(color: _isAetherMode ? const Color(0xFFB026FF) : Colors.white, borderRadius: BorderRadius.circular(50)),
-                      child: Icon(isEditingMode ? Icons.check : Icons.arrow_upward, color: _isAetherMode ? Colors.white : Colors.black, size: 20),
-                    ),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _send, 
+                    onLongPress: (!isEditingMode && !_isAetherMode) ? _showScheduleDialog : null, 
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: Container(height: 44, width: 44, decoration: BoxDecoration(color: _isAetherMode ? const Color(0xFFB026FF) : Colors.white, borderRadius: BorderRadius.circular(50)), child: Icon(isEditingMode ? Icons.check : Icons.arrow_upward, color: _isAetherMode ? Colors.white : Colors.black, size: 22)),
+                    )
                   )
                 : GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onLongPress: _startRecording,
                     onLongPressUp: _stopRecording,
-                    onLongPressMoveUpdate: (details) {
-                      if (details.offsetFromOrigin.dx < -50) { _recordTimer?.cancel(); _amplitudeSub?.cancel(); _audioRecorder.stop(); setState(() => _isRecordingAudio = false); }
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      height: 40, width: 40,
-                      decoration: BoxDecoration(
-                        color: _isRecordingAudio ? const Color(0xFFFF3B30) : Colors.white.withValues(alpha: 0.1),
-                        border: Border.all(color: _isRecordingAudio ? const Color(0xFFFF3B30) : Colors.transparent),
-                        borderRadius: BorderRadius.circular(50),
+                    onLongPressCancel: () { if (_isRecordingAudio) { _recordTimer?.cancel(); _amplitudeSub?.cancel(); _audioRecorder.stop(); setState(() => _isRecordingAudio = false); } },
+                    onLongPressMoveUpdate: (details) { if (details.offsetFromOrigin.dx < -50) { _recordTimer?.cancel(); _amplitudeSub?.cancel(); _audioRecorder.stop(); setState(() => _isRecordingAudio = false); } },
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 4.0, top: 4.0, bottom: 4.0),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200), 
+                        height: 44, width: 44, 
+                        decoration: BoxDecoration(color: _isRecordingAudio ? const Color(0xFFFF3B30) : Colors.white.withValues(alpha: 0.1), border: Border.all(color: _isRecordingAudio ? const Color(0xFFFF3B30) : Colors.transparent), borderRadius: BorderRadius.circular(50)), 
+                        child: Icon(_isRecordingAudio ? Icons.mic : Icons.mic_none, color: _isRecordingAudio ? Colors.white : (_isAetherMode ? const Color(0xFFB026FF) : Colors.white), size: 24)
                       ),
-                      child: Icon(_isRecordingAudio ? Icons.mic : Icons.mic_none, color: _isRecordingAudio ? Colors.white : (_isAetherMode ? const Color(0xFFB026FF) : Colors.white), size: 22),
                     ),
                   ),
             ),
