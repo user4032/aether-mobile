@@ -1321,7 +1321,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
         ],
       );
       
-      // 🔥 ОСЬ ФІКС: Читаємо байти правильно залежно від того, обрізав юзер фото чи ні
+      // 🔥 ОСЬ ФІКС: Читаємо байти правильно залежно від того, обрізав юзер фото або ні
       final bytes = croppedFile != null 
           ? await croppedFile.readAsBytes() 
           : await image.readAsBytes();
