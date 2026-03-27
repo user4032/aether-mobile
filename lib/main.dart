@@ -1849,6 +1849,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                       // ФІКС: Додали передачу avatarBase64
                       leading: SafeAvatar(avatarBase64: user['avatar'], fallbackName: user['userName'], radius: 18),
                       title: Row(children: [
+
                         Text(user['userName'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                         if (isVerified) ...[const SizedBox(width: 6), const VerifiedBadge(size: 13)],
                       ]),
@@ -2641,7 +2642,7 @@ class _ChatScreenState extends State<ChatScreen> {
       bytes, 
       fit: BoxFit.cover, 
       gaplessPlayback: true, 
-      cacheWidth: 800, 
+      cacheWidth: 400, // ФІКС: Зменшили з 800 до 400. Цього достатньо для екрану телефону, але оперативки жере в 4 рази менше!
       errorBuilder: (ctx, err, stack) => errorWidget
     );
   }
@@ -2791,73 +2792,97 @@ class _ChatScreenState extends State<ChatScreen> {
 
                           Widget bubble = TweenAnimationBuilder<double>(
                             tween: Tween<double>(begin: 0.0, end: 1.0),
-                            duration: const Duration(milliseconds: 380),
-                            curve: Curves.elasticOut,
-                            builder: (ctx, v, child) => Transform.scale(scale: 0.5 + (v * 0.5), alignment: isMe ? Alignment.bottomRight : Alignment.bottomLeft, child: Opacity(opacity: v.clamp(0.0, 1.0), child: child)),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.only(topLeft: const Radius.circular(20), topRight: const Radius.circular(20), bottomLeft: Radius.circular(isMe ? 20 : 6), bottomRight: Radius.circular(isMe ? 6 : 20)),
-                              child: BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 2),
-                                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
-                                  padding: EdgeInsets.only(left: isImage || isAudio ? 4 : 14, right: isImage || isAudio ? 4 : 14, top: isImage ? 4 : 10, bottom: isImage ? 4 : 10),
-                                  decoration: BoxDecoration(
-                                    color: isSearchMatch
-                                      ? const Color(0xFFFFD700).withValues(alpha: 0.15)
-                                      : (isMsgEphemeral ? const Color(0xFFB026FF).withValues(alpha: 0.2) : (isMe ? Colors.white.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05))),
-                                    border: Border.all(color: isSearchMatch ? const Color(0xFFFFD700) : (isMsgEphemeral ? const Color(0xFFB026FF) : (isMe ? Colors.white.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.1)))),
-                                    borderRadius: BorderRadius.only(topLeft: const Radius.circular(20), topRight: const Radius.circular(20), bottomLeft: Radius.circular(isMe ? 20 : 6), bottomRight: Radius.circular(isMe ? 6 : 20)),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (isGroupChat && !isMe) Padding(padding: const EdgeInsets.only(bottom: 2, left: 2), child: Text(m['senderName'] ?? 'Unknown', style: TextStyle(fontSize: 12, color: isMsgEphemeral ? const Color(0xFFE5B3FF) : Colors.white, fontWeight: FontWeight.w600))),
-                                      if (hasReply) Container(
-                                        margin: const EdgeInsets.only(bottom: 6), width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                        decoration: BoxDecoration(color: isMe ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(12)),
-                                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                          Text(m['replyTo']['senderName']?.toString() ?? 'Unknown', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
-                                          const SizedBox(height: 2),
-                                          Text(m['replyTo']['text']?.toString() ?? t('Повідомлення', 'Message'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.7))),
-                                        ]),
-                                      ),
-                                      if (isAudio)
-                                        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                                          AudioMessagePlayer(
-                                            base64Audio: m['text'] ?? '',
-                                            isMe: isMe,
-                                            isEphemeral: isMsgEphemeral,
-                                            showUnreadDot: !isMe && !isListened,
-                                            onPlay: () async {
-                                              if (!isMe && !isListened) {
-                                                setState(() { m['isListened'] = true; });
-                                                final prefs = await SharedPreferences.getInstance();
-                                                await prefs.setBool('listened_${m['timestamp']}', true);
-                                              }
-                                            },
-                                          ),
-                                          const SizedBox(height: 2),
-                                          timeAndStatusWidget,
-                                        ])
-                                      else if (isImage && m['text'] != null && m['text'].toString().length > 100)
-                                        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                                          ClipRRect(borderRadius: BorderRadius.circular(16), child: _buildImage(m['imageBytes'] ?? m['text'])),
-                                          const SizedBox(height: 4),
-                                          timeAndStatusWidget,
-                                        ])
-                                      else
-                                        Wrap(
-                                          alignment: WrapAlignment.end, crossAxisAlignment: WrapCrossAlignment.end,
-                                          children: [
-                                            // ВАЖЛИВО: Виклик нового методу парсингу посилань
-                                            _buildMessageText(m['text'] ?? '', isMsgEphemeral),
-                                            timeAndStatusWidget,
-                                          ],
-                                        ),
-                                    ],
-                                  ),
+                            duration: const Duration(milliseconds: 300), // Трохи швидша анімація
+                            curve: Curves.easeOutQuad, // Легша крива для процесора
+                            builder: (ctx, v, child) => Transform.scale(
+                              scale: 0.8 + (v * 0.2), // Спрощений скейл
+                              alignment: isMe ? Alignment.bottomRight : Alignment.bottomLeft, 
+                              child: Opacity(opacity: v.clamp(0.0, 1.0), child: child)
+                            ),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 2),
+                              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                              padding: EdgeInsets.only(
+                                left: isImage || isAudio ? 4 : 14, 
+                                right: isImage || isAudio ? 4 : 14, 
+                                top: isImage ? 4 : 10, 
+                                bottom: isImage ? 4 : 10
+                              ),
+                              decoration: BoxDecoration(
+                                // ФІКС: ЖОДНОГО BACKDROP FILTER! Використовуємо суцільні кольори (Dark Mode Telegram стиль)
+                                color: isSearchMatch
+                                    ? const Color(0xFF6B5B00) // Темно-золотий для пошуку
+                                    : (isMsgEphemeral 
+                                        ? const Color(0xFF4A1073) // Темно-фіолетовий
+                                        : (isMe ? const Color(0xFF2B5278) : const Color(0xFF212121))), // Синій для себе, темно-сірий для інших
+                                border: Border.all(
+                                  color: isSearchMatch 
+                                      ? const Color(0xFFFFD700).withValues(alpha: 0.5) 
+                                      : (isMsgEphemeral ? const Color(0xFFB026FF).withValues(alpha: 0.5) : Colors.transparent),
+                                  width: 0.5
                                 ),
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(18), 
+                                  topRight: const Radius.circular(18), 
+                                  bottomLeft: Radius.circular(isMe ? 18 : 4), 
+                                  bottomRight: Radius.circular(isMe ? 4 : 18)
+                                ),
+                                // ФІКС: Дуже легка тінь замість дорогого розмиття
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 2,
+                                    offset: const Offset(0, 1),
+                                  )
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start, 
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (isGroupChat && !isMe) Padding(padding: const EdgeInsets.only(bottom: 2, left: 2), child: Text(m['senderName'] ?? 'Unknown', style: TextStyle(fontSize: 12, color: isMsgEphemeral ? const Color(0xFFE5B3FF) : Colors.white, fontWeight: FontWeight.w600))),
+                                  if (hasReply) Container(
+                                    margin: const EdgeInsets.only(bottom: 6), width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text(m['replyTo']['senderName']?.toString() ?? 'Unknown', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                                      const SizedBox(height: 2),
+                                      Text(m['replyTo']['text']?.toString() ?? t('Повідомлення', 'Message'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.7))),
+                                    ]),
+                                  ),
+                                  if (isAudio)
+                                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                                      AudioMessagePlayer(
+                                        base64Audio: m['text'] ?? '',
+                                        isMe: isMe,
+                                        isEphemeral: isMsgEphemeral,
+                                        showUnreadDot: !isMe && !isListened,
+                                        onPlay: () async {
+                                          if (!isMe && !isListened) {
+                                            setState(() { m['isListened'] = true; });
+                                            final prefs = await SharedPreferences.getInstance();
+                                            await prefs.setBool('listened_${m['timestamp']}', true);
+                                          }
+                                        },
+                                      ),
+                                      const SizedBox(height: 2),
+                                      timeAndStatusWidget,
+                                    ])
+                                  else if (isImage && m['text'] != null && m['text'].toString().length > 100)
+                                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                                      ClipRRect(borderRadius: BorderRadius.circular(14), child: _buildImage(m['imageBytes'] ?? m['text'])),
+                                      const SizedBox(height: 4),
+                                      timeAndStatusWidget,
+                                    ])
+                                  else
+                                    Wrap(
+                                      alignment: WrapAlignment.end, crossAxisAlignment: WrapCrossAlignment.end,
+                                      children: [
+                                        _buildMessageText(m['text'] ?? '', isMsgEphemeral),
+                                        timeAndStatusWidget,
+                                      ],
+                                    ),
+                                ],
                               ),
                             ),
                           );
