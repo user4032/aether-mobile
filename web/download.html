@@ -52,7 +52,16 @@
     .apple-footer-content { max-width: 980px; margin: 0 auto; padding: 20px 0; }
     .footer-breadcrumbs { display: flex; align-items: center; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
     .footer-breadcrumbs a { color: #f5f5f7; text-decoration: none; font-weight: 500; font-size: 12px; display: flex; align-items: center; gap: 6px; }
-    .footer-breadcrumbs img { width: 18px; height: 18px; border-radius: 4px; object-fit: contain; }
+    /* РОБИМО ЛОГОТИП БІЛИМ ТА МАЛЕНЬКИМ ДЛЯ ЧОРНОГО ФОНУ */
+   /* РОБИМО ЛОГОТИП МАЛЕНЬКИМ ТА БІЛИМ (ДЛЯ ЧОРНОГО ФОНУ) */
+    .footer-breadcrumbs img {
+      width: 18px !important; /* Жорсткий розмір (як ) */
+      height: 18px !important;
+      border-radius: 4px;
+      object-fit: contain;
+      filter: invert(1); /* ЦЕЙ РЯДОК РОБИТЬ ЧОРНИЙ ЛОГОТИП БІЛИМ! */
+      opacity: 0.9; /* Легка прозорість для преміального вигляду */
+    }
     .footer-breadcrumbs-icon { font-size: 14px; }
     .footer-breadcrumbs span { color: #86868b; font-size: 12px; }
     .footer-directory { display: flex; flex-wrap: wrap; margin-bottom: 20px; }
@@ -123,7 +132,7 @@
       
       <div class="footer-breadcrumbs">
         <a href="index.html">
-          <span class="footer-breadcrumbs-icon"></span> LUMYN
+          <img src="icons/icon-192.png" alt="LUMYN"> LUMYN
         </a>
         <span>›</span>
         <span>Завантаження</span> 
