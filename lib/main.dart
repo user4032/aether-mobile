@@ -1757,9 +1757,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     leading: GestureDetector(onTap: () => _showUserProfile(f['userName'], f['avatar'], f['publicKey'], false), child: SafeAvatar(avatarBase64: f['avatar'], fallbackName: f['userName'], radius: 20)),
                     title: Row(children: [
                       Text(f['userName'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 16)),
-                      if (f['isVerified'] == true) ...[const SizedBox(width: 5), const VerifiedBadge(size: 13)],
+                      // ФІКС: Перевіряємо і на true, і на 1
+                      if (f['isVerified'] == true || f['isVerified'] == 1) ...[const SizedBox(width: 5), const VerifiedBadge(size: 13)],
                     ]),
-                    onTap: () => _startChat(f['userName'], f['publicKey'], targetAvatar: f['avatar'], isVerified: f['isVerified'] == true),
+                    onTap: () => _startChat(f['userName'], f['publicKey'], targetAvatar: f['avatar'], isVerified: (f['isVerified'] == true || f['isVerified'] == 1)),
                   ),
                   if (idx != _friends.length - 1) Divider(height: 1, indent: 60, color: Colors.white.withValues(alpha: 0.05)),
                 ]);
@@ -1845,7 +1846,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   final isVerified = user['isVerified'] == 1;
                   return Column(children: [
                     ListTile(
-                      leading: SafeAvatar(fallbackName: user['userName'], radius: 18),
+                      // ФІКС: Додали передачу avatarBase64
+                      leading: SafeAvatar(avatarBase64: user['avatar'], fallbackName: user['userName'], radius: 18),
                       title: Row(children: [
                         Text(user['userName'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                         if (isVerified) ...[const SizedBox(width: 6), const VerifiedBadge(size: 13)],
