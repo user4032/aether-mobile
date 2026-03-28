@@ -1,10 +1,14 @@
-import 'dart:ui'; 
+import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../utils/globals.dart';
 import '../widgets/ui_core.dart';
+import 'main_gate.dart';
 
 class AuthScreen extends StatefulWidget {
   final String deviceId, publicKey;
@@ -15,13 +19,18 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  // 0=login, 1=register_form, 2=verify_code
+  // 0=login, 1=register_form, 2=verify_code, 3=restore_backup
   int _step = 0;
   bool isLoading = false;
+  
   final _nameController = TextEditingController();
   final _passController = TextEditingController();
   final _emailController = TextEditingController();
   final _codeController = TextEditingController();
+  
+  final _restoreTokenController = TextEditingController();
+  final _restorePasswordController = TextEditingController();
+  
   String? _pendingEmail;
 
   void _login() async {
@@ -38,7 +47,7 @@ class _AuthScreenState extends State<AuthScreen> {
           await (await SharedPreferences.getInstance()).setString('user_name', name);
           widget.onSuccess(name);
         } else {
-          setState(() => isLoading = false);
+          if (mounted) setState(() => isLoading = false);
           _showSnack(response['message'] ?? t('Помилка', 'Error'), isError: true);
         }
       });
@@ -62,10 +71,10 @@ class _AuthScreenState extends State<AuthScreen> {
         'userName': name, 'email': email, 'password': pass, 'publicKey': widget.publicKey,
       }, ack: (dynamic response) {
         s.dispose();
-        setState(() => isLoading = false);
+        if (mounted) setState(() => isLoading = false);
         if (response['success'] == true) {
           _pendingEmail = email;
-          setState(() => _step = 2);
+          if (mounted) setState(() => _step = 2);
         } else {
           _showSnack(response['message'] ?? t('Помилка', 'Error'), isError: true);
         }
@@ -82,7 +91,7 @@ class _AuthScreenState extends State<AuthScreen> {
     s.onConnect((_) {
       s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {
         s.dispose();
-        setState(() => isLoading = false);
+        if (mounted) setState(() => isLoading = false);
         if (response['success'] == true) {
           final name = _nameController.text.trim();
           await (await SharedPreferences.getInstance()).setString('user_name', name);
@@ -94,8 +103,60 @@ class _AuthScreenState extends State<AuthScreen> {
     });
   }
 
+  // НОВИЙ МЕТОД ВІДНОВЛЕННЯ
+  void _restoreAccount() async {
+    final token = _restoreTokenController.text.trim();
+    final pass = _restorePasswordController.text.trim();
+    if (token.isEmpty || pass.isEmpty) return;
+    
+    setState(() => isLoading = true);
+    
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) throw Exception("Invalid format");
+      
+      final nonce = base64Decode(parts[0]);
+      final cipherText = base64Decode(parts[1]);
+      final mac = base64Decode(parts[2]);
+      
+      final aes = AesGcm.with256bits();
+      final passHash = await Sha256().hash(utf8.encode(pass));
+      final key = await aes.newSecretKeyFromBytes(passHash.bytes);
+      
+      final box = SecretBox(cipherText, nonce: nonce, mac: Mac(mac));
+      final decryptedBytes = await aes.decrypt(box, secretKey: key);
+      final payload = jsonDecode(utf8.decode(decryptedBytes));
+      
+      final prefs = await SharedPreferences.getInstance();
+      final storage = const FlutterSecureStorage();
+      
+      // Записуємо розшифровані ключі назад у сховище пристрою
+      await storage.write(key: 'private_key', value: payload['priv']);
+      await prefs.setString('public_key', payload['pub']);
+      await prefs.setString('device_id', payload['dev']);
+      await prefs.setString('user_name', payload['name']);
+      
+      if (!mounted) return;
+      
+      _showSnack(t("Успішно відновлено!", "Restored successfully!"));
+      
+      // Перезапускаємо додаток повністю, щоб MainGate підтягнув нові ключі
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const MainGate()), (route) => false);
+        }
+      });
+      
+    } catch (e) {
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t("Невірний токен або пароль", "Invalid token or password"), isError: true);
+      }
+    }
+  }
+
   void _showSnack(String msg, {bool isError = false}) {
-    if (!context.mounted) return;
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg, style: const TextStyle(color: Colors.white)),
       backgroundColor: isError ? Colors.red.shade900 : const Color(0xFF333333),
@@ -121,7 +182,10 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: child,
                 ),
               ),
-              child: _step == 2 ? _buildCodeStep() : (_step == 1 ? _buildRegisterStep() : _buildLoginStep()),
+              child: _step == 3 ? _buildRestoreStep() 
+                   : (_step == 2 ? _buildCodeStep() 
+                   : (_step == 1 ? _buildRegisterStep() 
+                   : _buildLoginStep())),
             ),
           ),
         ),
@@ -137,7 +201,7 @@ class _AuthScreenState extends State<AuthScreen> {
       children: [
         Text(t("З поверненням.", "Welcome back."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
-        const Text("Aether Core Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
+        const Text("LUMYN Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
         const SizedBox(height: 48),
         GlassInput(controller: _nameController, hintText: t("Нікнейм", "Username"), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
         const SizedBox(height: 16),
@@ -148,6 +212,12 @@ class _AuthScreenState extends State<AuthScreen> {
         GestureDetector(
           onTap: () => setState(() => _step = 1),
           child: Text(t("Немає акаунту? Створити", "Don't have an account? Register"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
+        ),
+        const SizedBox(height: 16),
+        // НОВА КНОПКА ВІДНОВЛЕННЯ
+        GestureDetector(
+          onTap: () => setState(() => _step = 3),
+          child: Text(t("Відновити з копії", "Restore from backup"), textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFB026FF), fontSize: 14, fontWeight: FontWeight.w600)),
         ),
       ],
     );
@@ -161,7 +231,7 @@ class _AuthScreenState extends State<AuthScreen> {
       children: [
         Text(t("Створити акаунт.", "Create account."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
-        const Text("Aether Core Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
+        const Text("LUMYN Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
         const SizedBox(height: 48),
         GlassInput(controller: _nameController, hintText: t("Нікнейм", "Username"), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
         const SizedBox(height: 16),
@@ -234,6 +304,35 @@ class _AuthScreenState extends State<AuthScreen> {
         TextButton(
           onPressed: () => setState(() { _step = 1; _codeController.clear(); }),
           child: Text(t("← Назад", "← Back"), style: const TextStyle(color: Colors.white70)),
+        ),
+      ],
+    );
+  }
+
+  // НОВИЙ ВІДЖЕТ ДЛЯ ЕКРАНУ ВІДНОВЛЕННЯ
+  Widget _buildRestoreStep() {
+    return Column(
+      key: const ValueKey('restore'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Icon(Icons.restore, color: Color(0xFFB026FF), size: 48),
+        const SizedBox(height: 24),
+        Text(t("Відновлення.", "Restore."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        const SizedBox(height: 8),
+        Text(t("Введіть ваш токен та пароль дешифрування.", "Enter your Backup Token and decryption password."), style: const TextStyle(color: Colors.white70, fontSize: 14)),
+        const SizedBox(height: 48),
+        GlassInput(controller: _restoreTokenController, hintText: t("Backup Token", "Backup Token")),
+        const SizedBox(height: 16),
+        GlassInput(controller: _restorePasswordController, hintText: t("Пароль", "Password"), obscureText: true),
+        const SizedBox(height: 32),
+        ShineButton(text: t("Відновити", "Restore"), isLoading: isLoading, onPressed: _restoreAccount),
+        const SizedBox(height: 24),
+        GestureDetector(
+          onTap: () {
+            setState(() { _step = 0; _restoreTokenController.clear(); _restorePasswordController.clear(); });
+          },
+          child: Text(t("← Повернутися до входу", "← Back to login"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
         ),
       ],
     );

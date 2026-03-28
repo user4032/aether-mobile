@@ -676,7 +676,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
-                ListTile(leading: const Icon(Icons.reply, color: Colors.white), title: Text(t('Відповісти', 'Reply'), style: const TextStyle(color: Colors.white)), onTap: () { Navigator.pop(context); setState(() => _replyingTo = m); _chatFocusNode.requestFocus(); }),
+                ListTile(leading: const Icon(Icons.reply, color: Colors.white), title: Text(t('Відповісти', 'Reply'), style: const TextStyle(color: Colors.white)), onTap: () { 
+                  Navigator.pop(context); 
+                  setState(() => _replyingTo = m); 
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                   if (mounted) _chatFocusNode.requestFocus(); 
+                 });
+                }),
                 if (isMe && m['type'] == 'text') ...[
                   Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
                   ListTile(leading: const Icon(Icons.edit_outlined, color: Colors.white), title: Text(t('Редагувати', 'Edit'), style: const TextStyle(color: Colors.white)), onTap: () { Navigator.pop(context); setState(() { _editingMessage = m; _replyingTo = null; _c.text = m['text'] ?? ''; _hasText = _c.text.trim().isNotEmpty; }); _chatFocusNode.requestFocus(); }),
@@ -877,9 +883,19 @@ void _showForwardDialog(Map<String, dynamic> msg) {
     final Widget errorWidget = Container(padding: const EdgeInsets.all(12), color: const Color(0xFF222222), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.broken_image, color: Colors.white70), const SizedBox(width: 8), Text(t("Помилка", "Error"), style: const TextStyle(color: Colors.white70))]));
     if (bytesOrString == null) return errorWidget;
     Uint8List bytes = bytesOrString is Uint8List ? bytesOrString : base64Decode(bytesOrString);
-    return Image.memory(
-      bytes, fit: BoxFit.cover, gaplessPlayback: true, cacheWidth: 400, cacheHeight: 400, filterQuality: FilterQuality.low,
-      errorBuilder: (ctx, err, stack) => errorWidget
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.4, // Фото не буде вищим за 40% екрана
+      ),
+      child: Image.memory(
+        bytes, 
+        // Прибрали BoxFit.cover, тепер фото зберігає свої пропорції
+        fit: BoxFit.contain, 
+        gaplessPlayback: true, 
+        // Збільшили якість кешування для кращого вигляду на iPhone
+        cacheWidth: 800, 
+        errorBuilder: (ctx, err, stack) => errorWidget
+      ),
     );
   }
 

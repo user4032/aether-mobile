@@ -138,18 +138,34 @@ class _ContactsScreenState extends State<ContactsScreen> {
     if (!mounted) return;
     final croppedFile = await ImageCropper().cropImage(
       sourcePath: image.path,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1), // Фіксуємо квадрат
+      // ВИДАЛЕНО cropStyle, який викликав помилку
       uiSettings: [
-        WebUiSettings(context: context),
-        AndroidUiSettings(toolbarTitle: t('Обрізати', 'Crop'), toolbarColor: Colors.black, toolbarWidgetColor: Colors.white, initAspectRatio: CropAspectRatioPreset.square, lockAspectRatio: false),
-        IOSUiSettings(title: t('Обрізати', 'Crop')),
+        AndroidUiSettings(
+          toolbarTitle: t('Профіль', 'Profile'),
+          toolbarColor: Colors.black, // Чорний фон як на скріні
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+          backgroundColor: Colors.black,
+          dimmedLayerColor: Colors.black.withValues(alpha: 0.8),
+        ),
+        IOSUiSettings(
+          title: 'Profile',
+          cancelButtonTitle: 'Cancel',
+          doneButtonTitle: 'Crop',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+          aspectRatioPickerButtonHidden: true,
+        ),
       ],
     );
     
-    final bytes = croppedFile != null 
-        ? await croppedFile.readAsBytes() 
-        : await image.readAsBytes();
-        
+    if (croppedFile == null) return;
+
+    final bytes = await croppedFile.readAsBytes();
     final base64String = base64Encode(bytes);
+    
     if (!mounted) return;
     setState(() { _myAvatar = base64String; });
     _bgSocket.emit('update_avatar', {'userName': widget.userName, 'avatar': base64String});

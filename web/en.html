@@ -179,6 +179,7 @@
     @media (max-width: 768px) {
       .nav-links { display: none; }
       nav { padding: 0 20px; }
+      #mobile-menu-btn { display: block !important; }
     }
 
     /* ─── HERO SECTION ─── */
@@ -386,18 +387,28 @@
 <div id="landing">
 
   <nav>
-    <a href="/en" class="nav-logo">
+    <a href="/" class="nav-logo">
       <img src="icons/logo-192.png" alt="Logo">
       LUMYN
     </a>
     <div class="nav-links">
-    <a href="/en">Home</a>
-    <a href="/download">Apps</a>
-    <a href="/faq">FAQ</a>
-    <a href="/support">Support</a>
-    <a href="/" class="btn-outline" style="margin-left: 20px;">UA</a>
-  </div>
+      <a href="/">Головна</a>
+      <a href="/download">Додатки</a>
+      <a href="/faq">ЧаПи</a>
+      <a href="/support">Підтримка</a>
+      <a href="/en" class="btn-outline" style="margin-left: 20px;">EN</a>
+    </div>
+    
+    <button id="mobile-menu-btn" style="display:none; background:none; border:none; color:white; font-size:26px; cursor:pointer;">☰</button>
   </nav>
+
+  <div id="mobile-dropdown" style="display:none; position:fixed; top:80px; left:0; right:0; background:rgba(0,0,0,0.95); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,0.1); padding:20px; z-index:199; flex-direction:column; gap:16px; text-align:center;">
+      <a href="/" style="color:white; text-decoration:none; font-size:16px;">Home</a>
+      <a href="/download" style="color:white; text-decoration:none; font-size:16px;">Apps</a>
+      <a href="/faq" style="color:white; text-decoration:none; font-size:16px;">FAQ</a>
+      <a href="/support" style="color:white; text-decoration:none; font-size:16px;">Support</a>
+      <a href="/en" style="color:white; text-decoration:none; font-size:16px; opacity:0.5; margin-top:8px;">UA (Українська)</a>
+  </div>
 
   <section id="hero">
     <canvas class="canvas-bg" id="hero-canvas"></canvas>
@@ -626,7 +637,19 @@ function forceFlutterLoad() {
   sc.src = 'flutter_bootstrap.js'; sc.async = true;
   document.body.appendChild(sc);
 }
-
+/* ══════════════════════════════════════════════
+   MOBILE MENU TOGGLE
+══════════════════════════════════════════════ */
+document.getElementById('mobile-menu-btn').addEventListener('click', function() {
+  var dropdown = document.getElementById('mobile-dropdown');
+  if (dropdown.style.display === 'none') {
+    dropdown.style.display = 'flex';
+    this.textContent = '✕'; // Міняємо іконку на хрестик
+  } else {
+    dropdown.style.display = 'none';
+    this.textContent = '☰'; // Повертаємо гамбургер
+  }
+});
 (function(){
   var standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
   var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
