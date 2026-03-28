@@ -110,14 +110,20 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      if (_savedPin != null && _savedPin!.isNotEmpty) {
-        setState(() { _isAppLocked = true; _enteredPin = ''; });
-      }
+void didChangeAppLifecycleState(AppLifecycleState state) {
+  super.didChangeAppLifecycleState(state);
+  if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (_savedPin != null && _savedPin!.isNotEmpty) {
+      setState(() {
+        _isAppLocked = true;
+        _enteredPin = '';
+        // ← ФІКС: скидаємо незавершене встановлення PIN
+        _isSettingPin = false;
+        _tempNewPin = '';
+      });
     }
   }
+}
 
   void _onPinTap(String val) {
     if (val == 'back') {
@@ -596,78 +602,134 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
 
   // --- ЕКРАН БЛОКУВАННЯ ---
   Widget _buildLockScreen() {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.lock_outline, size: 50, color: Colors.white),
-            const SizedBox(height: 20),
-            Text(
-              _isSettingPin 
-                  ? (_tempNewPin.isEmpty ? t("Придумайте PIN-код", "Create PIN") : t("Повторіть PIN-код", "Confirm PIN"))
-                  : t("Введіть PIN-код", "Enter PIN"), 
-              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)
-            ),
-            const SizedBox(height: 40),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (index) {
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 12),
-                  width: 16, height: 16,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _enteredPin.length > index ? const Color(0xFFB026FF) : Colors.transparent,
-                    border: Border.all(color: _enteredPin.length > index ? const Color(0xFFB026FF) : Colors.white54, width: 2),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 60),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 50),
-              child: GridView.count(
-                shrinkWrap: true,
-                crossAxisCount: 3,
-                mainAxisSpacing: 20,
-                crossAxisSpacing: 20,
-                childAspectRatio: 1.2,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  for (var i = 1; i <= 9; i++) _numButton(i.toString()),
-                  _numButton(''), // Empty
-                  _numButton('0'),
-                  _numButton('back', icon: Icons.backspace_outlined),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  final isPinConfirmStep = _isSettingPin && _tempNewPin.isNotEmpty;
 
-  Widget _numButton(String val, {IconData? icon}) {
-    if (val.isEmpty) return const SizedBox();
-    return GestureDetector(
-      onTap: () => _onPinTap(val),
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+  return Scaffold(
+    backgroundColor: Colors.black,
+    body: Stack(
+      children: [
+        // Фонові кружки
+        Positioned(top: -80, left: -60, child: Container(width: 280, height: 280, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFB026FF).withValues(alpha: 0.08)))),
+        Positioned(bottom: -100, right: -80, child: Container(width: 320, height: 320, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFB026FF).withValues(alpha: 0.05)))),
+
+        SafeArea(
+          child: Column(
+            children: [
+              const Spacer(flex: 2),
+
+              // Іконка замку
+              Container(
+                width: 72, height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.05),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+                ),
+                child: const Icon(Icons.lock_outline_rounded, size: 32, color: Colors.white),
+              ),
+              const SizedBox(height: 24),
+
+              // Заголовок
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Text(
+                  key: ValueKey(_isSettingPin ? (_tempNewPin.isEmpty ? 'create' : 'confirm') : 'enter'),
+                  _isSettingPin
+                      ? (_tempNewPin.isEmpty
+                          ? t("Створіть PIN-код", "Create PIN code")
+                          : t("Підтвердіть PIN-код", "Confirm PIN code"))
+                      : t("Введіть PIN-код", "Enter PIN code"),
+                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.5),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _isSettingPin
+                    ? (isPinConfirmStep
+                        ? t("Введіть PIN ще раз", "Enter PIN again")
+                        : t("4 цифри для захисту додатку", "4 digits to protect the app"))
+                    : t("Ваш особистий код безпеки", "Your personal security code"),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 14),
+              ),
+
+              const Spacer(),
+
+              // Крапки-індикатори
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(4, (index) {
+                  final filled = _enteredPin.length > index;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    curve: Curves.easeOutBack,
+                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                    width: filled ? 18 : 14,
+                    height: filled ? 18 : 14,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: filled ? const Color(0xFFB026FF) : Colors.transparent,
+                      border: Border.all(
+                        color: filled ? const Color(0xFFB026FF) : Colors.white.withValues(alpha: 0.3),
+                        width: 2,
+                      ),
+                      boxShadow: filled
+                          ? [BoxShadow(color: const Color(0xFFB026FF).withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1)]
+                          : [],
+                    ),
+                  );
+                }),
+              ),
+
+              const Spacer(),
+
+              // Клавіатура
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Column(
+                  children: [
+                    for (final row in [['1','2','3'], ['4','5','6'], ['7','8','9'], ['','0','back']])
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: row.map((val) => _numButton(val)).toList(),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+            ],
+          ),
         ),
-        child: Center(
-          child: icon != null 
-              ? Icon(icon, color: Colors.white, size: 28) 
-              : Text(val, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w600)),
-        ),
+      ],
+    ),
+  );
+}
+
+Widget _numButton(String val, {IconData? icon}) {
+  if (val.isEmpty) return const SizedBox(width: 72, height: 72);
+
+  return GestureDetector(
+    onTap: () => _onPinTap(val),
+    behavior: HitTestBehavior.opaque,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 100),
+      width: 72, height: 72,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: 0.07),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
-    );
-  }
+      child: Center(
+        child: val == 'back'
+            ? Icon(Icons.backspace_outlined, color: Colors.white.withValues(alpha: 0.8), size: 24)
+            : Text(val, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w400, letterSpacing: -0.5)),
+      ),
+    ),
+  );
+}
 
   // --- ТАБИ ---
   Widget _buildChatsTab() {
@@ -843,18 +905,25 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               leading: const Icon(Icons.lock_outline, color: Colors.white), 
               title: Text(t("PIN-код для входу", "App Lock (PIN)"), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)), 
               trailing: Switch(
-                value: _savedPin != null && _savedPin!.isNotEmpty,
-                activeColor: const Color(0xFFB026FF),
-                onChanged: (val) {
-                  if (val) {
-                    setState(() { _isAppLocked = true; _isSettingPin = true; _enteredPin = ''; _tempNewPin = ''; });
-                  } else {
-                    setState(() { _isAppLocked = true; _isSettingPin = false; _enteredPin = ''; });
-                    const FlutterSecureStorage().delete(key: 'app_pin');
-                    setState(() { _savedPin = null; });
-                  }
-                },
-              ),
+  value: _savedPin != null && _savedPin!.isNotEmpty,
+  activeColor: const Color(0xFFB026FF),
+  onChanged: (val) async {
+    if (val) {
+      // Вмикаємо — показуємо екран встановлення PIN
+      setState(() {
+        _isAppLocked = true;
+        _isSettingPin = true;
+        _enteredPin = '';
+        _tempNewPin = '';
+      });
+    } else {
+      // ← ФІКС: НЕ блокуємо апп, просто видаляємо PIN
+      await const FlutterSecureStorage().delete(key: 'app_pin');
+      setState(() { _savedPin = null; });
+      _showSnack(t("PIN-код вимкнено", "PIN disabled"));
+    }
+  },
+),
             ),
             Divider(height: 1, indent: 50, color: Colors.white.withValues(alpha: 0.05)),
             ListTile(leading: const Icon(Icons.vpn_key, color: Colors.white), title: Text(t("Експорт акаунта", "Export Account"), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)), subtitle: Text(t("Створити резервну копію ключів", "Create a backup of your keys"), style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)), onTap: _showExportDialog),
@@ -945,6 +1014,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   // ─────────────────────────────────────────────────────────
   // НОВЕ ПОВНІСТЮ ЧОРНЕ МЕНЮ З UIVERSE (З НАШИМИ 3 КНОПКАМИ)
   // ─────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────
+  // ПРЕМІАЛЬНЕ ЧОРНЕ МЕНЮ (АДАПТОВАНО З UIVERSE)
+  // ─────────────────────────────────────────────────────────
   Widget _buildDarkGlassMenu(int totalUnread, int totalPending) {
     return Align(
       alignment: Alignment.bottomCenter,
@@ -952,30 +1024,35 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         padding: EdgeInsets.only(
           left: 10, 
           right: 10, 
+          // Відступ знизу для iPhone
           bottom: MediaQuery.of(context).padding.bottom + 12
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: BackdropFilter(
+            // backdrop-filter: blur(12px)
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
               width: double.infinity,
               constraints: const BoxConstraints(maxWidth: 520),
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6), // Темне матове скло
+                // background: rgba(20, 20, 20, 0.75);
+                color: const Color(0xFF141414).withValues(alpha: 0.75),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                // border: 1px solid rgba(255, 255, 255, 0.08);
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 30, offset: const Offset(0, 10))
+                  // box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 30, offset: const Offset(0, 10))
                 ],
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _menuItem(0, Icons.chat_bubble_rounded, t("Чати", "Chats"), totalUnread),
+                  _menuItem(0, Icons.home_rounded, t("Чати", "Home"), totalUnread),
                   _menuItem(1, Icons.people_rounded, t("Друзі", "Friends"), totalPending),
-                  _menuItem(2, Icons.settings_rounded, t("Профіль", "Profile"), 0),
+                  _menuItem(2, Icons.settings_rounded, t("Профіль", "Settings"), 0),
                 ],
               ),
             ),
@@ -987,15 +1064,18 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
 
   Widget _menuItem(int index, IconData icon, String label, int badgeCount) {
     final isActive = _currentIndex == index;
-    final color = isActive ? Colors.white : Colors.white54;
-    final bgColor = isActive ? Colors.white.withValues(alpha: 0.15) : Colors.transparent;
+    // color: rgba(255, 255, 255, 0.95) для активного, 0.65 для неактивного
+    final color = isActive ? Colors.white.withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.65);
+    // background: rgba(255, 255, 255, 0.12) для активного
+    final bgColor = isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent;
 
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _currentIndex = index),
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          // transition: background 0.18s
+          duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
@@ -1017,8 +1097,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                 label,
                 style: TextStyle(
                   color: color,
-                  fontSize: 11,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 11, // font-size: 0.8rem
+                  fontWeight: FontWeight.w600,
+                  height: 1,
                 ),
               ),
             ],
