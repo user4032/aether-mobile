@@ -114,7 +114,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
             try {
               if (dec.startsWith('{') && dec.endsWith('}')) { chat['decryptedText'] = jsonDecode(dec)['text']; }
               else { chat['decryptedText'] = dec; }
-            } catch (e) { chat['decryptedText'] = dec; }
+            } catch (e) { 
+              // ФІКС: Красивий текст у списку чатів, якщо не вийшло розшифрувати
+              chat['decryptedText'] = t("🔒 Повідомлення зашифровано", "🔒 Message encrypted"); 
+            }
           } else {
             chat['decryptedText'] = m['text'] ?? t("Повідомлення", "Message");
           }

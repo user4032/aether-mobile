@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
-import 'dart:typed_data'; // Фікс для Uint8List
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -55,7 +55,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isAetherMode = false;
   bool _isSearchMode = false;
   
-  int _ephemeralDuration = 5; // НОВА ЗМІННА: Час ефірного повідомлення
+  int _ephemeralDuration = 5;
 
   String _searchQuery = '';
   List<int> _searchMatchIndices = [];
@@ -84,13 +84,17 @@ class _ChatScreenState extends State<ChatScreen> {
     _connect();
   }
 
-  // НОВИЙ МЕТОД: Перемикання часу
   void _cycleEphemeralDuration() {
     setState(() {
-      if (_ephemeralDuration == 5) _ephemeralDuration = 10;
-      else if (_ephemeralDuration == 10) _ephemeralDuration = 30;
-      else if (_ephemeralDuration == 30) _ephemeralDuration = 60;
-      else _ephemeralDuration = 5;
+      if (_ephemeralDuration == 5) {
+        _ephemeralDuration = 10;
+      } else if (_ephemeralDuration == 10) {
+        _ephemeralDuration = 30;
+      } else if (_ephemeralDuration == 30) {
+        _ephemeralDuration = 60;
+      } else {
+        _ephemeralDuration = 5;
+      }
     });
   }
 
@@ -118,11 +122,7 @@ class _ChatScreenState extends State<ChatScreen> {
         final dir = await getApplicationDocumentsDirectory();
         final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
         await _audioRecorder.start(
-          const RecordConfig(
-            encoder: AudioEncoder.aacLc, 
-            bitRate: 128000,
-            sampleRate: 44100,
-          ), 
+          const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000, sampleRate: 44100), 
           path: path
         );
         setState(() { _isRecordingAudio = true; _recordDuration = 0; _recordAmplitudes = List.generate(30, (_) => 2.0); });
@@ -181,7 +181,10 @@ class _ChatScreenState extends State<ChatScreen> {
             msg['imageBytes'] = base64Decode(parsed['imageBytes']);
           }
         } else { msg['text'] = dec; }
-      } catch (e) { msg['text'] = "Encrypted"; }
+      } catch (e) { 
+        msg['text'] = "Encrypted"; 
+        msg['isDecryptionFailed'] = true; 
+      }
     }
     if (msg['senderName'] == widget.partnerName && msg['publicKey'] != null && !msg['publicKey'].toString().startsWith('GROUP_')) {
       _currentPartnerKey = msg['publicKey'];
@@ -201,14 +204,32 @@ class _ChatScreenState extends State<ChatScreen> {
       } else {
         if (mounted) setState(() { _isCheckingPresence = false; });
       }
+      
       String historyPartner = widget.partnerPublicKey.startsWith('GROUP_') ? widget.partnerPublicKey : widget.partnerName;
       socket.emitWithAck('get_direct_history', {'me': widget.userName, 'partner': historyPartner}, ack: (dynamic data) async {
         List<Map<String, dynamic>> temp = [];
+        bool hasEncryptedOldMessages = false;
+
         for (var m in (data as List)) {
           var msgMap = Map<String, dynamic>.from(m);
           await _processMessage(msgMap);
-          temp.add(msgMap);
+          
+          if (msgMap['isDecryptionFailed'] == true) {
+            hasEncryptedOldMessages = true;
+          } else {
+            temp.add(msgMap);
+          }
         }
+
+        if (hasEncryptedOldMessages) {
+           temp.insert(0, {
+             'isSystem': true,
+             'text': t("🔒 Попередні повідомлення були надійно зашифровані та недоступні для цієї сесії.", "🔒 Previous messages were encrypted and are unavailable in this session."),
+             'timestamp': temp.isNotEmpty ? temp.first['timestamp'] : DateTime.now().toIso8601String(),
+             'senderName': 'system',
+           });
+        }
+
         if (mounted) {
           setState(() { _messages.clear(); _messages.addAll(temp); _isLoadingHistory = false; });
           socket.emit('mark_read', {'chatId': historyPartner, 'readerName': widget.userName});
@@ -257,7 +278,15 @@ class _ChatScreenState extends State<ChatScreen> {
             _messages.add(msg);
             if (_isSearchMode && _searchQuery.isNotEmpty) _updateSearchResults();
           });
-          WidgetsBinding.instance.addPostFrameCallback((_) { if (_scrollController.hasClients) _scrollController.animateTo(_scrollController.position.maxScrollExtent, duration: const Duration(milliseconds: 300), curve: Curves.easeOut); });
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (_scrollController.hasClients && mounted) {
+              _scrollController.animateTo(
+                _scrollController.position.maxScrollExtent + 100,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+              );
+            }
+          });
           if (msg['senderName'] != widget.userName && msg['isEphemeral'] != true) {
             String chatId = _currentPartnerKey.startsWith('GROUP_') ? _currentPartnerKey : msg['senderName'];
             socket.emit('mark_read', {'chatId': chatId, 'readerName': widget.userName});
@@ -395,7 +424,7 @@ class _ChatScreenState extends State<ChatScreen> {
         'mac': base64Encode(box.mac.bytes), 
         'senderName': widget.userName, 
         'receiverName': _currentPartnerKey.startsWith('GROUP_') ? _currentPartnerKey : widget.partnerName,
-        if (_isAetherMode) 'ephemeralDuration': _ephemeralDuration, // ПЕРЕДАЄМО ЧАС НА СЕРВЕР
+        if (_isAetherMode) 'ephemeralDuration': _ephemeralDuration,
       });
     }
   }
@@ -550,9 +579,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _pickAndSendImage() async {
     final XFile? image = await _picker.pickImage(
       source: ImageSource.gallery, 
-      maxWidth: 1600, 
-      maxHeight: 1600, 
-      imageQuality: 80
+      maxWidth: 800, 
+      maxHeight: 800, 
+      imageQuality: 50
     );
     if (image == null || !mounted) return;
 
@@ -617,15 +646,17 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     final box = await _aes.encrypt(utf8.encode(payloadStr), secretKey: key);
+    String actualType = _isAetherMode ? 'ephemeral_image' : 'image';
+
     socket.emit('message', {
-      'type': 'image', 
+      'type': actualType, 
       'text': 'encrypted_payload', 
       'ciphertext': base64Encode(box.cipherText), 
       'nonce': base64Encode(box.nonce), 
       'mac': base64Encode(box.mac.bytes), 
       'senderName': widget.userName, 
       'receiverName': _currentPartnerKey.startsWith('GROUP_') ? _currentPartnerKey : widget.partnerName,
-      if (_isAetherMode) 'ephemeralDuration': _ephemeralDuration, // ПЕРЕДАЄМО ЧАС НА СЕРВЕР
+      if (_isAetherMode) 'ephemeralDuration': _ephemeralDuration,
     });
     
     setState(() { _replyingTo = null; });
@@ -891,6 +922,23 @@ class _ChatScreenState extends State<ChatScreen> {
                         itemCount: _messages.length,
                         itemBuilder: (context, i) {
                           final m = _messages[i];
+                          
+                          if (m['isSystem'] == true) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+                              child: Text(
+                                m['text'] ?? '',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.4), 
+                                  fontSize: 13, 
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.5,
+                                ),
+                              ),
+                            );
+                          }
+
                           final isMe = m['senderName'] == widget.userName;
                           final timeStr = _formatTime(m['timestamp']);
                           final isImage = m['type'] == 'image';
@@ -900,7 +948,6 @@ class _ChatScreenState extends State<ChatScreen> {
                           final isMsgEphemeral = m['isEphemeral'] == true;
                           final isListened = m['isListened'] == true;
                           
-                          // ВИТЯГУЄМО ЧАС З ПОВІДОМЛЕННЯ
                           final ephemeralDuration = m['ephemeralDuration'] as int? ?? 5;
                           
                           final msgKey = '${m['timestamp']}_${m['senderName']}';
@@ -1027,7 +1074,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                     onLongPress: () => _showMessageOptions(m, isMe),
                                     child: HoldToRevealWrapper(
                                       isEphemeral: isMsgEphemeral,
-                                      durationSeconds: ephemeralDuration, // ПЕРЕДАЄМО ЧАС ТУДИ
+                                      durationSeconds: ephemeralDuration,
                                       onRevealStarted: () { 
                                         Timer(Duration(seconds: ephemeralDuration), () { 
                                           if (mounted) socket.emit('delete_message', {'timestamp': m['timestamp'], 'senderName': m['senderName']}); 
@@ -1138,7 +1185,6 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
             if (!isEditingMode && !_isRecordingAudio) Padding(padding: const EdgeInsets.only(bottom: 0), child: GestureDetector(onTap: _pickAndSendImage, child: Icon(Icons.add, color: _isAetherMode ? const Color(0xFFB026FF) : Colors.white, size: 26))),
             
-            // НОВИЙ КНОПКА-ТАЙМЕР ТУТ
             if (_isAetherMode && !_isRecordingAudio && !isEditingMode)
               GestureDetector(
                 onTap: _cycleEphemeralDuration,
