@@ -12,6 +12,7 @@ import 'package:audioplayers/audioplayers.dart';
 import '../utils/globals.dart';
 import '../widgets/ui_core.dart';
 import 'chat_screen.dart';
+import 'dart:math' show pi;
 import 'main_gate.dart';
 
 class ContactsScreen extends StatefulWidget {
@@ -20,7 +21,99 @@ class ContactsScreen extends StatefulWidget {
   @override
   State<ContactsScreen> createState() => _ContactsScreenState();
 }
+class _AppleLockIcon extends StatelessWidget {
+  const _AppleLockIcon();
 
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: CustomPaint(
+        painter: _LockPainter(),
+      ),
+    );
+  }
+}
+
+class _LockPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double cx = size.width / 2;
+    final double cy = size.height / 2;
+
+    // --- Зовнішнє кільце (glow) ---
+    final glowPaint = Paint()
+      ..color = const Color(0xFFB026FF).withValues(alpha: 0.15)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+    canvas.drawCircle(Offset(cx, cy), 36, glowPaint);
+
+    // --- Фон кола ---
+    final bgPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.07)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(cx, cy), 34, bgPaint);
+
+    // --- Обводка кола ---
+    final borderPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.15)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    canvas.drawCircle(Offset(cx, cy), 34, borderPaint);
+
+    final bodyPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    final strokePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // --- Тіло замка (заокруглений прямокутник) ---
+    const double bw = 20, bh = 14;
+    const double bx = (72 - bw) / 2, by = 36.0;
+    final bodyRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(bx, by, bw, bh),
+      const Radius.circular(5),
+    );
+    canvas.drawRRect(bodyRect, bodyPaint);
+
+    // --- Дужка замка (дуга) ---
+    final arcRect = Rect.fromCenter(
+      center: Offset(cx, by + 1),
+      width: 13,
+      height: 14,
+    );
+    final arcPath = Path()
+      ..addArc(arcRect, pi, pi); // верхня дуга
+    canvas.drawPath(arcPath, strokePaint);
+
+    // --- Замковий отвір (кружечок + лінія вниз) ---
+    final holePaint = Paint()
+      ..color = const Color(0xFF141414)
+      ..style = PaintingStyle.fill;
+
+    // Кружечок
+    canvas.drawCircle(Offset(cx, by + bh / 2 - 1), 2.4, holePaint);
+
+    // Лінійка вниз
+    final linePath = Path()
+      ..moveTo(cx, by + bh / 2 + 1.4)
+      ..lineTo(cx, by + bh / 2 + 4.5);
+    final linePaint = Paint()
+      ..color = const Color(0xFF141414)
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    canvas.drawPath(linePath, linePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
 class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   late io.Socket _bgSocket;
@@ -708,7 +801,7 @@ void didChangeAppLifecycleState(AppLifecycleState state) {
   );
 }
 
-Widget _numButton(String val, {IconData? icon}) {
+Widget _numButton(String val) {
   if (val.isEmpty) return const SizedBox(width: 72, height: 72);
 
   return GestureDetector(
@@ -902,11 +995,11 @@ Widget _numButton(String val, {IconData? icon}) {
           child: Column(children: [
             // НОВА КНОПКА PIN-LOCK
             ListTile(
-              leading: const Icon(Icons.lock_outline, color: Colors.white), 
+              leading: _AppleLockIcon(),
               title: Text(t("PIN-код для входу", "App Lock (PIN)"), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)), 
               trailing: Switch(
   value: _savedPin != null && _savedPin!.isNotEmpty,
-  activeColor: const Color(0xFFB026FF),
+  activeThumbColor: const Color(0xFFB026FF),
   onChanged: (val) async {
     if (val) {
       // Вмикаємо — показуємо екран встановлення PIN
@@ -1018,125 +1111,172 @@ Widget _numButton(String val, {IconData? icon}) {
   // ПРЕМІАЛЬНЕ ЧОРНЕ МЕНЮ (АДАПТОВАНО З UIVERSE)
   // ─────────────────────────────────────────────────────────
   Widget _buildDarkGlassMenu(int totalUnread, int totalPending) {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 10, 
-          right: 10, 
-          // Відступ знизу для iPhone
-          bottom: MediaQuery.of(context).padding.bottom + 12
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: BackdropFilter(
-            // backdrop-filter: blur(12px)
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(maxWidth: 520),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                // background: rgba(20, 20, 20, 0.75);
-                color: const Color(0xFF141414).withValues(alpha: 0.75),
-                borderRadius: BorderRadius.circular(999),
-                // border: 1px solid rgba(255, 255, 255, 0.08);
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                boxShadow: [
-                  // box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 30, offset: const Offset(0, 10))
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _menuItem(0, Icons.home_rounded, t("Чати", "Home"), totalUnread),
-                  _menuItem(1, Icons.people_rounded, t("Друзі", "Friends"), totalPending),
-                  _menuItem(2, Icons.settings_rounded, t("Профіль", "Settings"), 0),
-                ],
-              ),
+  return Align(
+    alignment: Alignment.bottomCenter,
+    child: Padding(
+      padding: EdgeInsets.only(
+        left: 10,
+        right: 10,
+        bottom: MediaQuery.of(context).padding.bottom + 12,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(999),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxWidth: 520),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141414).withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _menuItem(0, Icons.home_rounded, t("Чати", "Chats"), totalUnread),
+                _menuItem(1, Icons.people_rounded, t("Друзі", "Friends"), totalPending),
+                _menuItem(2, Icons.settings_rounded, t("Профіль", "Settings"), 0),
+              ],
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _menuItem(int index, IconData icon, String label, int badgeCount) {
-    final isActive = _currentIndex == index;
-    // color: rgba(255, 255, 255, 0.95) для активного, 0.65 для неактивного
-    final color = isActive ? Colors.white.withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.65);
-    // background: rgba(255, 255, 255, 0.12) для активного
-    final bgColor = isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent;
+Widget _menuItem(int index, IconData icon, String label, int badgeCount) {
+  final isActive = _currentIndex == index;
+  final color = isActive
+      ? Colors.white.withValues(alpha: 0.95)
+      : Colors.white.withValues(alpha: 0.65);
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _currentIndex = index),
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          // transition: background 0.18s
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Badge(
-                isLabelVisible: badgeCount > 0,
-                backgroundColor: Colors.white,
-                textColor: Colors.black,
-                label: Text('$badgeCount', style: const TextStyle(fontWeight: FontWeight.bold)),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 11, // font-size: 0.8rem
-                  fontWeight: FontWeight.w600,
-                  height: 1,
-                ),
-              ),
-            ],
-          ),
+  return Expanded(
+    child: GestureDetector(
+      onTap: () => setState(() => _currentIndex = index),
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: isActive
+              ? Colors.white.withValues(alpha: 0.12)
+              : Colors.transparent,
+          // Імітація inset box-shadow через внутрішній Container
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    blurRadius: 5,
+                    spreadRadius: -2,
+                    offset: const Offset(2, 2),
+                  ),
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    blurRadius: 5,
+                    spreadRadius: 2,
+                    offset: const Offset(-2, -2),
+                  ),
+                ]
+              : [],
         ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // ЯКЩО ДОДАТОК ЗАБЛОКОВАНИЙ — ПОКАЗУЄМО PIN-LOCK ЕКРАН
-    if (_isAppLocked) {
-      return _buildLockScreen();
-    }
-
-    int totalUnread = _recentChats.fold(0, (sum, chat) => sum + ((chat['unreadCount'] ?? 0) as int));
-    int totalPending = _pendingRequests.length;
-    String appBarTitle = _currentIndex == 0 ? t("Чати", "Chats") : (_currentIndex == 1 ? t("Друзі", "Friends") : t("Профіль", "Profile"));
-    
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBody: true, 
-      appBar: AppBar(
-        title: Text(appBarTitle),
-        flexibleSpace: ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20), child: Container(color: Colors.black.withValues(alpha: 0.5)))),
-        actions: _currentIndex == 0 ? [Container(margin: const EdgeInsets.only(right: 16), child: IconButton(icon: const Icon(Icons.group_add, color: Colors.white, size: 24), onPressed: _showCreateGroupDialog))] : null,
-      ),
-      body: LiquidBackground(
-        child: Stack(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _currentIndex == 0 ? _buildChatsTab() : (_currentIndex == 1 ? _buildFriendsTab() : _buildSettingsTab()),
-            // Вставляємо нове круте меню поверх усього
-            _buildDarkGlassMenu(totalUnread, totalPending),
+            Badge(
+              isLabelVisible: badgeCount > 0,
+              backgroundColor: Colors.white,
+              textColor: Colors.black,
+              label: Text(
+                '$badgeCount',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                height: 1,
+              ),
+            ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
+  @override
+Widget build(BuildContext context) {
+  if (_isAppLocked) return _buildLockScreen();
+
+  int totalUnread = _recentChats.fold(0, (sum, chat) => sum + ((chat['unreadCount'] ?? 0) as int));
+  int totalPending = _pendingRequests.length;
+  String appBarTitle = _currentIndex == 0
+      ? t("Чати", "Chats")
+      : (_currentIndex == 1 ? t("Друзі", "Friends") : t("Профіль", "Profile"));
+
+  return Scaffold(
+    backgroundColor: Colors.transparent,
+    extendBody: true,
+    // ← ФІКС КЛІКУ В PWA: клавіатура не змінює розмір body
+    resizeToAvoidBottomInset: false,
+    appBar: AppBar(
+      title: Text(appBarTitle),
+      flexibleSpace: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(color: Colors.black.withValues(alpha: 0.5)),
+        ),
+      ),
+      actions: _currentIndex == 0
+          ? [
+              Container(
+                margin: const EdgeInsets.only(right: 16),
+                child: IconButton(
+                  icon: const Icon(Icons.group_add, color: Colors.white, size: 24),
+                  onPressed: _showCreateGroupDialog,
+                ),
+              )
+            ]
+          : null,
+    ),
+    body: LiquidBackground(
+      child: Stack(
+        // ← ФІКС: clipBehavior щоб меню не виходило за межі
+        clipBehavior: Clip.none,
+        children: [
+          // Контент
+          Positioned.fill(
+            child: _currentIndex == 0
+                ? _buildChatsTab()
+                : (_currentIndex == 1 ? _buildFriendsTab() : _buildSettingsTab()),
+          ),
+          // Меню поверх — окремий шар без впливу на hit-test контенту
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildDarkGlassMenu(totalUnread, totalPending),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 }
