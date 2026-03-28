@@ -4,10 +4,13 @@
   "installCommand": "git clone https://github.com/flutter/flutter.git --depth 1 -b stable ../flutter ; ../flutter/bin/flutter --disable-analytics ; ../flutter/bin/flutter pub get",
   "buildCommand": "../flutter/bin/flutter build web --release",
   "outputDirectory": "build/web",
+  "cleanUrls": true,
+  "trailingSlash": false,
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/download", "destination": "/download.html" },
+    { "source": "/faq",      "destination": "/faq.html" },
+    { "source": "/support",  "destination": "/support.html" },
+    { "source": "/en",       "destination": "/en.html" },
+    { "source": "/(.*)",     "destination": "/index.html" }
   ]
 }
