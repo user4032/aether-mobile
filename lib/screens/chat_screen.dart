@@ -21,6 +21,7 @@ import '../widgets/ui_core.dart';
 class ChatScreen extends StatefulWidget {
   final String deviceId, userName, myPublicKey, partnerName, partnerPublicKey;
   final String? partnerAvatar;
+  final String? partnerDisplayName;
   final bool partnerIsVerified;
   final List<Map<String, dynamic>> friends;
 
@@ -28,6 +29,7 @@ class ChatScreen extends StatefulWidget {
     super.key, required this.deviceId, required this.userName,
     required this.myPublicKey, required this.partnerName,
     required this.partnerPublicKey, this.partnerAvatar,
+    this.partnerDisplayName,
     this.partnerIsVerified = false,
     this.friends = const [],
   });
@@ -37,6 +39,14 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  static const _accentColors = {
+    'purple': Color(0xFFB026FF),
+    'blue': Color(0xFF007AFF),
+    'green': Color(0xFF34C759),
+    'orange': Color(0xFFFF9500),
+    'white': Color(0xFFEDEDED),
+  };
+
   late io.Socket socket;
   final List<Map<String, dynamic>> _messages = [];
   final TextEditingController _c = TextEditingController();
@@ -70,6 +80,15 @@ class _ChatScreenState extends State<ChatScreen> {
   Map<String, dynamic>? _replyingTo;
   Map<String, dynamic>? _editingMessage;
   bool _hasText = false;
+  bool _isTearingDown = false;
+  bool _socketInitialized = false;
+  double _chatFontSize = 15.0;
+  String _accentColor = 'purple';
+  String _chatBubbleStyle = 'rounded';
+  bool _compactMode = false;
+  bool _readReceiptsEnabled = true;
+  bool _onlineStatusEnabled = true;
+  bool _typingIndicatorEnabled = true;
 
   StreamSubscription<Amplitude>? _amplitudeSub;
   List<double> _recordAmplitudes = [];
@@ -81,7 +100,81 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _currentPartnerKey = widget.partnerPublicKey;
     currentActiveChat = widget.partnerPublicKey.startsWith('GROUP_') ? widget.partnerPublicKey : widget.partnerName;
+    _loadUiPreferences();
     _connect();
+  }
+
+  Future<void> _loadUiPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted || _isTearingDown) return;
+    final size = (prefs.getDouble('chat_font_size') ?? 14.0).clamp(12.0, 18.0).toDouble();
+    setState(() {
+      _chatFontSize = size;
+      _accentColor = prefs.getString('accent_color') ?? 'purple';
+      _chatBubbleStyle = prefs.getString('bubble_style') ?? 'rounded';
+      _compactMode = prefs.getBool('compact_mode') ?? false;
+      _readReceiptsEnabled = prefs.getBool('read_receipts') ?? true;
+      _onlineStatusEnabled = prefs.getBool('online_status') ?? true;
+      _typingIndicatorEnabled = prefs.getBool('typing_indicator') ?? true;
+    });
+    if (_socketInitialized && socket.connected) {
+      _emitSetActive();
+    }
+  }
+
+  void _emitSetActive() {
+    socket.emit('set_active', {
+      'userName': widget.userName,
+      'onlineStatus': _onlineStatusEnabled,
+    });
+  }
+
+  void _emitTyping(bool isTyping) {
+    if (!widget.partnerPublicKey.startsWith('GROUP_') && !_typingIndicatorEnabled) {
+      if (isTyping) return;
+    }
+    socket.emit('typing', {
+      'senderName': widget.userName,
+      'receiverName': widget.partnerName,
+      'isTyping': isTyping,
+    });
+  }
+
+  BorderRadius _bubbleRadius(bool isMe) {
+    switch (_chatBubbleStyle) {
+      case 'sharp':
+        return BorderRadius.only(
+          topLeft: const Radius.circular(8),
+          topRight: const Radius.circular(8),
+          bottomLeft: Radius.circular(isMe ? 8 : 2),
+          bottomRight: Radius.circular(isMe ? 2 : 8),
+        );
+      case 'minimal':
+        return BorderRadius.circular(10);
+      case 'rounded':
+      default:
+        return BorderRadius.only(
+          topLeft: const Radius.circular(18),
+          topRight: const Radius.circular(18),
+          bottomLeft: Radius.circular(isMe ? 18 : 4),
+          bottomRight: Radius.circular(isMe ? 4 : 18),
+        );
+    }
+  }
+
+  BorderRadius _scaledBubbleRadius(bool isMe, double scale) {
+    final base = _bubbleRadius(isMe);
+    return BorderRadius.only(
+      topLeft: Radius.circular(base.topLeft.x * scale),
+      topRight: Radius.circular(base.topRight.x * scale),
+      bottomLeft: Radius.circular(base.bottomLeft.x * scale),
+      bottomRight: Radius.circular(base.bottomRight.x * scale),
+    );
+  }
+
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted || _isTearingDown) return;
+    setState(fn);
   }
 
   void _cycleEphemeralDuration() {
@@ -241,9 +334,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _connect() {
     socket = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
+    _socketInitialized = true;
     socket.connect();
     socket.onConnect((_) {
-      socket.emit('set_active', widget.userName);
+      _emitSetActive();
       if (!widget.partnerPublicKey.startsWith('GROUP_')) {
         socket.emitWithAck('check_presence', widget.partnerName, ack: (dynamic data) { 
           if (mounted) {
@@ -282,7 +376,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
         if (mounted) {
           setState(() { _messages.clear(); _messages.addAll(temp); _isLoadingHistory = false; });
-          socket.emit('mark_read', {'chatId': historyPartner, 'readerName': widget.userName});
+          if (_readReceiptsEnabled) {
+            socket.emit('mark_read', {'chatId': historyPartner, 'readerName': widget.userName});
+          }
           Future.delayed(const Duration(milliseconds: 100), () {
             if (_scrollController.hasClients && mounted) {
               _scrollController.animateTo(_scrollController.position.maxScrollExtent + 100, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
@@ -292,14 +388,14 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     });
 
-    socket.onDisconnect((_) { if (mounted) setState(() => _isPartnerOnline = false); });
+    socket.onDisconnect((_) {
+      _safeSetState(() => _isPartnerOnline = false);
+    });
     socket.onReconnect((_) {
-      socket.emit('set_active', widget.userName);
+      _emitSetActive();
       if (!widget.partnerPublicKey.startsWith('GROUP_')) {
-        socket.emitWithAck('check_presence', widget.partnerName, ack: (dynamic data) { 
-          if (mounted) {
-            setState(() => _isPartnerOnline = data['isOnline']); 
-          }
+        socket.emitWithAck('check_presence', widget.partnerName, ack: (dynamic data) {
+          _safeSetState(() => _isPartnerOnline = data['isOnline']);
         });
       }
       String historyPartner = widget.partnerPublicKey.startsWith('GROUP_') ? widget.partnerPublicKey : widget.partnerName;
@@ -325,7 +421,7 @@ class _ChatScreenState extends State<ChatScreen> {
               _scrollController.animateTo(_scrollController.position.maxScrollExtent + 100, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
             }
           });
-          if (msg['senderName'] != widget.userName && msg['isEphemeral'] != true) {
+          if (msg['senderName'] != widget.userName && msg['isEphemeral'] != true && _readReceiptsEnabled) {
             String chatId = _currentPartnerKey.startsWith('GROUP_') ? _currentPartnerKey : msg['senderName'];
             socket.emit('mark_read', {'chatId': chatId, 'readerName': widget.userName});
           }
@@ -352,6 +448,19 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     socket.on('message_deleted', (data) { if (mounted) setState(() => _messages.removeWhere((m) => m['timestamp'] == data['timestamp'] && m['senderName'] == data['senderName'])); });
+
+    socket.on('message_blocked', (data) {
+      if (!mounted) return;
+      final reason = data is Map<String, dynamic> ? data['message'] : null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text((reason ?? t('Користувач обмежив коло, хто може писати', 'This user restricts who can message them')).toString()),
+          backgroundColor: Colors.red.shade900,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+        ),
+      );
+    });
 
     socket.on('message_edited', (data) async {
       var editedMsgData = Map<String, dynamic>.from(data);
@@ -440,10 +549,10 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_hasText != currentHasText) {
       setState(() { _hasText = currentHasText; });
     }
-    socket.emit('typing', {'senderName': widget.userName, 'receiverName': widget.partnerName, 'isTyping': true});
+    _emitTyping(true);
     _typingTimer?.cancel();
     _typingTimer = Timer(const Duration(milliseconds: 1500), () { 
-      socket.emit('typing', {'senderName': widget.userName, 'receiverName': widget.partnerName, 'isTyping': false}); 
+      _emitTyping(false);
     });
   }
 
@@ -454,7 +563,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (type == 'text' && !isEditingMode) { _c.clear(); setState(() { _hasText = false; }); }
     final replyData = _replyingTo != null ? {'senderName': _replyingTo!['senderName'] ?? 'Unknown', 'text': _replyingTo!['type'] == 'image' ? t('Фото', 'Image') : (_replyingTo!['type'] == 'audio' ? t('Голосове повідомлення', 'Voice message') : (_replyingTo!['text']?.toString() ?? t('Повідомлення', 'Message')))} : null;
     setState(() { _replyingTo = null; });
-    socket.emit('typing', {'senderName': widget.userName, 'receiverName': widget.partnerName, 'isTyping': false});
+    _emitTyping(false);
     final key = await _getSecretKey(_currentPartnerKey);
     String payloadStr = replyData != null ? jsonEncode({'text': text, 'replyTo': replyData}) : text;
     final box = await _aes.encrypt(utf8.encode(payloadStr), secretKey: key);
@@ -494,9 +603,30 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _showScheduleDialog() async {
     final now = DateTime.now();
-    final date = await showDatePicker(context: context, initialDate: now.add(const Duration(hours: 1)), firstDate: now, lastDate: now.add(const Duration(days: 365)), builder: (ctx, child) => Theme(data: ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: Color(0xFFB026FF), surface: Color(0xFF1E1E2C))), child: child!));
+    final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(hours: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: ColorScheme.dark(primary: accent, surface: const Color(0xFF1E1E2C)),
+        ),
+        child: child!,
+      ),
+    );
     if (date == null || !mounted) return;
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))), builder: (ctx, child) => Theme(data: ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: Color(0xFFB026FF), surface: Color(0xFF1E1E2C))), child: child!));
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: ColorScheme.dark(primary: accent, surface: const Color(0xFF1E1E2C)),
+        ),
+        child: child!,
+      ),
+    );
     if (time == null || !mounted) return;
     final scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
     if (scheduledAt.isBefore(DateTime.now())) {
@@ -639,6 +769,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showMessageOptions(Map<String, dynamic> m, bool isMe) {
     if (m['isEphemeral'] == true) return;
+    final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -667,7 +798,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(color: isMine ? const Color(0xFFB026FF).withValues(alpha: 0.3) : Colors.transparent, borderRadius: BorderRadius.circular(12)),
+                            decoration: BoxDecoration(color: isMine ? accent.withValues(alpha: 0.3) : Colors.transparent, borderRadius: BorderRadius.circular(12)),
                             child: Text(emoji, style: const TextStyle(fontSize: 26)),
                           ),
                         );
@@ -807,8 +938,10 @@ void _showForwardDialog(Map<String, dynamic> msg) {
     if (widget.partnerPublicKey.startsWith('GROUP_')) {
       return;
     }
+    final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
     String? currentBio;
     String? currentAvatar = widget.partnerAvatar;
+    String? currentDisplayName = widget.partnerDisplayName;
     bool isVerifiedUser = widget.partnerIsVerified;
     bool fetched = false;
     showModalBottomSheet(
@@ -822,7 +955,12 @@ void _showForwardDialog(Map<String, dynamic> msg) {
             fetched = true;
             socket.emitWithAck('get_user_profile', widget.partnerName, ack: (dynamic data) {
               if (data['success'] == true) {
-                setStateSB(() { currentBio = data['bio']; currentAvatar = data['avatar'] ?? currentAvatar; isVerifiedUser = data['isVerified'] == true; });
+                setStateSB(() {
+                  currentBio = data['bio'];
+                  currentAvatar = data['avatar'] ?? currentAvatar;
+                  currentDisplayName = data['displayName'] ?? currentDisplayName;
+                  isVerifiedUser = data['isVerified'] == true;
+                });
               }
             });
           }
@@ -844,10 +982,17 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(widget.partnerName, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
-                          if (isVerifiedUser) ...[const SizedBox(width: 8), const VerifiedBadge(size: 22)],
+                          Text(
+                            (currentDisplayName != null && currentDisplayName!.trim().isNotEmpty)
+                                ? currentDisplayName!.trim()
+                                : widget.partnerName,
+                            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                          ),
+                          if (isVerifiedUser) ...[const SizedBox(width: 8), VerifiedBadge(size: 22, color: accent)],
                         ],
                       ),
+                      const SizedBox(height: 4),
+                      Text('@${widget.partnerName}', style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 13)),
                       if (currentBio != null && currentBio!.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         Text(currentBio!, textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 15)),
@@ -866,8 +1011,10 @@ void _showForwardDialog(Map<String, dynamic> msg) {
 
   @override
   void dispose() {
+    _isTearingDown = true;
     currentActiveChat = null;
     _typingTimer?.cancel();
+    _emitTyping(false);
     socket.dispose();
     _scrollController.dispose();
     _recordTimer?.cancel();
@@ -899,15 +1046,14 @@ void _showForwardDialog(Map<String, dynamic> msg) {
     );
   }
 
-  Widget _buildMessageText(String text, bool isEphemeral) {
+  Widget _buildMessageText(String text, Color baseColor) {
     final urlRegExp = RegExp(r'(https?:\/\/[^\s]+)');
     final matches = urlRegExp.allMatches(text);
-    final baseColor = isEphemeral ? const Color(0xFFE5B3FF) : Colors.white;
 
     if (matches.isEmpty) {
       return _isSearchMode && _searchQuery.isNotEmpty
-          ? HighlightedText(text: "$text   ", query: _searchQuery, baseStyle: TextStyle(color: baseColor, fontSize: 15))
-          : Text("$text   ", style: TextStyle(color: baseColor, fontSize: 15));
+          ? HighlightedText(text: "$text   ", query: _searchQuery, baseStyle: TextStyle(color: baseColor, fontSize: _chatFontSize))
+          : Text("$text   ", style: TextStyle(color: baseColor, fontSize: _chatFontSize));
     }
 
     List<TextSpan> spans = [];
@@ -926,13 +1072,25 @@ void _showForwardDialog(Map<String, dynamic> msg) {
       spans.add(const TextSpan(text: "   "));
     }
 
-    return RichText(text: TextSpan(style: TextStyle(color: baseColor, fontSize: 15), children: spans));
+    return RichText(text: TextSpan(style: TextStyle(color: baseColor, fontSize: _chatFontSize), children: spans));
   }
 
   @override
   Widget build(BuildContext context) {
     final isGroupChat = _currentPartnerKey.startsWith('GROUP_');
     final isSelf = widget.partnerName == widget.userName;
+    final partnerNameLabel = (widget.partnerDisplayName != null && widget.partnerDisplayName!.trim().isNotEmpty)
+        ? widget.partnerDisplayName!.trim()
+        : widget.partnerName;
+    final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
+    final onAccent = ThemeData.estimateBrightnessForColor(accent) == Brightness.dark ? Colors.white : Colors.black;
+    final messageListSidePadding = _compactMode ? 8.0 : 12.0;
+    final messageListTopPadding = _compactMode ? 10.0 : 20.0;
+    final messageListBottomPadding = _compactMode ? (_isPartnerTyping ? 48.0 : 12.0) : (_isPartnerTyping ? 60.0 : 20.0);
+    final bubbleHorizontalPadding = _compactMode ? 10.0 : 14.0;
+    final bubbleVerticalPadding = _compactMode ? 7.0 : 10.0;
+    final bubbleBottomMargin = _compactMode ? 1.0 : 2.0;
+    final bubbleRadiusScale = _compactMode ? 0.86 : 1.0;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -954,8 +1112,8 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(mainAxisSize: MainAxisSize.min, children: [
-                          Text(isSelf ? t("Нотатник", "Saved Messages") : widget.partnerName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                          if (widget.partnerIsVerified && !isGroupChat && !isSelf) ...[const SizedBox(width: 5), const VerifiedBadge(size: 15)],
+                          Text(isSelf ? t("Нотатник", "Saved Messages") : partnerNameLabel, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          if (widget.partnerIsVerified && !isGroupChat && !isSelf) ...[const SizedBox(width: 5), VerifiedBadge(size: 15, color: accent)],
                       ]),
                       if (!isSelf) ...[
                         if (_isPartnerTyping) Row(mainAxisSize: MainAxisSize.min, children: [Text(t("друкує ", "typing "), style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11)), const TypingIndicator(color: Colors.white70, size: 3)])
@@ -977,7 +1135,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
             ]
           : [
               if (!isSelf) IconButton(icon: const Icon(Icons.search, color: Colors.white), onPressed: () { setState(() { _isSearchMode = true; }); }),
-              if (!isSelf) IconButton(icon: Icon(_isAetherMode ? Icons.local_fire_department : Icons.local_fire_department_outlined, color: _isAetherMode ? const Color(0xFFB026FF) : Colors.white), onPressed: () => setState(() { _isAetherMode = !_isAetherMode; _replyingTo = null; })),
+              if (!isSelf) IconButton(icon: Icon(_isAetherMode ? Icons.local_fire_department : Icons.local_fire_department_outlined, color: _isAetherMode ? accent : Colors.white), onPressed: () => setState(() { _isAetherMode = !_isAetherMode; _replyingTo = null; })),
             ],
       ),
       body: SafeArea(
@@ -991,7 +1149,12 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                       children: [
                         ListView.builder(
                           controller: _scrollController,
-                          padding: EdgeInsets.only(left: 12, right: 12, top: 20, bottom: _isPartnerTyping ? 60 : 20),
+                          padding: EdgeInsets.only(
+                            left: messageListSidePadding,
+                            right: messageListSidePadding,
+                            top: messageListTopPadding,
+                            bottom: messageListBottomPadding,
+                          ),
                           itemCount: _messages.length,
                           itemBuilder: (context, i) {
                             final m = _messages[i];
@@ -1012,19 +1175,39 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                             final msgKey = '${m['timestamp']}_${m['senderName']}';
                             final msgReactions = Map<String, List<String>>.from(_reactions[msgKey] ?? {});
                             final isSearchMatch = _isSearchMode && _searchMatchIndices.isNotEmpty && _searchMatchIndices[_currentSearchIdx] == i;
+                            final bubbleColor = isSearchMatch
+                              ? const Color(0xFF6B5B00)
+                              : (isMsgEphemeral
+                                ? const Color(0xFF4A1073)
+                                : (isMe ? const Color(0xFF111111) : accent.withValues(alpha: 0.92)));
+                            final bubbleBorderColor = isSearchMatch
+                              ? const Color(0xFFFFD700).withValues(alpha: 0.55)
+                              : (isMsgEphemeral
+                                ? accent.withValues(alpha: 0.55)
+                                : (isMe
+                                  ? Colors.white.withValues(alpha: 0.18)
+                                  : onAccent.withValues(alpha: 0.26)));
+                            final messageTextColor = isMsgEphemeral
+                              ? const Color(0xFFE5B3FF)
+                              : (isMe ? Colors.white : onAccent);
 
                             bool hasValidImage = m['imageBytes'] != null || (m['text'] != null && m['text'].toString().length > 100);
                             bool hasCaption = m['text'] != null && m['text'].toString().isNotEmpty && m['text'].toString().length < 1000;
 
                             Widget bubble = RepaintBoundary(
                           child: Container(
-                                margin: const EdgeInsets.only(bottom: 2),
+                                margin: EdgeInsets.only(bottom: bubbleBottomMargin),
                                 constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
-                                padding: EdgeInsets.only(left: isImage || isAudio ? 4 : 14, right: isImage || isAudio ? 4 : 14, top: isImage ? 4 : 10, bottom: isImage ? 4 : 10),
+                                padding: EdgeInsets.only(
+                                  left: isImage || isAudio ? 4 : bubbleHorizontalPadding,
+                                  right: isImage || isAudio ? 4 : bubbleHorizontalPadding,
+                                  top: isImage ? 4 : bubbleVerticalPadding,
+                                  bottom: isImage ? 4 : bubbleVerticalPadding,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: isSearchMatch ? const Color(0xFF6B5B00) : (isMsgEphemeral ? const Color(0xFF4A1073) : (isMe ? const Color(0xFF2B5278) : const Color(0xFF212121))),
-                                  border: Border.all(color: isSearchMatch ? const Color(0xFFFFD700).withValues(alpha: 0.5) : (isMsgEphemeral ? const Color(0xFFB026FF).withValues(alpha: 0.5) : Colors.transparent), width: 0.5),
-                                  borderRadius: BorderRadius.only(topLeft: const Radius.circular(18), topRight: const Radius.circular(18), bottomLeft: Radius.circular(isMe ? 18 : 4), bottomRight: Radius.circular(isMe ? 4 : 18)),
+                                  color: bubbleColor,
+                                  border: Border.all(color: bubbleBorderColor, width: 0.9),
+                                  borderRadius: _scaledBubbleRadius(isMe, bubbleRadiusScale),
                                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 2, offset: const Offset(0, 1))],
                                 ),
                                 child: Column(
@@ -1032,7 +1215,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     if (isGroupChat && !isMe) ...[
-                                      Padding(padding: const EdgeInsets.only(bottom: 2, left: 2), child: Text(m['senderName'] ?? 'Unknown', style: TextStyle(fontSize: 12, color: isMsgEphemeral ? const Color(0xFFE5B3FF) : Colors.white, fontWeight: FontWeight.w600))),
+                                      Padding(padding: const EdgeInsets.only(bottom: 2, left: 2), child: Text(m['senderName'] ?? 'Unknown', style: TextStyle(fontSize: 12, color: isMsgEphemeral ? const Color(0xFFE5B3FF) : messageTextColor, fontWeight: FontWeight.w600))),
                                     ],
                                     if (hasReply) ...[
                                       Container(
@@ -1047,25 +1230,27 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                                     ],
                                     if (isAudio) ...[
                                       AudioMessagePlayer(
+                                        key: ValueKey('audio_${m['timestamp']}_${m['senderName']}'),
                                         base64Audio: m['text'] ?? '', isMe: isMe, isEphemeral: isMsgEphemeral, showUnreadDot: !isMe && !isListened,
+                                        themeColor: accent,
                                         onPlay: () async {
                                           if (!isMe && !isListened) { setState(() { m['isListened'] = true; }); final prefs = await SharedPreferences.getInstance(); await prefs.setBool('listened_${m['timestamp']}', true); }
                                         },
                                       ),
                                       const SizedBox(height: 2),
-                                      _buildTimeAndStatus(isEdited, isMsgEphemeral, timeStr, isMe, m['status']),
+                                      _buildTimeAndStatus(isEdited, isMsgEphemeral, timeStr, isMe, m['status'], accent, messageTextColor),
                                     ] else if (isImage && hasValidImage) ...[
                                       ClipRRect(borderRadius: BorderRadius.circular(14), child: _buildImage(m['imageBytes'] ?? m['text'])),
                                       if (hasCaption) ...[
                                         const SizedBox(height: 6),
-                                        _buildMessageText(m['text'].toString(), isMsgEphemeral),
+                                        _buildMessageText(m['text'].toString(), messageTextColor),
                                       ],
                                       const SizedBox(height: 4),
-                                      _buildTimeAndStatus(isEdited, isMsgEphemeral, timeStr, isMe, m['status']),
+                                      _buildTimeAndStatus(isEdited, isMsgEphemeral, timeStr, isMe, m['status'], accent, messageTextColor),
                                     ] else ...[
                                       Wrap(alignment: WrapAlignment.end, crossAxisAlignment: WrapCrossAlignment.end, children: [
-                                        _buildMessageText(m['text'] ?? '', isMsgEphemeral),
-                                        _buildTimeAndStatus(isEdited, isMsgEphemeral, timeStr, isMe, m['status']),
+                                        _buildMessageText(m['text'] ?? '', messageTextColor),
+                                        _buildTimeAndStatus(isEdited, isMsgEphemeral, timeStr, isMe, m['status'], accent, messageTextColor),
                                       ]),
                                     ]
                                   ],
@@ -1132,20 +1317,32 @@ void _showForwardDialog(Map<String, dynamic> msg) {
     );
   }
 
-  Widget _buildTimeAndStatus(bool isEdited, bool isMsgEphemeral, String timeStr, bool isMe, String? status) {
+  Widget _buildTimeAndStatus(
+    bool isEdited,
+    bool isMsgEphemeral,
+    String timeStr,
+    bool isMe,
+    String? status,
+    Color accent,
+    Color baseTextColor,
+  ) {
+    final metaColor = isMsgEphemeral
+        ? accent.withValues(alpha: 0.95)
+        : baseTextColor.withValues(alpha: 0.65);
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (isEdited) ...[
-          Text(t("змінено ", "edited "), style: TextStyle(color: isMsgEphemeral ? const Color(0xFFE5B3FF) : Colors.white.withValues(alpha: 0.5), fontSize: 10, fontStyle: FontStyle.italic)),
+          Text(t("змінено ", "edited "), style: TextStyle(color: metaColor, fontSize: 10, fontStyle: FontStyle.italic)),
         ],
-        Text(timeStr, style: TextStyle(color: isMsgEphemeral ? const Color(0xFFE5B3FF) : Colors.white.withValues(alpha: 0.5), fontSize: 10)),
+        Text(timeStr, style: TextStyle(color: metaColor, fontSize: 10)),
         if (isMe && !isMsgEphemeral) ...[
           const SizedBox(width: 4), 
-          Icon(status == 'read' ? Icons.done_all : Icons.check, size: 14, color: status == 'read' ? const Color(0xFF00C7FF) : Colors.white.withValues(alpha: 0.5)),
+          Icon(status == 'read' ? Icons.done_all : Icons.check, size: 14, color: status == 'read' ? accent : baseTextColor.withValues(alpha: 0.7)),
         ],
         if (isMsgEphemeral) ...[
-          Padding(padding: const EdgeInsets.only(left: 4), child: Icon(Icons.local_fire_department, color: const Color(0xFFE5B3FF), size: 12)),
+          Padding(padding: const EdgeInsets.only(left: 4), child: Icon(Icons.local_fire_department, color: accent, size: 12)),
         ],
       ],
     );
@@ -1185,9 +1382,11 @@ void _showForwardDialog(Map<String, dynamic> msg) {
 
   Widget _buildInputBar() {
     final isEditingMode = _editingMessage != null;
+    final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
+    final onAccent = ThemeData.estimateBrightnessForColor(accent) == Brightness.dark ? Colors.white : Colors.black;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 16, 8),
-      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), border: Border(top: BorderSide(color: _isAetherMode ? const Color(0xFFB026FF).withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.1), width: 1))),
+      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), border: Border(top: BorderSide(color: _isAetherMode ? accent.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.1), width: 1))),
       child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
         if (!isEditingMode && !_isRecordingAudio) ...[
           GestureDetector(onTap: _showAttachmentMenu, child: const Icon(Icons.add, color: Colors.white, size: 28)),
@@ -1198,11 +1397,11 @@ void _showForwardDialog(Map<String, dynamic> msg) {
             onTap: _cycleEphemeralDuration,
             child: Container(
               margin: const EdgeInsets.only(left: 8), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: const Color(0xFFB026FF).withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFB026FF).withValues(alpha: 0.5))),
+              decoration: BoxDecoration(color: accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12), border: Border.all(color: accent.withValues(alpha: 0.5))),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.timer_outlined, color: Color(0xFFE5B3FF), size: 14),
+                  Icon(Icons.timer_outlined, color: accent, size: 14),
                   const SizedBox(width: 4),
-                  Text('${_ephemeralDuration}s', style: const TextStyle(color: Color(0xFFE5B3FF), fontSize: 12, fontWeight: FontWeight.bold)),
+                  Text('${_ephemeralDuration}s', style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.bold)),
               ]),
             ),
           ),
@@ -1223,13 +1422,13 @@ void _showForwardDialog(Map<String, dynamic> msg) {
               )
             : Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(color: _isAetherMode ? const Color(0xFF1A0B2E) : Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(20), border: Border.all(color: _isAetherMode ? const Color(0xFFB026FF) : Colors.white.withValues(alpha: 0.1))),
+                decoration: BoxDecoration(color: _isAetherMode ? accent.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(20), border: Border.all(color: _isAetherMode ? accent : Colors.white.withValues(alpha: 0.1))),
                 child: TextField(
                   controller: _c, focusNode: _chatFocusNode, minLines: 1, maxLines: 4, onChanged: _onTextChanged, autocorrect: false, enableSuggestions: false, keyboardAppearance: Brightness.dark,
-                  style: TextStyle(color: _isAetherMode ? const Color(0xFFE5B3FF) : Colors.white, fontSize: 15),
+                  style: TextStyle(color: _isAetherMode ? accent : Colors.white, fontSize: _chatFontSize),
                   decoration: InputDecoration(
                     hintText: isEditingMode ? t("Змінити...", "Edit...") : (_isAetherMode ? t("Секретне повідомлення...", "Secret message...") : t("Повідомлення...", "Message...")),
-                    hintStyle: TextStyle(color: _isAetherMode ? const Color(0xFFB026FF).withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.4), fontSize: 15),
+                    hintStyle: TextStyle(color: _isAetherMode ? accent.withValues(alpha: 0.55) : Colors.white.withValues(alpha: 0.4), fontSize: _chatFontSize),
                     border: InputBorder.none, isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
                   ),
                 ),
@@ -1241,7 +1440,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
               behavior: HitTestBehavior.opaque, 
               onTap: _send, 
               onLongPress: (!isEditingMode && !_isAetherMode) ? _showScheduleDialog : null,
-              child: Container(height: 40, width: 40, decoration: BoxDecoration(color: _isAetherMode ? const Color(0xFFB026FF) : Colors.white, borderRadius: BorderRadius.circular(50)), child: Icon(isEditingMode ? Icons.check : Icons.arrow_upward, color: _isAetherMode ? Colors.white : Colors.black, size: 20))
+              child: Container(height: 40, width: 40, decoration: BoxDecoration(color: _isAetherMode ? accent : Colors.white, borderRadius: BorderRadius.circular(50)), child: Icon(isEditingMode ? Icons.check : Icons.arrow_upward, color: _isAetherMode ? onAccent : Colors.black, size: 20))
             )
           : GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -1251,7 +1450,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
               child: Container(
                 height: 40, width: 40, 
                 decoration: BoxDecoration(color: _isRecordingAudio ? const Color(0xFFFF3B30) : Colors.white.withValues(alpha: 0.1), border: Border.all(color: _isRecordingAudio ? const Color(0xFFFF3B30) : Colors.transparent), borderRadius: BorderRadius.circular(50)), 
-                child: Icon(_isRecordingAudio ? Icons.mic : Icons.mic_none, color: _isRecordingAudio ? Colors.white : (_isAetherMode ? const Color(0xFFB026FF) : Colors.white), size: 20)
+                child: Icon(_isRecordingAudio ? Icons.mic : Icons.mic_none, color: _isRecordingAudio ? Colors.white : (_isAetherMode ? accent : Colors.white), size: 20)
               ),
             ),
       ]),

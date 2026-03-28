@@ -627,6 +627,14 @@
 </div>
 
 <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+      scope: '/firebase-cloud-messaging-push-scope',
+    }).catch(function() {});
+  });
+}
+
 /* ══════════════════════════════════════════════
    PWA ROUTING & FORCE LOAD
 ══════════════════════════════════════════════ */

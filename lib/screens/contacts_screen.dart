@@ -1,7 +1,12 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cryptography/cryptography.dart';
@@ -9,7 +14,9 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:path_drawing/path_drawing.dart';
 import '../utils/globals.dart';
+import '../firebase_web_config.dart';
 import '../widgets/ui_core.dart';
 import 'chat_screen.dart';
 import 'dart:math' show pi;
@@ -19,19 +26,23 @@ import 'main_gate.dart';
 // КАСТОМНА ІКОНКА ЗАМКА (APPLE STYLE)
 // ─────────────────────────────────────────────────────────
 class _AppleLockIcon extends StatelessWidget {
-  const _AppleLockIcon();
+  final Color accent;
+  const _AppleLockIcon({this.accent = Colors.white});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 72,
       height: 72,
-      child: CustomPaint(painter: _LockPainter()),
+      child: CustomPaint(painter: _LockPainter(accent: accent)),
     );
   }
 }
 
 class _LockPainter extends CustomPainter {
+  final Color accent;
+  const _LockPainter({required this.accent});
+
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
@@ -41,7 +52,7 @@ class _LockPainter extends CustomPainter {
     canvas.drawCircle(
       Offset(cx, cy), 32,
       Paint()
-        ..color = const Color(0xFFB026FF).withValues(alpha: 0.18)
+        ..color = accent.withValues(alpha: 0.16)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
     );
 
@@ -119,6 +130,7 @@ class ContactsScreen extends StatefulWidget {
 
 class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
+  late final PageController _pageController;
   late io.Socket _bgSocket;
   final AudioPlayer _audioPlayer = AudioPlayer();
   final ImagePicker _picker = ImagePicker();
@@ -130,6 +142,10 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   List<Map<String, dynamic>> _pendingRequests = [];
   String? _myAvatar;
   String _myBio = "";
+  String _myDisplayName = "";
+  String? _pendingMyAvatar;
+  String? _pendingMyBio;
+  String? _pendingMyDisplayName;
   bool _myVerified = false;
   bool get _isAdmin => widget.userName == kAdminUsername;
 
@@ -140,10 +156,11 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
 
   // --- PIN-LOCK ---
   bool _isAppLocked = false;
-  String? _savedPin;
-  String _enteredPin = '';
-  bool _isSettingPin = false;
-  String _tempNewPin = '';
+  bool _lockOnResume = false;
+  bool _systemLockEnabled = false;
+  bool _useFaceIdOnIOS = false;
+  bool _authInProgress = false;
+  final LocalAuthentication _localAuth = LocalAuthentication();
 
   // --- НАЛАШТУВАННЯ ---
   bool _notificationsEnabled = true;
@@ -153,16 +170,19 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   bool _readReceipts = true;
   bool _onlineStatus = true;
   bool _typingIndicator = true;
+  String _dmPermission = 'everyone';
   String _accentColor = 'purple';
   double _chatFontSize = 14.0;
   String _chatBubbleStyle = 'rounded';
   bool _compactMode = false;
+  StreamSubscription<String>? _tokenRefreshSub;
 
   static const _accentColors = {
     'purple': Color(0xFFB026FF),
     'blue':   Color(0xFF007AFF),
     'green':  Color(0xFF34C759),
     'orange': Color(0xFFFF9500),
+    'white':  Color(0xFFEDEDED),
   };
 
   // ─────────────────────────────────────────────────────────
@@ -171,6 +191,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
     WidgetsBinding.instance.addObserver(this);
     _initLockState();
     _loadSettings();
@@ -181,8 +202,10 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     });
     _bgSocket.connect();
     _bgSocket.onConnect((_) {
-      _bgSocket.emit('set_active', widget.userName);
+      _emitSetActive();
+      _syncPrivacyToBackend();
       _loadData();
+      unawaited(_syncWebPushToken());
     });
 
     _bgSocket.on('message', (data) {
@@ -192,7 +215,12 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               msg['senderName'] != widget.userName)) {
         if (currentActiveChat != msg['senderName'] &&
             currentActiveChat != msg['receiverName']) {
-          _audioPlayer.play(AssetSource('ding.mp3'));
+          if (_notificationsEnabled && _soundEnabled) {
+            unawaited(_audioPlayer.play(AssetSource('ding.mp3')));
+          }
+          if (_notificationsEnabled && _vibrationEnabled && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+            HapticFeedback.mediumImpact();
+          }
         }
         _loadData();
       }
@@ -205,13 +233,39 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     _bgSocket.on('messages_read', (data) { _loadData(); });
 
     _bgSocket.on('friends_data', (data) {
+      final payload = Map<String, dynamic>.from(data);
       if (mounted) {
         setState(() {
-          _myAvatar = data['myAvatar'];
-          _myBio = data['myBio'] ?? "";
-          _myVerified = data['myVerified'] == true;
-          _friends = List<Map<String, dynamic>>.from(data['friends']);
-          _pendingRequests = List<Map<String, dynamic>>.from(data['pending']);
+          final incomingAvatar = payload['myAvatar'] as String?;
+          final incomingBio = (payload['myBio'] ?? "").toString();
+          final incomingDisplayName = (payload['myDisplayName'] ?? "").toString();
+
+          if (_pendingMyAvatar == null) {
+            _myAvatar = incomingAvatar;
+          } else if (incomingAvatar == _pendingMyAvatar) {
+            _myAvatar = incomingAvatar;
+            _pendingMyAvatar = null;
+          }
+
+          if (_pendingMyBio == null) {
+            _myBio = incomingBio;
+          } else if (incomingBio == _pendingMyBio) {
+            _myBio = incomingBio;
+            _pendingMyBio = null;
+          }
+
+          if (_pendingMyDisplayName == null) {
+            if (payload.containsKey('myDisplayName') && payload['myDisplayName'] != null) {
+              _myDisplayName = incomingDisplayName;
+            }
+          } else if (incomingDisplayName == _pendingMyDisplayName) {
+            _myDisplayName = incomingDisplayName;
+            _pendingMyDisplayName = null;
+          }
+
+          _myVerified = payload['myVerified'] == true;
+          _friends = List<Map<String, dynamic>>.from(payload['friends'] ?? const []);
+          _pendingRequests = List<Map<String, dynamic>>.from(payload['pending'] ?? const []);
         });
       }
     });
@@ -221,9 +275,128 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     currentActiveChat = null;
+    _pageController.dispose();
+    _tokenRefreshSub?.cancel();
     _bgSocket.dispose();
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  Future<void> _initWebPushIfNeeded() async {
+    if (!kIsWeb || !WebFirebaseConfig.isConfigured || !_notificationsEnabled) return;
+
+    try {
+      final settings = await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+        return;
+      }
+
+      await _syncWebPushToken();
+      _tokenRefreshSub ??= FirebaseMessaging.instance.onTokenRefresh.listen(_sendFcmToken);
+    } catch (_) {
+      // Ignore push init errors so chat remains usable even without push setup.
+    }
+  }
+
+  Future<void> _syncWebPushToken() async {
+    if (!kIsWeb || !WebFirebaseConfig.isConfigured || !_notificationsEnabled) return;
+
+    final token = await FirebaseMessaging.instance.getToken(
+      vapidKey: WebFirebaseConfig.vapidKey.isEmpty ? null : WebFirebaseConfig.vapidKey,
+    );
+
+    if (token != null && token.isNotEmpty) {
+      _sendFcmToken(token);
+    }
+  }
+
+  void _sendFcmToken(String token) {
+    if (!_bgSocket.connected || token.isEmpty) return;
+    _bgSocket.emit('update_fcm_token', {
+      'userName': widget.userName,
+      'token': token,
+    });
+  }
+
+  void _emitSetActive() {
+    if (!_bgSocket.connected) return;
+    _bgSocket.emit('set_active', {
+      'userName': widget.userName,
+      'onlineStatus': _onlineStatus,
+    });
+  }
+
+  void _syncPrivacyToBackend() {
+    if (!_bgSocket.connected) return;
+    _bgSocket.emit('update_privacy', {
+      'userName': widget.userName,
+      'readReceipts': _readReceipts,
+      'onlineStatus': _onlineStatus,
+      'typingIndicator': _typingIndicator,
+      'notificationsEnabled': _notificationsEnabled,
+      'messagePreview': _messagePreview,
+      'dmPermission': _dmPermission,
+    });
+  }
+
+  String _dmPermissionLabel(String value) {
+    switch (value) {
+      case 'friends_only':
+        return t('Тільки друзі', 'Friends only');
+      case 'friends_or_groups':
+        return t('Друзі або спільні групи', 'Friends or shared groups');
+      case 'everyone':
+      default:
+        return t('Всі', 'Everyone');
+    }
+  }
+
+  Widget _buildTabByIndex(int index) {
+    switch (index) {
+      case 0:
+        return _buildChatsTab();
+      case 1:
+        return _buildFriendsTab();
+      default:
+        return _buildSettingsTab();
+    }
+  }
+
+  Widget _buildAnimatedTabPage(int index) {
+    return AnimatedBuilder(
+      animation: _pageController,
+      child: _buildTabByIndex(index),
+      builder: (context, child) {
+        double page = _currentIndex.toDouble();
+        if (_pageController.hasClients) {
+          page = _pageController.page ?? _currentIndex.toDouble();
+        }
+        final delta = (page - index).abs().clamp(0.0, 1.0);
+        final scale = 1.0 - (delta * 0.035);
+        final opacity = 1.0 - (delta * 0.22);
+
+        return Opacity(
+          opacity: opacity,
+          child: Transform.scale(scale: scale, child: child),
+        );
+      },
+    );
+  }
+
+  Future<void> _onTabSelected(int index) async {
+    if (_currentIndex == index) return;
+
+    setState(() => _currentIndex = index);
+    await _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 340),
+      curve: Curves.easeInOutCubicEmphasized,
+    );
   }
 
   // ─────────────────────────────────────────────────────────
@@ -240,11 +413,18 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
       _readReceipts         = p.getBool('read_receipts') ?? true;
       _onlineStatus         = p.getBool('online_status') ?? true;
       _typingIndicator      = p.getBool('typing_indicator') ?? true;
+      _dmPermission         = p.getString('dm_permission') ?? 'everyone';
       _accentColor          = p.getString('accent_color') ?? 'purple';
       _chatFontSize         = p.getDouble('chat_font_size') ?? 14.0;
       _chatBubbleStyle      = p.getString('bubble_style') ?? 'rounded';
       _compactMode          = p.getBool('compact_mode') ?? false;
+      _systemLockEnabled    = p.getBool('system_lock_enabled') ?? false;
+      _useFaceIdOnIOS       = p.getBool('use_face_id_ios') ?? false;
     });
+    if (kIsWeb && _notificationsEnabled) {
+      unawaited(_initWebPushIfNeeded());
+    }
+    _syncPrivacyToBackend();
   }
 
   Future<void> _saveSetting(String key, dynamic value) async {
@@ -255,13 +435,122 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   }
 
   // ─────────────────────────────────────────────────────────
-  // PIN LOCK
+  // SYSTEM LOCK
   // ─────────────────────────────────────────────────────────
   Future<void> _initLockState() async {
-    final storage = const FlutterSecureStorage();
-    _savedPin = await storage.read(key: 'app_pin');
-    if (_savedPin != null && _savedPin!.isNotEmpty) {
-      setState(() { _isAppLocked = true; });
+    if (_systemLockEnabled) {
+      setState(() {
+        _isAppLocked = true;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _unlockWithSystemAuth();
+      });
+    }
+  }
+
+  Future<void> _persistSystemLockSettings() async {
+    await _saveSetting('system_lock_enabled', _systemLockEnabled);
+    await _saveSetting('use_face_id_ios', _useFaceIdOnIOS);
+  }
+
+  Future<bool> _authenticateSystem() async {
+    if (_authInProgress) return false;
+
+    _authInProgress = true;
+    try {
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final isSupported = await _localAuth.isDeviceSupported();
+      if (!canCheck && !isSupported) {
+        _showSnack(t("На пристрої недоступна системна автентифікація", "System authentication is unavailable on this device"));
+        return false;
+      }
+
+      return await _localAuth.authenticate(
+        localizedReason: t("Підтвердіть вхід у Aether", "Authenticate to unlock Aether"),
+        options: AuthenticationOptions(
+          biometricOnly: Platform.isIOS && _useFaceIdOnIOS,
+          stickyAuth: true,
+          useErrorDialogs: true,
+          sensitiveTransaction: true,
+        ),
+      );
+    } on PlatformException {
+      return false;
+    } finally {
+      _authInProgress = false;
+    }
+  }
+
+  Future<void> _unlockWithSystemAuth() async {
+    if (!_systemLockEnabled) {
+      if (mounted) {
+        setState(() => _isAppLocked = false);
+      }
+      return;
+    }
+
+    final ok = await _authenticateSystem();
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _isAppLocked = false);
+    } else {
+      setState(() => _isAppLocked = true);
+    }
+  }
+
+  Future<void> _toggleSystemLock(bool enabled) async {
+    if (!enabled) {
+      setState(() {
+        _systemLockEnabled = false;
+        _useFaceIdOnIOS = false;
+        _isAppLocked = false;
+        _lockOnResume = false;
+      });
+      await _persistSystemLockSettings();
+      _showSnack(t("Системний захист вимкнено", "System lock disabled"));
+      return;
+    }
+
+    bool askFaceId = _useFaceIdOnIOS;
+    if (Platform.isIOS) {
+      final available = await _localAuth.getAvailableBiometrics();
+      final hasFaceId = available.contains(BiometricType.face);
+      if (hasFaceId && mounted) {
+        final choice = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF161616),
+            title: Text(t("Face ID", "Face ID"), style: const TextStyle(color: Colors.white)),
+            content: Text(
+              t("Увімкнути розблокування через Face ID? Якщо ні, буде системний пароль пристрою.", "Enable Face ID unlock? If not, device passcode will be used."),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t("Ні", "No"))),
+              TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(t("Так", "Yes"))),
+            ],
+          ),
+        );
+        askFaceId = choice == true;
+      }
+    }
+
+    final wasFaceId = _useFaceIdOnIOS;
+    _useFaceIdOnIOS = askFaceId;
+    final ok = await _authenticateSystem();
+    if (!mounted) return;
+
+    if (ok) {
+      setState(() {
+        _systemLockEnabled = true;
+        _isAppLocked = false;
+        _lockOnResume = false;
+      });
+      await _persistSystemLockSettings();
+      _showSnack(t("Системний захист увімкнено", "System lock enabled"));
+    } else {
+      _useFaceIdOnIOS = wasFaceId;
+      _showSnack(t("Не вдалося увімкнути захист", "Could not enable lock"));
     }
   }
 
@@ -269,58 +558,18 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      if (_savedPin != null && _savedPin!.isNotEmpty) {
+      if (_systemLockEnabled) {
         setState(() {
-          _isAppLocked = true;
-          _enteredPin = '';
-          _isSettingPin = false;
-          _tempNewPin = '';
+          _lockOnResume = true;
         });
       }
-    }
-  }
-
-  void _onPinTap(String val) {
-    if (val == 'back') {
-      if (_enteredPin.isNotEmpty) {
-        setState(() { _enteredPin = _enteredPin.substring(0, _enteredPin.length - 1); });
-      }
-      return;
-    }
-    if (_enteredPin.length < 4) {
-      setState(() { _enteredPin += val; });
-      if (_enteredPin.length == 4) _verifyPin();
-    }
-  }
-
-  void _verifyPin() async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    if (_isSettingPin) {
-      if (_tempNewPin.isEmpty) {
-        setState(() { _tempNewPin = _enteredPin; _enteredPin = ''; });
-      } else {
-        if (_tempNewPin == _enteredPin) {
-          await const FlutterSecureStorage().write(key: 'app_pin', value: _enteredPin);
-          setState(() {
-            _savedPin = _enteredPin;
-            _isSettingPin = false;
-            _tempNewPin = '';
-            _enteredPin = '';
-            _isAppLocked = false;
-          });
-          _showSnack(t("PIN-код встановлено", "PIN code set successfully"));
-        } else {
-          setState(() { _tempNewPin = ''; _enteredPin = ''; });
-          HapticFeedback.heavyImpact();
-          _showSnack(t("Коди не співпадають", "PIN codes do not match"));
-        }
-      }
-    } else if (_isAppLocked) {
-      if (_enteredPin == _savedPin) {
-        setState(() { _isAppLocked = false; _enteredPin = ''; });
-      } else {
-        setState(() { _enteredPin = ''; });
-        HapticFeedback.heavyImpact();
+    } else if (state == AppLifecycleState.resumed) {
+      if (_lockOnResume && _systemLockEnabled) {
+        setState(() {
+          _isAppLocked = true;
+          _lockOnResume = false;
+        });
+        _unlockWithSystemAuth();
       }
     }
   }
@@ -405,9 +654,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     if (image == null || !mounted) return;
     final bytes = await image.readAsBytes();
     final base64String = base64Encode(bytes);
+    _pendingMyAvatar = base64String;
     setState(() { _myAvatar = base64String; });
     _bgSocket.emit('update_avatar', {'userName': widget.userName, 'avatar': base64String});
-    _loadData();
   }
 
   void _sendFriendRequest() {
@@ -491,6 +740,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
       _showSnack(t('Спочатку додайте друзів!', 'Add friends first!'));
       return;
     }
+    final accent = _accentColors[_accentColor]!;
     final groupNameController = TextEditingController();
     List<String> selectedFriends = [];
     showDialog(
@@ -527,9 +777,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                         title: Text(friend, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                         value: selectedFriends.contains(friend),
                         fillColor: WidgetStateProperty.resolveWith((states) =>
-                            states.contains(WidgetState.selected) ? Colors.white : Colors.transparent),
+                          states.contains(WidgetState.selected) ? accent : Colors.transparent),
                         checkColor: Colors.black,
-                        side: const BorderSide(color: Colors.white54),
+                        side: BorderSide(color: accent.withValues(alpha: 0.55)),
                         checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                         onChanged: (bool? value) {
                           setStateSB(() {
@@ -640,7 +890,217 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     );
   }
 
+  void _showEditProfileSheet() {
+    final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
+    final displayController = TextEditingController(
+      text: _myDisplayName.isNotEmpty ? _myDisplayName : widget.userName,
+    );
+    final bioController = TextEditingController(text: _myBio);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.92),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          t('Інформація', 'Profile Info'),
+                          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: Icon(Icons.close, color: Colors.white.withValues(alpha: 0.85)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Stack(
+                        children: [
+                          SafeAvatar(avatarBase64: _myAvatar, fallbackName: widget.userName, radius: 46),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: _updateAvatar,
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: accent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.black, width: 2),
+                                ),
+                                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: Text(
+                        displayController.text.trim().isEmpty ? widget.userName : displayController.text.trim(),
+                        style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    Center(
+                      child: Text(
+                        '@${widget.userName}',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 15),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      t('Про себе', 'About'),
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: bioController,
+                      maxLength: 100,
+                      maxLines: null,
+                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                      decoration: InputDecoration(
+                        hintText: t('Будь-які деталі про вас...', 'Any details about you...'),
+                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.03),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: accent.withValues(alpha: 0.7)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: displayController,
+                      maxLength: 32,
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                      decoration: InputDecoration(
+                        labelText: t('Display Name', 'Display Name'),
+                        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.03),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: accent.withValues(alpha: 0.7)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.03),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.alternate_email_rounded, color: Colors.white70, size: 18),
+                          const SizedBox(width: 10),
+                          Text(
+                            t('Імʼя користувача', 'Username'),
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 14),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '@${widget.userName}',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final nextDisplay = displayController.text.trim();
+                          final nextBio = bioController.text.trim();
+                          _pendingMyDisplayName = nextDisplay;
+                          _pendingMyBio = nextBio;
+                          _bgSocket.emit('update_display_name', {
+                            'userName': widget.userName,
+                            'displayName': nextDisplay,
+                          });
+                          _bgSocket.emit('update_bio', {
+                            'userName': widget.userName,
+                            'bio': nextBio,
+                          });
+                          setState(() {
+                            _myDisplayName = nextDisplay;
+                            _myBio = nextBio;
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accent,
+                          foregroundColor: ThemeData.estimateBrightnessForColor(accent) == Brightness.dark ? Colors.white : Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text(t('Зберегти', 'Save'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showExportDialog() {
+    final accent = _accentColors[_accentColor]!;
     final passwordController = TextEditingController();
     String? backupToken;
     showDialog(
@@ -698,7 +1158,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFB026FF).withValues(alpha: 0.5)),
+                      border: Border.all(color: accent.withValues(alpha: 0.5)),
                     ),
                     child: SelectableText(backupToken!,
                         style: const TextStyle(color: Colors.white, fontSize: 10, fontFamily: 'monospace')),
@@ -726,10 +1186,12 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     );
   }
 
-  void _showUserProfile(String partnerName, String? initialAvatar, String? publicKey, bool isGroup) {
+  void _showUserProfile(String partnerName, String? initialAvatar, String? publicKey, bool isGroup, {String? initialDisplayName}) {
     if (isGroup || partnerName == widget.userName) return;
+    final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
     String? currentBio;
     String? currentAvatar = initialAvatar;
+    String? currentDisplayName = initialDisplayName;
     bool isVerifiedUser = false;
     bool fetched = false;
     showModalBottomSheet(
@@ -751,6 +1213,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                   setStateSB(() {
                     currentBio = data['bio'];
                     currentAvatar = data['avatar'] ?? currentAvatar;
+                    currentDisplayName = data['displayName'] ?? currentDisplayName;
                     isVerifiedUser = data['isVerified'] == true;
                   });
                 }
@@ -777,13 +1240,15 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(partnerName,
+                            Text((currentDisplayName != null && currentDisplayName!.trim().isNotEmpty) ? currentDisplayName!.trim() : partnerName,
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 24,
                                     fontWeight: FontWeight.bold, letterSpacing: -0.5)),
-                            if (isVerifiedUser) ...[const SizedBox(width: 8), const VerifiedBadge(size: 22)],
+                            if (isVerifiedUser) ...[const SizedBox(width: 8), VerifiedBadge(size: 22, color: accent)],
                           ],
                         ),
+                        const SizedBox(height: 4),
+                        Text('@$partnerName', style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 13)),
                         if (currentBio != null && currentBio!.isNotEmpty) ...[
                           const SizedBox(height: 12),
                           Text(currentBio!, textAlign: TextAlign.center,
@@ -799,7 +1264,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                               onTap: () {
                                 Navigator.pop(context);
                                 _startChat(partnerName, publicKey,
-                                    targetAvatar: currentAvatar, isVerified: isVerifiedUser);
+                                    targetAvatar: currentAvatar,
+                                    targetDisplayName: currentDisplayName,
+                                    isVerified: isVerifiedUser);
                               },
                             ),
                             Divider(height: 1, indent: 50, color: Colors.white.withValues(alpha: 0.1)),
@@ -985,7 +1452,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: blocked.length,
-                        separatorBuilder: (_, __) => _divider(),
+                        separatorBuilder: (_, _) => _divider(),
                         itemBuilder: (context, i) {
                           final u = blocked[i];
                           return ListTile(
@@ -1025,10 +1492,22 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     );
   }
 
-  void _startChat(String targetName, String? targetKey, {String? targetAvatar, bool isVerified = false}) {
+  void _startChat(
+    String targetName,
+    String? targetKey, {
+    String? targetAvatar,
+    String? targetDisplayName,
+    bool isVerified = false,
+  }) {
     if (targetName.isEmpty) return;
     if (targetKey != null) {
-      _openChatScreen(targetName, targetKey, avatar: targetAvatar, isVerified: isVerified);
+      _openChatScreen(
+        targetName,
+        targetKey,
+        avatar: targetAvatar,
+        displayName: targetDisplayName,
+        isVerified: isVerified,
+      );
       return;
     }
     setState(() => _isSearching = true);
@@ -1040,7 +1519,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           'isPinned': false, 'isHidden': false, 'isDeleted': false, 'isBlocked': false,
         });
         _openChatScreen(targetName, response['publicKey'],
-            avatar: response['avatar'], isVerified: response['isVerified'] == true);
+          avatar: response['avatar'],
+          displayName: response['displayName'],
+          isVerified: response['isVerified'] == true);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(response['message'] ?? t('Не знайдено', 'Not found'),
@@ -1053,7 +1534,13 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     });
   }
 
-  void _openChatScreen(String targetName, String targetKey, {String? avatar, bool isVerified = false}) {
+  void _openChatScreen(
+    String targetName,
+    String targetKey, {
+    String? avatar,
+    String? displayName,
+    bool isVerified = false,
+  }) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1064,6 +1551,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           partnerName: targetName,
           partnerPublicKey: targetKey,
           partnerAvatar: avatar,
+          partnerDisplayName: displayName,
           partnerIsVerified: isVerified,
           friends: _friends,
         ),
@@ -1075,7 +1563,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   // LOCK SCREEN
   // ─────────────────────────────────────────────────────────
   Widget _buildLockScreen() {
-    final isPinConfirmStep = _isSettingPin && _tempNewPin.isNotEmpty;
+    const accent = Colors.white;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -1087,7 +1575,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               width: 280, height: 280,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFB026FF).withValues(alpha: 0.08),
+                color: accent.withValues(alpha: 0.08),
               ),
             ),
           ),
@@ -1097,7 +1585,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               width: 320, height: 320,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFB026FF).withValues(alpha: 0.05),
+                color: accent.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -1106,84 +1594,54 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               children: [
                 const Spacer(flex: 2),
                 // Кастомна іконка замка
-                const _AppleLockIcon(),
+                const _AppleLockIcon(accent: accent),
                 const SizedBox(height: 24),
                 // Заголовок
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: Text(
-                    key: ValueKey(_isSettingPin
-                        ? (_tempNewPin.isEmpty ? 'create' : 'confirm')
-                        : 'enter'),
-                    _isSettingPin
-                        ? (_tempNewPin.isEmpty
-                            ? t("Створіть PIN-код", "Create PIN code")
-                            : t("Підтвердіть PIN-код", "Confirm PIN code"))
-                        : t("Введіть PIN-код", "Enter PIN code"),
+                    key: const ValueKey('system-auth'),
+                    t("Підтвердження системою", "System Authentication"),
                     style: const TextStyle(
-                      color: Colors.white, fontSize: 22,
-                      fontWeight: FontWeight.w700, letterSpacing: -0.5,
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _isSettingPin
-                      ? (isPinConfirmStep
-                          ? t("Введіть PIN ще раз", "Enter PIN again")
-                          : t("4 цифри для захисту додатку", "4 digits to protect the app"))
-                      : t("Ваш особистий код безпеки", "Your personal security code"),
+                  t("Використайте пароль пристрою або біометрію", "Use your device passcode or biometrics"),
                   style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 14),
                 ),
                 const Spacer(),
-                // Крапки
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(4, (index) {
-                    final filled = _enteredPin.length > index;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      curve: Curves.easeOutBack,
-                      margin: const EdgeInsets.symmetric(horizontal: 10),
-                      width: filled ? 18 : 14,
-                      height: filled ? 18 : 14,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: filled ? const Color(0xFFB026FF) : Colors.transparent,
-                        border: Border.all(
-                          color: filled ? const Color(0xFFB026FF) : Colors.white.withValues(alpha: 0.3),
-                          width: 2,
-                        ),
-                        boxShadow: filled
-                            ? [BoxShadow(
-                                color: const Color(0xFFB026FF).withValues(alpha: 0.5),
-                                blurRadius: 8, spreadRadius: 1)]
-                            : [],
-                      ),
-                    );
-                  }),
-                ),
-                const Spacer(),
-                // Клавіатура
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  child: Column(
-                    children: [
-                      for (final row in [
-                        ['1', '2', '3'],
-                        ['4', '5', '6'],
-                        ['7', '8', '9'],
-                        ['', '0', 'back'],
-                      ])
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: row.map((val) => _numButton(val)).toList(),
-                          ),
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Column(children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _unlockWithSystemAuth,
+                        icon: const Icon(Icons.lock_open_rounded),
+                        label: Text(t("Розблокувати", "Unlock")),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
                         ),
-                    ],
-                  ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _authInProgress
+                          ? t("Перевірка...", "Authenticating...")
+                          : t("Якщо відхилили автентифікацію, натисніть ще раз", "If authentication was canceled, tap again"),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
+                    ),
+                  ]),
                 ),
                 const Spacer(),
               ],
@@ -1194,36 +1652,11 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     );
   }
 
-  Widget _numButton(String val) {
-    if (val.isEmpty) return const SizedBox(width: 72, height: 72);
-    return GestureDetector(
-      onTap: () => _onPinTap(val),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        width: 72, height: 72,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: 0.07),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
-        ),
-        child: Center(
-          child: val == 'back'
-              ? Icon(Icons.backspace_outlined, color: Colors.white.withValues(alpha: 0.8), size: 24)
-              : Text(val,
-                  style: const TextStyle(
-                    color: Colors.white, fontSize: 28,
-                    fontWeight: FontWeight.w400, letterSpacing: -0.5,
-                  )),
-        ),
-      ),
-    );
-  }
-
   // ─────────────────────────────────────────────────────────
   // TABS
   // ─────────────────────────────────────────────────────────
   Widget _buildChatsTab() {
+    final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1270,13 +1703,20 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                     final isGroup = chat['isGroup'] == true;
                     final unreadCount = chat['unreadCount'] ?? 0;
                     final isSelf = chat['partnerName'] == widget.userName;
+                    final chatDisplayName = (chat['displayName'] ?? '').toString().trim();
                     final chatVerified = chat['isVerified'] == true;
                     return ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       leading: GestureDetector(
                         onTap: () => isSelf
                             ? null
-                            : _showUserProfile(chat['partnerName'], chat['avatar'], chat['publicKey'], isGroup),
+                            : _showUserProfile(
+                                chat['partnerName'],
+                                chat['avatar'],
+                                chat['publicKey'],
+                                isGroup,
+                                initialDisplayName: chat['displayName'],
+                              ),
                         child: isSelf
                             ? CircleAvatar(
                                 radius: 24,
@@ -1291,25 +1731,57 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                                 hasUnread: unreadCount > 0,
                               ),
                       ),
-                      title: Row(children: [
-                        Expanded(
-                          child: Text(
-                            isSelf ? t("Нотатник", "Saved Messages") : chat['partnerName'],
-                            style: const TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.w600,
-                              fontSize: 16, letterSpacing: -0.2,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: isSelf
+                                ? Text(
+                                    t("Нотатник", "Saved Messages"),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                      letterSpacing: -0.2,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  )
+                                : Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              chatDisplayName.isNotEmpty ? chatDisplayName : chat['partnerName'],
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 16,
+                                                letterSpacing: -0.2,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (!isGroup && chatVerified) ...[
+                                            const SizedBox(width: 4),
+                                            VerifiedBadge(size: 14, color: accent),
+                                          ],
+                                        ],
+                                      ),
+                                      Text(
+                                        '@${chat['partnerName']}',
+                                        style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
                           ),
-                        ),
-                        if (!isGroup && chatVerified) ...[
-                          const SizedBox(width: 4), const VerifiedBadge(size: 14),
+                          if (chat['isPinned'] == true) ...[
+                            const SizedBox(width: 4),
+                            Icon(Icons.push_pin, color: Colors.white.withValues(alpha: 0.5), size: 14),
+                          ],
                         ],
-                        if (chat['isPinned'] == true) ...[
-                          const SizedBox(width: 4),
-                          Icon(Icons.push_pin, color: Colors.white.withValues(alpha: 0.5), size: 14),
-                        ],
-                      ]),
+                      ),
                       subtitle: Text(
                         chat['decryptedText'] ??
                             (isGroup ? t("Груповий чат", "Group Chat") : t("Почніть чат", "Start chatting")),
@@ -1345,8 +1817,10 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                         ],
                       ),
                       onLongPress: () => _showChatOptions(chat),
-                      onTap: () => _startChat(chat['partnerName'], chat['publicKey'],
-                          targetAvatar: chat['avatar'], isVerified: chatVerified),
+                        onTap: () => _startChat(chat['partnerName'], chat['publicKey'],
+                          targetAvatar: chat['avatar'],
+                          targetDisplayName: chat['displayName'],
+                          isVerified: chatVerified),
                     );
                   },
                 ),
@@ -1356,6 +1830,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   }
 
   Widget _buildFriendsTab() {
+    final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
     return ListView(
       padding: const EdgeInsets.only(top: 20, bottom: 120),
       children: [
@@ -1400,14 +1875,19 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                 return Column(children: [
                   ListTile(
                     leading: GestureDetector(
-                      onTap: () => _showUserProfile(req['userName'], req['avatar'], null, false),
+                      onTap: () => _showUserProfile(req['userName'], req['avatar'], null, false, initialDisplayName: req['displayName']),
                       child: SafeAvatar(avatarBase64: req['avatar'], fallbackName: req['userName'], radius: 20),
                     ),
                     title: Row(children: [
-                      Text(req['userName'],
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 16)),
-                      if (req['isVerified'] == 1) ...[const SizedBox(width: 5), const VerifiedBadge(size: 13)],
+                      Flexible(
+                        child: Text(
+                            (req['displayName'] ?? '').toString().trim().isNotEmpty ? req['displayName'] : req['userName'],
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 16),
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      if (req['isVerified'] == 1) ...[const SizedBox(width: 5), VerifiedBadge(size: 13, color: accent)],
                     ]),
+                    subtitle: Text('@${req['userName']}', style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12)),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1467,19 +1947,25 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                     return Column(children: [
                       ListTile(
                         leading: GestureDetector(
-                          onTap: () => _showUserProfile(f['userName'], f['avatar'], f['publicKey'], false),
+                          onTap: () => _showUserProfile(f['userName'], f['avatar'], f['publicKey'], false, initialDisplayName: f['displayName']),
                           child: SafeAvatar(avatarBase64: f['avatar'], fallbackName: f['userName'], radius: 20),
                         ),
                         title: Row(children: [
-                          Text(f['userName'],
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 16)),
+                          Flexible(
+                            child: Text(
+                                (f['displayName'] ?? '').toString().trim().isNotEmpty ? f['displayName'] : f['userName'],
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 16),
+                                overflow: TextOverflow.ellipsis),
+                          ),
                           if (f['isVerified'] == true || f['isVerified'] == 1) ...[
-                            const SizedBox(width: 5), const VerifiedBadge(size: 13),
+                            const SizedBox(width: 5), VerifiedBadge(size: 13, color: accent),
                           ],
                         ]),
+                        subtitle: Text('@${f['userName']}', style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12)),
                         onTap: () => _startChat(f['userName'], f['publicKey'],
-                            targetAvatar: f['avatar'],
-                            isVerified: (f['isVerified'] == true || f['isVerified'] == 1)),
+                          targetAvatar: f['avatar'],
+                          targetDisplayName: f['displayName'],
+                          isVerified: (f['isVerified'] == true || f['isVerified'] == 1)),
                       ),
                       if (idx != _friends.length - 1)
                         Divider(height: 1, indent: 60, color: Colors.white.withValues(alpha: 0.05)),
@@ -1503,9 +1989,11 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         // ── ПРОФІЛЬ ───────────────────────────────────────────
         Container(
           margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-          child: GlassContainer(
-            padding: const EdgeInsets.all(16),
-            child: Row(
+          child: GestureDetector(
+            onTap: _showEditProfileSheet,
+            child: GlassContainer(
+              padding: const EdgeInsets.all(16),
+              child: Row(
               children: [
                 Stack(children: [
                   SafeAvatar(avatarBase64: _myAvatar, fallbackName: widget.userName, radius: 34),
@@ -1531,18 +2019,20 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                     children: [
                       Row(children: [
                         Flexible(
-                          child: Text(widget.userName,
+                          child: Text(_myDisplayName.isNotEmpty ? _myDisplayName : widget.userName,
                               style: const TextStyle(
                                 color: Colors.white, fontSize: 18,
                                 fontWeight: FontWeight.w700, letterSpacing: -0.4,
                               ),
                               overflow: TextOverflow.ellipsis),
                         ),
-                        if (_myVerified) ...[const SizedBox(width: 6), const VerifiedBadge(size: 16)],
+                        if (_myVerified) ...[const SizedBox(width: 6), VerifiedBadge(size: 16, color: accent)],
                       ]),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 2),
+                      Text('@${widget.userName}', style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12)),
+                      const SizedBox(height: 4),
                       GestureDetector(
-                        onTap: _showEditBioDialog,
+                        onTap: _showEditProfileSheet,
                         child: Row(children: [
                           Flexible(
                             child: Text(
@@ -1565,6 +2055,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                 Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 20),
               ],
             ),
+            ),
           ),
         ),
 
@@ -1574,15 +2065,24 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(children: [
             _settingToggle(
-              icon: Icons.notifications_rounded, iconColor: const Color(0xFFFF3B30),
+              icon: Icons.notifications_rounded, iconColor: accent,
               title: t("Сповіщення", "Notifications"),
               value: _notificationsEnabled,
-              onChanged: (v) { setState(() => _notificationsEnabled = v); _saveSetting('notif_enabled', v); },
+              onChanged: (v) {
+                setState(() => _notificationsEnabled = v);
+                _saveSetting('notif_enabled', v);
+                _syncPrivacyToBackend();
+                if (!v) {
+                  _bgSocket.emit('update_fcm_token', {'userName': widget.userName, 'token': ''});
+                } else {
+                  unawaited(_initWebPushIfNeeded());
+                }
+              },
               accent: accent,
             ),
             _divider(),
             _settingToggle(
-              icon: Icons.volume_up_rounded, iconColor: const Color(0xFF007AFF),
+              icon: Icons.volume_up_rounded, iconColor: accent,
               title: t("Звук", "Sound"),
               value: _soundEnabled, enabled: _notificationsEnabled,
               onChanged: (v) { setState(() => _soundEnabled = v); _saveSetting('sound_enabled', v); },
@@ -1590,7 +2090,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
             ),
             _divider(),
             _settingToggle(
-              icon: Icons.vibration_rounded, iconColor: const Color(0xFF34C759),
+              icon: Icons.vibration_rounded, iconColor: accent,
               title: t("Вібрація", "Vibration"),
               value: _vibrationEnabled, enabled: _notificationsEnabled,
               onChanged: (v) { setState(() => _vibrationEnabled = v); _saveSetting('vibration_enabled', v); },
@@ -1598,11 +2098,15 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
             ),
             _divider(),
             _settingToggle(
-              icon: Icons.chat_bubble_outline_rounded, iconColor: const Color(0xFFFF9500),
+              icon: Icons.chat_bubble_outline_rounded, iconColor: accent,
               title: t("Попередній перегляд", "Message Preview"),
               subtitle: t("Показувати текст у сповіщенні", "Show text in notification"),
               value: _messagePreview, enabled: _notificationsEnabled,
-              onChanged: (v) { setState(() => _messagePreview = v); _saveSetting('message_preview', v); },
+              onChanged: (v) {
+                setState(() => _messagePreview = v);
+                _saveSetting('message_preview', v);
+                _syncPrivacyToBackend();
+              },
               accent: accent,
             ),
           ]),
@@ -1614,42 +2118,110 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(children: [
             _settingToggle(
-              icon: Icons.done_all_rounded, iconColor: const Color(0xFF007AFF),
+              icon: Icons.done_all_rounded, iconColor: accent,
               title: t("Прочитано", "Read Receipts"),
               subtitle: t("Показувати коли прочитали", "Show when you've read messages"),
               value: _readReceipts,
               onChanged: (v) {
                 setState(() => _readReceipts = v);
                 _saveSetting('read_receipts', v);
-                _bgSocket.emit('update_privacy', {'userName': widget.userName, 'readReceipts': v});
+                _syncPrivacyToBackend();
               },
               accent: accent,
             ),
             _divider(),
             _settingToggle(
-              icon: Icons.circle_rounded, iconColor: const Color(0xFF34C759),
+              icon: Icons.circle_rounded, iconColor: accent,
               title: t("Статус онлайн", "Online Status"),
               subtitle: t("Показувати коли ви в мережі", "Show when you're online"),
               value: _onlineStatus,
               onChanged: (v) {
                 setState(() => _onlineStatus = v);
                 _saveSetting('online_status', v);
-                _bgSocket.emit('update_privacy', {'userName': widget.userName, 'onlineStatus': v});
+                _emitSetActive();
+                _syncPrivacyToBackend();
               },
               accent: accent,
             ),
             _divider(),
             _settingToggle(
-              icon: Icons.keyboard_rounded, iconColor: const Color(0xFFFF9500),
+              icon: Icons.keyboard_rounded, iconColor: accent,
               title: t("Введення...", "Typing Indicator"),
               subtitle: t("Показувати коли пишете", "Show when you're typing"),
               value: _typingIndicator,
               onChanged: (v) {
                 setState(() => _typingIndicator = v);
                 _saveSetting('typing_indicator', v);
-                _bgSocket.emit('update_privacy', {'userName': widget.userName, 'typingIndicator': v});
+                _syncPrivacyToBackend();
               },
               accent: accent,
+            ),
+            _divider(),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+              leading: _settingIcon(Icons.alternate_email_rounded, accent),
+              title: Text(
+                t("Хто може писати", "Who can message"),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 15),
+              ),
+              subtitle: Text(
+                _dmPermissionLabel(_dmPermission),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12),
+              ),
+              trailing: Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 20),
+              onTap: () async {
+                final selected = await showModalBottomSheet<String>(
+                  context: context,
+                  backgroundColor: const Color(0xFF121212),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  builder: (ctx) => SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.public_rounded, color: Colors.white),
+                          title: Text(t('Всі', 'Everyone'), style: const TextStyle(color: Colors.white)),
+                          subtitle: Text(
+                            t('Писати може будь-хто', 'Anyone can message you'),
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12),
+                          ),
+                          trailing: _dmPermission == 'everyone' ? Icon(Icons.check_rounded, color: accent) : null,
+                          onTap: () => Navigator.pop(ctx, 'everyone'),
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.groups_rounded, color: Colors.white),
+                          title: Text(t('Друзі або спільні групи', 'Friends or shared groups'), style: const TextStyle(color: Colors.white)),
+                          subtitle: Text(
+                            t('Писати можуть друзі та користувачі зі спільних груп', 'Friends and users from shared groups can message you'),
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12),
+                          ),
+                          trailing: _dmPermission == 'friends_or_groups' ? Icon(Icons.check_rounded, color: accent) : null,
+                          onTap: () => Navigator.pop(ctx, 'friends_or_groups'),
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.people_alt_rounded, color: Colors.white),
+                          title: Text(t('Тільки друзі', 'Friends only'), style: const TextStyle(color: Colors.white)),
+                          subtitle: Text(
+                            t('Писати можуть лише користувачі зі списку друзів', 'Only users in your friends list can message you'),
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12),
+                          ),
+                          trailing: _dmPermission == 'friends_only' ? Icon(Icons.check_rounded, color: accent) : null,
+                          onTap: () => Navigator.pop(ctx, 'friends_only'),
+                        ),
+                        const SizedBox(height: 6),
+                      ],
+                    ),
+                  ),
+                );
+
+                if (selected != null && selected != _dmPermission) {
+                  setState(() => _dmPermission = selected);
+                  await _saveSetting('dm_permission', selected);
+                  _syncPrivacyToBackend();
+                }
+              },
             ),
           ]),
         ),
@@ -1660,30 +2232,21 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(children: [
             _settingToggle(
-              icon: Icons.lock_rounded, iconColor: const Color(0xFFB026FF),
-              title: t("PIN-код", "App Lock"),
-              subtitle: _savedPin != null
-                  ? t("Увімкнено", "Enabled")
+              icon: Icons.lock_rounded, iconColor: accent,
+              title: t("Системний захист", "System Lock"),
+              subtitle: _systemLockEnabled
+                  ? (Platform.isIOS && _useFaceIdOnIOS
+                      ? t("Увімкнено (Face ID)", "Enabled (Face ID)")
+                      : t("Увімкнено (пароль пристрою)", "Enabled (device passcode)"))
                   : t("Вимкнено", "Disabled"),
-              value: _savedPin != null && _savedPin!.isNotEmpty,
-              onChanged: (val) async {
-                if (val) {
-                  setState(() {
-                    _isAppLocked = true; _isSettingPin = true;
-                    _enteredPin = ''; _tempNewPin = '';
-                  });
-                } else {
-                  await const FlutterSecureStorage().delete(key: 'app_pin');
-                  setState(() => _savedPin = null);
-                  _showSnack(t("PIN-код вимкнено", "PIN disabled"));
-                }
-              },
+              value: _systemLockEnabled,
+              onChanged: (val) => _toggleSystemLock(val),
               accent: accent,
             ),
             _divider(),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-              leading: _settingIcon(Icons.vpn_key_rounded, const Color(0xFFFF9500)),
+              leading: _settingIcon(Icons.vpn_key_rounded, accent),
               title: Text(t("Резервна копія", "Account Backup"),
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 15)),
               subtitle: Text(t("Експорт зашифрованих ключів", "Export encrypted keys"),
@@ -1694,7 +2257,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
             _divider(),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-              leading: _settingIcon(Icons.block_rounded, const Color(0xFFFF3B30)),
+              leading: _settingIcon(Icons.block_rounded, accent),
               title: Text(t("Заблоковані", "Blocked Users"),
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 15)),
               subtitle: Text(
@@ -1747,7 +2310,13 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                                 : [],
                           ),
                           child: isSelected
-                              ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                              ? Icon(
+                                  Icons.check_rounded,
+                                  color: ThemeData.estimateBrightnessForColor(e.value) == Brightness.dark
+                                      ? Colors.white
+                                      : Colors.black,
+                                  size: 16,
+                                )
                               : null,
                         ),
                       );
@@ -1764,7 +2333,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(children: [
-                    _settingIcon(Icons.format_size_rounded, const Color(0xFF007AFF)),
+                    _settingIcon(Icons.format_size_rounded, accent),
                     const SizedBox(width: 14),
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(t("Розмір шрифту", "Font Size"),
@@ -1814,7 +2383,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(children: [
-                    _settingIcon(Icons.chat_bubble_rounded, const Color(0xFF34C759)),
+                    _settingIcon(Icons.chat_bubble_rounded, accent),
                     const SizedBox(width: 14),
                     Text(t("Стиль бульок", "Bubble Style"),
                         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 15)),
@@ -1833,7 +2402,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
             ),
             _divider(),
             _settingToggle(
-              icon: Icons.view_compact_rounded, iconColor: const Color(0xFFFF9500),
+              icon: Icons.view_compact_rounded, iconColor: accent,
               title: t("Компактний режим", "Compact Mode"),
               subtitle: t("Менші відступи у чатах", "Smaller padding in chats"),
               value: _compactMode,
@@ -1870,7 +2439,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
 
         // ── АДМІН ─────────────────────────────────────────────
         if (_isAdmin) ...[
-          _sectionHeader(t("АДМІН-ПАНЕЛЬ", "ADMIN PANEL"), icon: const VerifiedBadge(size: 13)),
+          _sectionHeader(t("АДМІН-ПАНЕЛЬ", "ADMIN PANEL"), icon: VerifiedBadge(size: 13, color: accent)),
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
@@ -1901,7 +2470,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                       title: Row(children: [
                         Text(user['userName'],
                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-                        if (isVerified) ...[const SizedBox(width: 6), const VerifiedBadge(size: 13)],
+                        if (isVerified) ...[const SizedBox(width: 6), VerifiedBadge(size: 13, color: accent)],
                       ]),
                       trailing: GestureDetector(
                         onTap: () => _toggleVerification(user['userName'], isVerified),
@@ -2011,7 +2580,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      leading: _settingIcon(icon, enabled ? iconColor : Colors.white24),
+      leading: _settingIcon(icon, enabled ? iconColor : iconColor.withValues(alpha: 0.35)),
       title: Text(title,
           style: TextStyle(
             color: enabled ? Colors.white : Colors.white38,
@@ -2028,7 +2597,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         scale: 0.85,
         child: Switch(
           value: value && enabled,
-          activeColor: accent,
+          activeTrackColor: accent.withValues(alpha: 0.42),
+          inactiveTrackColor: Colors.white12,
           trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
           thumbColor: WidgetStateProperty.all(Colors.white),
           onChanged: enabled ? onChanged : null,
@@ -2067,8 +2637,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     );
   }
 
-  // ─────────────────────────────────────────────────────────
-  // MENU
+ // ─────────────────────────────────────────────────────────
+  // МЕНЮ 1-В-1 ЯК НА ДРУГОМУ СКРІНШОТІ
   // ─────────────────────────────────────────────────────────
   Widget _buildDarkGlassMenu(int totalUnread, int totalPending) {
     return Align(
@@ -2078,56 +2648,120 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           left: 10, right: 10,
           bottom: MediaQuery.of(context).padding.bottom + 12,
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(maxWidth: 520),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF141414).withValues(alpha: 0.75),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Stack(
+            children: [
+              // Uiverse-like glass shell
+              ClipRRect(
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    blurRadius: 30, offset: const Offset(0, 10),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          blurRadius: 30,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _menuItem(0, "Home", totalUnread),
+                        _menuItem(1, "Friends", totalPending),
+                        _menuItem(2, "Settings", 0),
+                      ],
+                    ),
                   ),
-                ],
+                ),
               ),
-              child: Row(
-                children: [
-                  _menuItem(0, Icons.home_rounded, t("Чати", "Chats"), totalUnread),
-                  _menuItem(1, Icons.people_rounded, t("Друзі", "Friends"), totalPending),
-                  _menuItem(2, Icons.settings_rounded, t("Профіль", "Settings"), 0),
-                ],
+
+              // ::after-like inset highlights from the original CSS
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.07),
+                          blurRadius: 5,
+                          offset: const Offset(2, 2),
+                          spreadRadius: -2,
+                        ),
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.03),
+                          blurRadius: 5,
+                          offset: const Offset(-2, -2),
+                          spreadRadius: 2,
+                        ),
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.02),
+                          blurRadius: 0,
+                          offset: const Offset(0, -2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _menuItem(int index, IconData icon, String label, int badgeCount) {
+  Widget _menuItem(int index, String label, int badgeCount) {
     final isActive = _currentIndex == index;
-    final color = isActive
-        ? Colors.white.withValues(alpha: 0.95)
-        : Colors.white.withValues(alpha: 0.65);
+    final accent = _accentColors[_accentColor]!;
+
+    final textColor = isActive ? accent : Colors.white.withValues(alpha: 0.65);
+
+    final bgColor = isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent;
 
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _currentIndex = index),
+        onTap: () => _onTabSelected(index),
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
+            color: bgColor,
             borderRadius: BorderRadius.circular(999),
-            color: isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
+            border: isActive ? Border.all(color: Colors.white.withValues(alpha: 0.05)) : Border.all(color: Colors.transparent),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.20),
+                      blurRadius: 5,
+                      offset: const Offset(2, 2),
+                      spreadRadius: -2,
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      blurRadius: 5,
+                      offset: const Offset(-2, -2),
+                      spreadRadius: 2,
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      blurRadius: 0,
+                      offset: const Offset(0, -2),
+                    ),
+                  ]
+                : null,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2136,23 +2770,27 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                 isLabelVisible: badgeCount > 0,
                 backgroundColor: Colors.white,
                 textColor: Colors.black,
-                label: Text('$badgeCount',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
-                child: Icon(icon, color: color, size: 22),
+                label: Text('$badgeCount', style: const TextStyle(fontWeight: FontWeight.bold)),
+                // Використовуємо наші кастомні іконки з правильними шляхами
+                child: CustomUiverseIcon(index: index, color: textColor),
               ),
               const SizedBox(height: 4),
-              Text(label,
-                  style: TextStyle(
-                    color: color, fontSize: 11,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                    height: 1,
-                  )),
+              Text(
+                label,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 12.0,
+                  fontWeight: FontWeight.w600,
+                  height: 1,
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+  
 
   // ─────────────────────────────────────────────────────────
   // BUILD
@@ -2196,9 +2834,17 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           clipBehavior: Clip.none,
           children: [
             Positioned.fill(
-              child: _currentIndex == 0
-                  ? _buildChatsTab()
-                  : (_currentIndex == 1 ? _buildFriendsTab() : _buildSettingsTab()),
+              child: PageView.builder(
+                controller: _pageController,
+                physics: const BouncingScrollPhysics(),
+                itemCount: 3,
+                onPageChanged: (index) {
+                  if (_currentIndex != index && mounted) {
+                    setState(() => _currentIndex = index);
+                  }
+                },
+                itemBuilder: (context, index) => _buildAnimatedTabPage(index),
+              ),
             ),
             Positioned(
               left: 0, right: 0, bottom: 0,
@@ -2208,5 +2854,105 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         ),
       ),
     );
+  }
+}
+// ─────────────────────────────────────────────────────────
+// КАСТОМНІ SVG ІКОНКИ (UIVERSE)
+// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
+// КАСТОМНІ SVG ІКОНКИ (ТОЧНО З UIVERSE)
+// ─────────────────────────────────────────────────────────
+class CustomUiverseIcon extends StatelessWidget {
+  final int index;
+  final Color color;
+  const CustomUiverseIcon({super.key, required this.index, required this.color});
+
+  double get _offsetY {
+    switch (index) {
+      case 0:
+        return -0.4;
+      case 1:
+        return 0.2;
+      case 2:
+        return -0.6;
+      default:
+        return 0;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.translate(
+      offset: Offset(0, _offsetY),
+      child: SizedBox(
+        width: 24, // Розмір як у CSS (1.4rem)
+        height: 24,
+        child: CustomPaint(
+          painter: _UiverseIconPainter(index: index, color: color),
+        ),
+      ),
+    );
+  }
+}
+
+class _UiverseIconPainter extends CustomPainter {
+  final int index;
+  final Color color;
+  _UiverseIconPainter({required this.index, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final solidPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    final fadedPaint = Paint()
+      ..color = color.withValues(alpha: 0.4)
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
+    final scale = size.width / 24.0;
+    canvas.scale(scale, scale);
+
+    if (index == 0) {
+      canvas.drawPath(
+        parseSvgPathData('M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.06-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689Z'),
+        solidPaint,
+      );
+      canvas.drawPath(
+        parseSvgPathData('m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198a2.29 2.29 0 0 0 .091-.086L12 5.432Z'),
+        solidPaint,
+      );
+      return;
+    }
+
+    if (index == 1) {
+      canvas.drawPath(
+        parseSvgPathData('M16.5 7.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM3.75 20.1a8.25 8.25 0 0 1 16.5 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.813-1.705A.75.75 0 0 1 3.75 20.1Z'),
+        solidPaint,
+      );
+      canvas.drawPath(
+        parseSvgPathData('M16 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z'),
+        fadedPaint,
+      );
+      canvas.drawPath(
+        parseSvgPathData('M16 13.5a9 9 0 0 1 6.25 2.45.75.75 0 0 1 .25.55v.6a.75.75 0 0 1-.437.695A18 18 0 0 1 18 18.3v-.2a9.26 9.26 0 0 0-3.2-7 9.1 9.1 0 0 1 1.2-.1Z'),
+        fadedPaint,
+      );
+      return;
+    }
+
+    canvas.drawPath(
+      parseSvgPathData('M17.004 10.407c.138.435-.216.842-.672.842h-3.465a.75.75 0 0 1-.65-.375l-1.732-3c-.229-.396-.053-.907.393-1.004a5.252 5.252 0 0 1 6.126 3.537ZM8.12 8.464c.307-.338.838-.235 1.066.16l1.732 3a.75.75 0 0 1 0 .75l-1.732 3c-.229.397-.76.5-1.067.161A5.23 5.23 0 0 1 6.75 12a5.23 5.23 0 0 1 1.37-3.536ZM10.878 17.13c-.447-.098-.623-.608-.394-1.004l1.733-3.002a.75.75 0 0 1 .65-.375h3.465c.457 0 .81.407.672.842a5.252 5.252 0 0 1-6.126 3.539Z'),
+      solidPaint,
+    );
+    final settingsPath = parseSvgPathData('M21 12.75a.75.75 0 1 0 0-1.5h-.783a8.22 8.22 0 0 0-.237-1.357l.734-.267a.75.75 0 1 0-.513-1.41l-.735.268a8.24 8.24 0 0 0-.689-1.192l.6-.503a.75.75 0 1 0-.964-1.149l-.6.504a8.3 8.3 0 0 0-1.054-.885l.391-.678a.75.75 0 1 0-1.299-.75l-.39.676a8.188 8.188 0 0 0-1.295-.47l.136-.77a.75.75 0 0 0-1.477-.26l-.136.77a8.36 8.36 0 0 0-1.377 0l-.136-.77a.75.75 0 1 0-1.477.26l.136.77c-.448.121-.88.28-1.294.47l-.39-.676a.75.75 0 0 0-1.3.75l.392.678a8.29 8.29 0 0 0-1.054.885l-.6-.504a.75.75 0 1 0-.965 1.149l.6.503a8.243 8.243 0 0 0-.689 1.192L3.8 8.216a.75.75 0 1 0-.513 1.41l.735.267a8.222 8.222 0 0 0-.238 1.356h-.783a.75.75 0 0 0 0 1.5h.783c.042.464.122.917.238 1.356l-.735.268a.75.75 0 0 0 .513 1.41l.735-.268c.197.417.428.816.69 1.191l-.6.504a.75.75 0 0 0 .963 1.15l.601-.505c.326.323.679.62 1.054.885l-.392.68a.75.75 0 0 0 1.3.75l.39-.679c.414.192.847.35 1.294.471l-.136.77a.75.75 0 0 0 1.477.261l.137-.772a8.332 8.332 0 0 0 1.376 0l.136.772a.75.75 0 1 0 1.477-.26l-.136-.771a8.19 8.19 0 0 0 1.294-.47l.391.677a.75.75 0 0 0 1.3-.75l-.393-.679a8.29 8.29 0 0 0 1.054-.885l.601.504a.75.75 0 0 0 .964-1.15l-.6-.503c.261-.375.492-.774.69-1.191l.735.267a.75.75 0 1 0 .512-1.41l-.734-.267c.115-.439.195-.892.237-1.356h.784Zm-2.657-3.06a6.744 6.744 0 0 0-1.19-2.053 6.784 6.784 0 0 0-1.82-1.51A6.705 6.705 0 0 0 12 5.25a6.8 6.8 0 0 0-1.225.11 6.7 6.7 0 0 0-2.15.793 6.784 6.784 0 0 0-2.952 3.489.76.76 0 0 1-.036.098A6.74 6.74 0 0 0 5.251 12a6.74 6.74 0 0 0 3.366 5.842l.009.005a6.704 6.704 0 0 0 2.18.798l.022.003a6.792 6.792 0 0 0 2.368-.004 6.704 6.704 0 0 0 2.205-.811 6.785 6.785 0 0 0 1.762-1.484l.009-.01.009-.01a6.743 6.743 0 0 0 1.18-2.066c.253-.707.39-1.469.39-2.263a6.74 6.74 0 0 0-.408-2.309Z');
+    settingsPath.fillType = PathFillType.evenOdd;
+    canvas.drawPath(settingsPath, solidPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _UiverseIconPainter oldDelegate) {
+    return oldDelegate.index != index || oldDelegate.color != color;
   }
 }

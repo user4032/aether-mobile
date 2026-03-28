@@ -82,21 +82,23 @@ class GlassContainer extends StatelessWidget {
 
 class VerifiedBadge extends StatelessWidget {
   final double size;
-  const VerifiedBadge({super.key, this.size = 14});
+  final Color color;
+  const VerifiedBadge({super.key, this.size = 14, this.color = const Color(0xFF1DA1F2)});
 
   @override
   Widget build(BuildContext context) {
+    final dark = Color.lerp(color, Colors.black, 0.35) ?? color;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1DA1F2), Color(0xFF0066CC)],
+        gradient: LinearGradient(
+          colors: [color, dark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        boxShadow: [BoxShadow(color: const Color(0xFF1DA1F2).withValues(alpha: 0.5), blurRadius: 6)],
+        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 6)],
       ),
       child: Icon(Icons.check, color: Colors.white, size: size * 0.65),
     );
@@ -713,20 +715,36 @@ class _SafeAvatarState extends State<SafeAvatar> {
 
   @override
   Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: widget.radius,
-      backgroundColor: Colors.white.withValues(alpha: 0.1),
-      child: widget.isGroup
-        ? Icon(Icons.group, color: Colors.white70, size: widget.radius * 0.9)
-        : (_imageBytes != null
-          ? ClipOval(child: Image.memory(_imageBytes!, width: widget.radius * 2, height: widget.radius * 2, fit: BoxFit.cover, gaplessPlayback: true, errorBuilder: (ctx, err, stack) => _buildFallback()))
-          : _buildFallback()),
+    return SizedBox(
+      width: widget.radius * 2,
+      height: widget.radius * 2,
+      child: ClipOval(
+        child: widget.isGroup
+            ? Container(
+                color: Colors.white.withValues(alpha: 0.08),
+                child: Icon(Icons.group, color: Colors.white70, size: widget.radius * 0.9),
+              )
+            : (_imageBytes != null
+                ? Image.memory(
+                    _imageBytes!,
+                    width: widget.radius * 2,
+                    height: widget.radius * 2,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                    errorBuilder: (ctx, err, stack) => _buildFallback(),
+                  )
+                : _buildFallback()),
+      ),
     );
   }
 
-  Widget _buildFallback() => Text(
-    widget.fallbackName.isNotEmpty ? widget.fallbackName[0].toUpperCase() : '?',
-    style: TextStyle(color: Colors.white, fontSize: widget.radius * 0.7, fontWeight: FontWeight.w600),
+  Widget _buildFallback() => Container(
+    color: Colors.white.withValues(alpha: 0.1),
+    alignment: Alignment.center,
+    child: Text(
+      widget.fallbackName.isNotEmpty ? widget.fallbackName[0].toUpperCase() : '?',
+      style: TextStyle(color: Colors.white, fontSize: widget.radius * 0.7, fontWeight: FontWeight.w600),
+    ),
   );
 }
 
@@ -819,37 +837,93 @@ class AudioMessagePlayer extends StatefulWidget {
 }
 
 class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
+  static final ValueNotifier<int?> _activeAudioInstance = ValueNotifier<int?>(null);
+
   final AudioPlayer _audioPlayer = AudioPlayer();
+  late final int _instanceId;
   bool _isPlaying = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   String? _filePath;
   late List<double> _waveHeights;
 
+  void _handleActiveAudioChanged() {
+    if (_activeAudioInstance.value != _instanceId && _isPlaying) {
+      _audioPlayer.stop();
+    }
+  }
+
+  int _computeStableSeed(String data) {
+    int hash = 0x811C9DC5;
+    for (final b in utf8.encode(data)) {
+      hash ^= b;
+      hash = (hash * 0x01000193) & 0x7fffffff;
+    }
+    return hash;
+  }
+
+  List<double> _buildWaveHeights(String audioData) {
+    final rand = Random(_computeStableSeed(audioData));
+    return List.generate(35, (_) => rand.nextDouble() * 20 + 4);
+  }
+
   @override
   void initState() {
     super.initState();
+    _instanceId = identityHashCode(this);
+    _waveHeights = _buildWaveHeights(widget.base64Audio);
     _prepareAudio();
-    final seed = widget.base64Audio.length > 20 ? widget.base64Audio.substring(0, 20).hashCode : widget.base64Audio.hashCode;
-    final rand = Random(seed);
-    _waveHeights = List.generate(35, (_) => rand.nextDouble() * 20 + 4);
+    _activeAudioInstance.addListener(_handleActiveAudioChanged);
     _audioPlayer.onPlayerStateChanged.listen((state) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isPlaying = state == PlayerState.playing); }); });
     _audioPlayer.onDurationChanged.listen((d) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _duration = d); }); });
     _audioPlayer.onPositionChanged.listen((p) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _position = p); }); });
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (_activeAudioInstance.value == _instanceId) {
+        _activeAudioInstance.value = null;
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant AudioMessagePlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.base64Audio != widget.base64Audio) {
+      _position = Duration.zero;
+      _duration = Duration.zero;
+      _isPlaying = false;
+      _waveHeights = _buildWaveHeights(widget.base64Audio);
+      _prepareAudio();
+    }
   }
 
   Future<void> _prepareAudio() async {
     try {
+      if (_filePath != null) {
+        try {
+          final prev = File(_filePath!);
+          if (await prev.exists()) {
+            await prev.delete();
+          }
+        } catch (_) {}
+      }
       final bytes = base64Decode(widget.base64Audio);
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a');
+      final file = File('${dir.path}/audio_${_computeStableSeed(widget.base64Audio)}.m4a');
       await file.writeAsBytes(bytes);
-      if (mounted) { _filePath = file.path; await _audioPlayer.setSourceDeviceFile(_filePath!); }
+      if (mounted) {
+        _filePath = file.path;
+        await _audioPlayer.stop();
+        await _audioPlayer.setSourceDeviceFile(_filePath!);
+      }
     } catch (e) { debugPrint("Audio load error: $e"); }
   }
 
   @override
   void dispose() {
+    if (_activeAudioInstance.value == _instanceId) {
+      _activeAudioInstance.value = null;
+    }
+    _activeAudioInstance.removeListener(_handleActiveAudioChanged);
     _audioPlayer.dispose();
     if (_filePath != null) { try { final f = File(_filePath!); if (f.existsSync()) f.deleteSync(); } catch (e) { debugPrint('Error deleting file'); } }
     super.dispose();
@@ -857,7 +931,12 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.isEphemeral ? const Color(0xFFE5B3FF) : (widget.isMe ? Colors.black : Colors.white);
+    final onTheme = widget.themeColor != null && ThemeData.estimateBrightnessForColor(widget.themeColor!) == Brightness.dark
+      ? Colors.white
+      : Colors.black;
+    final color = widget.isEphemeral
+      ? const Color(0xFFE5B3FF)
+      : (widget.isMe ? Colors.black : (widget.themeColor != null ? onTheme : Colors.white));
     final bgColor = widget.isEphemeral ? const Color(0xFFB026FF).withValues(alpha: 0.4) : (widget.isMe ? Colors.white.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.1));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -868,7 +947,15 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
             onTap: () async {
               if (_filePath == null) return;
               widget.onPlay?.call();
-              if (_isPlaying) { await _audioPlayer.pause(); } else { await _audioPlayer.play(DeviceFileSource(_filePath!)); }
+              if (_isPlaying) {
+                await _audioPlayer.stop();
+                if (_activeAudioInstance.value == _instanceId) {
+                  _activeAudioInstance.value = null;
+                }
+              } else {
+                _activeAudioInstance.value = _instanceId;
+                await _audioPlayer.play(DeviceFileSource(_filePath!));
+              }
             },
             child: CircleAvatar(radius: 18, backgroundColor: bgColor, child: Icon(_isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: color, size: 24)),
           ),

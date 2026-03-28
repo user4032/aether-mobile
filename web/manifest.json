@@ -5,6 +5,7 @@
     "display": "standalone",
     "background_color": "#000000",
     "theme_color": "#000000",
+    "gcm_sender_id": "103953800507",
     "description": "Aether Core Protocol",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
