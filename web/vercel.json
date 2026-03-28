@@ -3,19 +3,7 @@
   "rewrites": [
     {
       "source": "/main",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/faq",
-      "destination": "/faq.html"
-    },
-    {
-      "source": "/support",
-      "destination": "/support.html"
-    },
-    {
-      "source": "/download",
-      "destination": "/download.html"
+      "destination": "/"
     }
   ]
 }
