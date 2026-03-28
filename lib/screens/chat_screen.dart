@@ -119,36 +119,57 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _startRecording() async {
-    try {
-      if (await _audioRecorder.hasPermission()) {
-        final dir = await getApplicationDocumentsDirectory();
-        final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        await _audioRecorder.start(
-          const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000, sampleRate: 44100), 
-          path: path
-        );
-        setState(() { 
-          _isRecordingAudio = true; 
-          _recordDuration = 0; 
-          _recordAmplitudes = List.generate(30, (_) => 2.0); 
-        });
-        _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) { if (mounted) setState(() => _recordDuration++); });
-        _amplitudeSub = _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 50)).listen((amp) {
-          if (mounted) {
-            setState(() {
-              double height = (amp.current + 50).clamp(0.0, 50.0) / 50.0 * 28.0;
-              List<double> newAmps = List.from(_recordAmplitudes);
-              newAmps.add(max(2.0, height));
-              if (newAmps.length > 30) {
-                newAmps.removeAt(0);
-              }
-              _recordAmplitudes = newAmps;
-            });
-          }
+  try {
+    // Explicitly request permission first, don't just check
+    final hasPermission = await _audioRecorder.hasPermission();
+    if (!hasPermission) {
+      debugPrint("Microphone permission denied");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(t('Дозвольте доступ до мікрофону в налаштуваннях', 'Allow microphone access in Settings')),
+          backgroundColor: Colors.red.shade900,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+        ));
+      }
+      return;
+    }
+    final dir = await getApplicationDocumentsDirectory();
+    final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _audioRecorder.start(
+      const RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        bitRate: 128000,
+        sampleRate: 44100,
+        noiseSuppress: true,   // ← ADD for iOS compatibility
+        echoCancel: true,      // ← ADD for iOS compatibility
+      ),
+      path: path,
+    );
+    setState(() {
+      _isRecordingAudio = true;
+      _recordDuration = 0;
+      _recordAmplitudes = List.generate(30, (_) => 2.0);
+    });
+    _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _recordDuration++);
+    });
+    _amplitudeSub = _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 50)).listen((amp) {
+      if (mounted) {
+        setState(() {
+          double height = (amp.current + 50).clamp(0.0, 50.0) / 50.0 * 28.0;
+          List<double> newAmps = List.from(_recordAmplitudes);
+          newAmps.add(max(2.0, height));
+          if (newAmps.length > 30) newAmps.removeAt(0);
+          _recordAmplitudes = newAmps;
         });
       }
-    } catch (e) { debugPrint("Recording error: $e"); }
+    });
+  } catch (e) {
+    debugPrint("Recording error: $e");
+    setState(() => _isRecordingAudio = false);
   }
+}
 
   Future<void> _stopRecording() async {
     try {
@@ -488,6 +509,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showAttachmentMenu() {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.9), borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
@@ -565,21 +587,26 @@ class _ChatScreenState extends State<ChatScreen> {
                 ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.memory(bytes, height: 250, fit: BoxFit.contain)),
                 const SizedBox(height: 16),
                 GlassInput(controller: captionController, hintText: t("Додати підпис...", "Add a caption...")),
-                const SizedBox(height: 16),
+    const SizedBox(height: 16),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t("Скасувати", "Cancel"), style: const TextStyle(color: Colors.white54))),
-                    const SizedBox(width: 8),
-                    ShineButton(
-                      text: t("Відправити", "Send"),
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _sendWithImage(captionController.text.trim(), base64Image);
-                      },
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(t("Скасувати", "Cancel"), style: const TextStyle(color: Colors.white54)),
+                      ),
+                    ),
+                    Expanded(
+                      child: ShineButton(
+                        text: t("Відправити", "Send"),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _sendWithImage(captionController.text.trim(), base64Image);
+                        },
+                      ),
                     ),
                   ],
-                )
+                ),
               ],
             ),
           ),
@@ -713,11 +740,19 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                                 Navigator.pop(ctx);
                                 final friendKey = f['publicKey'];
                                 if (friendKey == null) return;
+                                final messenger = ScaffoldMessenger.of(context);
                                 final key = await _getSecretKey(friendKey);
                                 final originalText = msg['text'] ?? '';
                                 final box = await _aes.encrypt(utf8.encode(originalText), secretKey: key);
                                 socket.emit('message', {'type': 'text', 'text': originalText, 'ciphertext': base64Encode(box.cipherText), 'nonce': base64Encode(box.nonce), 'mac': base64Encode(box.mac.bytes), 'senderName': widget.userName, 'receiverName': f['userName']});
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${t("Переслано до", "Forwarded to")} ${f['userName']}'), backgroundColor: const Color(0xFF333333), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50))));
+                                if (mounted) {
+                                  messenger.showSnackBar(SnackBar(  // ← use captured messenger
+                                    content: Text('${t("Переслано до", "Forwarded to")} ${f['userName']}'),
+                                    backgroundColor: const Color(0xFF333333),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                                  ));
+                                }
                               },
                               child: Padding(
                                 padding: const EdgeInsets.only(right: 16),
@@ -843,7 +878,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
     if (bytesOrString == null) return errorWidget;
     Uint8List bytes = bytesOrString is Uint8List ? bytesOrString : base64Decode(bytesOrString);
     return Image.memory(
-      bytes, fit: BoxFit.cover, gaplessPlayback: true, cacheWidth: 400,
+      bytes, fit: BoxFit.cover, gaplessPlayback: true, cacheWidth: 400, cacheHeight: 400, filterQuality: FilterQuality.low,
       errorBuilder: (ctx, err, stack) => errorWidget
     );
   }
@@ -965,7 +1000,8 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                             bool hasValidImage = m['imageBytes'] != null || (m['text'] != null && m['text'].toString().length > 100);
                             bool hasCaption = m['text'] != null && m['text'].toString().isNotEmpty && m['text'].toString().length < 1000;
 
-                            Widget bubble = Container(
+                            Widget bubble = RepaintBoundary(
+                          child: Container(
                                 margin: const EdgeInsets.only(bottom: 2),
                                 constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
                                 padding: EdgeInsets.only(left: isImage || isAudio ? 4 : 14, right: isImage || isAudio ? 4 : 14, top: isImage ? 4 : 10, bottom: isImage ? 4 : 10),
@@ -1018,6 +1054,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                                     ]
                                   ],
                                 ),
+                            )
                             );
 
                             return SwipeToReplyWrapper(
@@ -1172,7 +1209,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(color: _isAetherMode ? const Color(0xFF1A0B2E) : Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(20), border: Border.all(color: _isAetherMode ? const Color(0xFFB026FF) : Colors.white.withValues(alpha: 0.1))),
                 child: TextField(
-                  controller: _c, focusNode: _chatFocusNode, minLines: 1, maxLines: 4, onChanged: _onTextChanged,
+                  controller: _c, focusNode: _chatFocusNode, minLines: 1, maxLines: 4, onChanged: _onTextChanged, autocorrect: false, enableSuggestions: false, keyboardAppearance: Brightness.dark,
                   style: TextStyle(color: _isAetherMode ? const Color(0xFFE5B3FF) : Colors.white, fontSize: 15),
                   decoration: InputDecoration(
                     hintText: isEditingMode ? t("Змінити...", "Edit...") : (_isAetherMode ? t("Секретне повідомлення...", "Secret message...") : t("Повідомлення...", "Message...")),
