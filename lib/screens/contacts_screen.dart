@@ -138,12 +138,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
     if (!mounted) return;
     final croppedFile = await ImageCropper().cropImage(
       sourcePath: image.path,
-      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1), // Фіксуємо квадрат
-      // ВИДАЛЕНО cropStyle, який викликав помилку
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: t('Профіль', 'Profile'),
-          toolbarColor: Colors.black, // Чорний фон як на скріні
+          toolbarColor: Colors.black,
           toolbarWidgetColor: Colors.white,
           initAspectRatio: CropAspectRatioPreset.square,
           lockAspectRatio: true,
@@ -309,14 +308,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // БЛОК РЕЗЕРВНОГО КОПІЮВАННЯ (EXPORT / IMPORT)
-  // ─────────────────────────────────────────────────────────────────────────────
-  
   void _showExportDialog() {
     final passwordController = TextEditingController();
     String? backupToken;
-    
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -336,7 +330,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   style: TextStyle(color: Colors.red.withValues(alpha: 0.8), fontSize: 12),
                 ),
                 const SizedBox(height: 20),
-                
                 if (backupToken == null) ...[
                   GlassInput(controller: passwordController, hintText: t("Придумайте пароль", "Create password"), obscureText: true),
                   const SizedBox(height: 20),
@@ -347,47 +340,27 @@ class _ContactsScreenState extends State<ContactsScreen> {
                       try {
                         final storage = const FlutterSecureStorage();
                         final priv = await storage.read(key: 'private_key');
-                        final payloadStr = jsonEncode({
-                          'priv': priv,
-                          'pub': widget.publicKey,
-                          'dev': widget.deviceId,
-                          'name': widget.userName
-                        });
-
+                        final payloadStr = jsonEncode({'priv': priv, 'pub': widget.publicKey, 'dev': widget.deviceId, 'name': widget.userName});
                         final passHash = await Sha256().hash(utf8.encode(passwordController.text.trim()));
                         final key = await _aes.newSecretKeyFromBytes(passHash.bytes);
                         final box = await _aes.encrypt(utf8.encode(payloadStr), secretKey: key);
-                        
-                        setStateSB(() {
-                          backupToken = '${base64Encode(box.nonce)}.${base64Encode(box.cipherText)}.${base64Encode(box.mac.bytes)}';
-                        });
-                      } catch (e) {
-                        _showSnack("Encryption error");
-                      }
+                        setStateSB(() { backupToken = '${base64Encode(box.nonce)}.${base64Encode(box.cipherText)}.${base64Encode(box.mac.bytes)}'; });
+                      } catch (e) { _showSnack("Encryption error"); }
                     },
                   ),
                 ] else ...[
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFB026FF).withValues(alpha: 0.5))),
-                    child: SelectableText(
-                      backupToken!,
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontFamily: 'monospace'),
-                    ),
+                    child: SelectableText(backupToken!, style: const TextStyle(color: Colors.white, fontSize: 10, fontFamily: 'monospace')),
                   ),
                   const SizedBox(height: 16),
                   ElegantButton(
                     text: t("Скопіювати ключ", "Copy Backup Key"),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: backupToken!));
-                      _showSnack(t("Скопійовано в буфер", "Copied to clipboard"));
-                      Navigator.pop(context);
-                    },
+                    onPressed: () { Clipboard.setData(ClipboardData(text: backupToken!)); _showSnack(t("Скопійовано в буфер", "Copied to clipboard")); Navigator.pop(context); },
                   ),
                 ],
-                
-                if (backupToken == null)
-                  TextButton(onPressed: () => Navigator.pop(context), child: Text(t('Скасувати', 'Cancel'), style: const TextStyle(color: Colors.white70))),
+                if (backupToken == null) TextButton(onPressed: () => Navigator.pop(context), child: Text(t('Скасувати', 'Cancel'), style: const TextStyle(color: Colors.white70))),
               ],
             ),
           ),
@@ -400,7 +373,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final tokenController = TextEditingController();
     final passwordController = TextEditingController();
     bool isLoading = false;
-
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -418,7 +390,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 const SizedBox(height: 16),
                 GlassInput(controller: passwordController, hintText: t("Пароль", "Password"), obscureText: true),
                 const SizedBox(height: 24),
-                
                 ShineButton(
                   text: t("Відновити", "Restore"),
                   isLoading: isLoading,
@@ -426,36 +397,26 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     final token = tokenController.text.trim();
                     final pass = passwordController.text.trim();
                     if (token.isEmpty || pass.isEmpty) return;
-                    
                     setStateSB(() => isLoading = true);
-                    
                     try {
                       final parts = token.split('.');
                       if (parts.length != 3) throw Exception("Invalid format");
-                      
                       final nonce = base64Decode(parts[0]);
                       final cipherText = base64Decode(parts[1]);
                       final mac = base64Decode(parts[2]);
-                      
                       final passHash = await Sha256().hash(utf8.encode(pass));
                       final key = await _aes.newSecretKeyFromBytes(passHash.bytes);
-                      
                       final box = SecretBox(cipherText, nonce: nonce, mac: Mac(mac));
                       final decryptedBytes = await _aes.decrypt(box, secretKey: key);
                       final payload = jsonDecode(utf8.decode(decryptedBytes));
-                      
-                      // Save recovered keys
                       final prefs = await SharedPreferences.getInstance();
                       final storage = const FlutterSecureStorage();
-                      
                       await storage.write(key: 'private_key', value: payload['priv']);
                       await prefs.setString('public_key', payload['pub']);
                       await prefs.setString('device_id', payload['dev']);
                       await prefs.setString('user_name', payload['name']);
-                      
                       if (!context.mounted) return;
                       Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const MainGate()), (r) => false);
-                      
                     } catch (e) {
                       setStateSB(() => isLoading = false);
                       _showSnack(t("Невірний ключ або пароль", "Invalid token or password"));
@@ -662,7 +623,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 Text(t("Напишіть щось друзям.", "Write something to friends."), style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16)),
               ]))
             : ListView.separated(
-                padding: const EdgeInsets.only(bottom: 100),
+                padding: const EdgeInsets.only(bottom: 120), // ФІКС: Більший відступ для плаваючого меню
                 itemCount: _recentChats.length,
                 separatorBuilder: (context, index) => Padding(padding: const EdgeInsets.only(left: 76.0), child: Divider(height: 1, color: Colors.white.withValues(alpha: 0.05))),
                 itemBuilder: (context, index) {
@@ -710,7 +671,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   Widget _buildFriendsTab() {
     return ListView(
-      padding: const EdgeInsets.only(top: 20, bottom: 100),
+      padding: const EdgeInsets.only(top: 20, bottom: 120), // ФІКС: Більший відступ
       children: [
         Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text(t("ДОДАТИ ДРУГА", "ADD FRIEND"), style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5), fontWeight: FontWeight.bold, letterSpacing: 1))),
         Container(
@@ -773,7 +734,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   Widget _buildSettingsTab() {
     return ListView(
-      padding: const EdgeInsets.only(top: 20, bottom: 100),
+      padding: const EdgeInsets.only(top: 20, bottom: 120), // ФІКС: Більший відступ
       children: [
         Center(
           child: Stack(children: [
@@ -808,7 +769,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
           ),
         ),
         
-        // НОВИЙ БЛОК БЕЗПЕКИ ТУТ
         const SizedBox(height: 32),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text(t("БЕЗПЕКА (ZERO-KNOWLEDGE)", "SECURITY (ZERO-KNOWLEDGE)"), style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5), fontWeight: FontWeight.bold, letterSpacing: 1))),
         GlassContainer(
@@ -901,46 +861,115 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
   }
 
+  // ─────────────────────────────────────────────────────────
+  // НОВИЙ ПРЕМІАЛЬНИЙ BOTTOM NAV (У СТИЛІ UIVERSE + LUMYN)
+  // ─────────────────────────────────────────────────────────
+  Widget _buildCustomBottomNav(int totalUnread, int totalPending) {
+    return Padding(
+      // Динамічний відступ знизу для iPhone (SafeArea)
+      padding: EdgeInsets.only(left: 20, right: 20, bottom: MediaQuery.of(context).padding.bottom + 16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(100),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            height: 70,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              // Чорний напівпрозорий фон
+              color: Colors.black.withValues(alpha: 0.65), 
+              borderRadius: BorderRadius.circular(100),
+              // Легка рамка зверху
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 30, offset: const Offset(0, 10))
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _navItem(0, Icons.chat_bubble_rounded, t("Чати", "Chats"), totalUnread),
+                _navItem(1, Icons.people_alt_rounded, t("Друзі", "Friends"), totalPending),
+                _navItem(2, Icons.settings_rounded, t("Профіль", "Profile"), 0),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(int index, IconData icon, String label, int badgeCount) {
+    final isActive = _currentIndex == index;
+    // Кольори для активного і неактивного стану
+    final color = isActive ? const Color(0xFFB026FF) : Colors.white.withValues(alpha: 0.4);
+    final bgColor = isActive ? const Color(0xFFB026FF).withValues(alpha: 0.15) : Colors.transparent;
+
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = index),
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(100),
+          // Легке внутрішнє світіння для активної кнопки
+          border: isActive ? Border.all(color: const Color(0xFFB026FF).withValues(alpha: 0.3)) : Border.all(color: Colors.transparent),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedScale(
+              scale: isActive ? 1.1 : 1.0, // Кнопка "вистрибує" при натисканні
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutBack,
+              child: Badge(
+                isLabelVisible: badgeCount > 0,
+                backgroundColor: Colors.white,
+                textColor: Colors.black,
+                label: Text('$badgeCount', style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: Icon(icon, color: color, size: 24),
+              ),
+            ),
+            const SizedBox(height: 4),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 250),
+              style: TextStyle(
+                color: color,
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                letterSpacing: 0.5,
+              ),
+              child: Text(label),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     int totalUnread = _recentChats.fold(0, (sum, chat) => sum + ((chat['unreadCount'] ?? 0) as int));
     int totalPending = _pendingRequests.length;
     String appBarTitle = _currentIndex == 0 ? t("Чати", "Chats") : (_currentIndex == 1 ? t("Друзі", "Friends") : t("Профіль", "Profile"));
+    
     return Scaffold(
       backgroundColor: Colors.transparent,
+      // Дозволяємо контенту (спискам) скролитися ПІД плаваючою панеллю
+      extendBody: true, 
       appBar: AppBar(
         title: Text(appBarTitle),
         flexibleSpace: ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20), child: Container(color: Colors.black.withValues(alpha: 0.5)))),
         actions: _currentIndex == 0 ? [Container(margin: const EdgeInsets.only(right: 16), child: IconButton(icon: const Icon(Icons.group_add, color: Colors.white, size: 24), onPressed: _showCreateGroupDialog))] : null,
       ),
-      body: LiquidBackground(child: _currentIndex == 0 ? _buildChatsTab() : (_currentIndex == 1 ? _buildFriendsTab() : _buildSettingsTab())),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 30, right: 30, bottom: 30),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(35),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              height: 65,
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1), borderRadius: BorderRadius.circular(35)),
-              child: BottomNavigationBar(
-                currentIndex: _currentIndex,
-                backgroundColor: Colors.transparent,
-                selectedItemColor: Colors.white,
-                unselectedItemColor: Colors.white.withValues(alpha: 0.4),
-                selectedFontSize: 11, unselectedFontSize: 11,
-                type: BottomNavigationBarType.fixed, elevation: 0,
-                onTap: (index) { setState(() { _currentIndex = index; }); },
-                items: [
-                  BottomNavigationBarItem(icon: Badge(isLabelVisible: totalUnread > 0, backgroundColor: Colors.white, textColor: Colors.black, label: Text('$totalUnread'), child: const Icon(Icons.chat_bubble)), label: t("Чати", "Chats")),
-                  BottomNavigationBarItem(icon: Badge(isLabelVisible: totalPending > 0, backgroundColor: Colors.white, textColor: Colors.black, label: Text('$totalPending'), child: const Icon(Icons.people)), label: t("Друзі", "Friends")),
-                  BottomNavigationBarItem(icon: const Icon(Icons.settings_outlined), label: t("Профіль", "Profile")),
-                ],
-              ),
-            ),
-          ),
-        ),
+      body: LiquidBackground(
+        child: _currentIndex == 0 ? _buildChatsTab() : (_currentIndex == 1 ? _buildFriendsTab() : _buildSettingsTab())
       ),
+      // НОВА плаваюча панель!
+      bottomNavigationBar: _buildCustomBottomNav(totalUnread, totalPending),
     );
   }
 }
