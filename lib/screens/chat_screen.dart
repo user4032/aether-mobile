@@ -39,6 +39,7 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  static const int _historyPageSize = 80;
   static const _accentColors = {
     'purple': Color(0xFFB026FF),
     'blue': Color(0xFF007AFF),
@@ -62,6 +63,8 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isPartnerOnline = false;
   bool _isCheckingPresence = true;
   bool _isLoadingHistory = true;
+  bool _isLoadingMoreHistory = false;
+  bool _hasMoreHistory = true;
   bool _isAetherMode = false;
   bool _isSearchMode = false;
   
@@ -89,6 +92,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _readReceiptsEnabled = true;
   bool _onlineStatusEnabled = true;
   bool _typingIndicatorEnabled = true;
+  int? _oldestMessageId;
 
   StreamSubscription<Amplitude>? _amplitudeSub;
   List<double> _recordAmplitudes = [];
@@ -100,6 +104,7 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _currentPartnerKey = widget.partnerPublicKey;
     currentActiveChat = widget.partnerPublicKey.startsWith('GROUP_') ? widget.partnerPublicKey : widget.partnerName;
+    _scrollController.addListener(_maybeLoadOlderHistory);
     _loadUiPreferences();
     _connect();
   }
@@ -332,6 +337,147 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  String _historyPartnerId() {
+    return widget.partnerPublicKey.startsWith('GROUP_') ? widget.partnerPublicKey : widget.partnerName;
+  }
+
+  int? _extractOldestId(List<Map<String, dynamic>> batch) {
+    int? oldest;
+    for (final item in batch) {
+      final raw = item['id'];
+      final id = raw is num ? raw.toInt() : int.tryParse(raw?.toString() ?? '');
+      if (id == null) continue;
+      if (oldest == null || id < oldest) oldest = id;
+    }
+    return oldest;
+  }
+
+  void _loadInitialHistory() {
+    final historyPartner = _historyPartnerId();
+    if (mounted) {
+      setState(() {
+        _isLoadingHistory = true;
+        _isLoadingMoreHistory = false;
+      });
+    }
+    socket.emitWithAck(
+      'get_direct_history',
+      {'me': widget.userName, 'partner': historyPartner, 'limit': _historyPageSize},
+      ack: (dynamic data) async {
+        final incoming = List<Map<String, dynamic>>.from(data as List);
+        final oldestId = _extractOldestId(incoming);
+        List<Map<String, dynamic>> temp = [];
+        bool hasEncryptedOldMessages = false;
+
+        for (var m in incoming) {
+          var msgMap = Map<String, dynamic>.from(m);
+          await _processMessage(msgMap);
+          if (msgMap['isDecryptionFailed'] == true) {
+            hasEncryptedOldMessages = true;
+          } else {
+            temp.add(msgMap);
+          }
+        }
+
+        if (hasEncryptedOldMessages) {
+          temp.insert(0, {
+            'isSystem': true,
+            'text': t("🔒 Попередні повідомлення були надійно зашифровані та недоступні для цієї сесії.", "🔒 Previous messages were encrypted and are unavailable in this session."),
+            'timestamp': temp.isNotEmpty ? temp.first['timestamp'] : DateTime.now().toIso8601String(),
+            'senderName': 'system',
+          });
+        }
+
+        if (mounted) {
+          setState(() {
+            _messages
+              ..clear()
+              ..addAll(temp);
+            _isLoadingHistory = false;
+            _hasMoreHistory = incoming.length >= _historyPageSize;
+            _oldestMessageId = oldestId;
+          });
+          if (_readReceiptsEnabled) {
+            socket.emit('mark_read', {'chatId': historyPartner, 'readerName': widget.userName});
+          }
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (_scrollController.hasClients && mounted) {
+              _scrollController.animateTo(_scrollController.position.maxScrollExtent + 100, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
+            }
+          });
+        }
+      },
+    );
+  }
+
+  void _maybeLoadOlderHistory() {
+    if (!_scrollController.hasClients || _isLoadingHistory || _isLoadingMoreHistory || !_hasMoreHistory) return;
+    if (_scrollController.offset <= 140) {
+      _loadOlderHistory();
+    }
+  }
+
+  void _loadOlderHistory() {
+    if (_oldestMessageId == null || _isLoadingMoreHistory || !_hasMoreHistory) return;
+    final historyPartner = _historyPartnerId();
+    final prevOffset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+    final prevMax = _scrollController.hasClients ? _scrollController.position.maxScrollExtent : 0.0;
+
+    setState(() => _isLoadingMoreHistory = true);
+    socket.emitWithAck(
+      'get_direct_history',
+      {
+        'me': widget.userName,
+        'partner': historyPartner,
+        'beforeId': _oldestMessageId,
+        'limit': _historyPageSize,
+      },
+      ack: (dynamic data) async {
+        final incoming = List<Map<String, dynamic>>.from(data as List);
+        final oldestId = _extractOldestId(incoming);
+        if (incoming.isEmpty) {
+          if (mounted) {
+            setState(() {
+              _isLoadingMoreHistory = false;
+              _hasMoreHistory = false;
+            });
+          }
+          return;
+        }
+
+        final existingKeys = _messages.map((m) => '${m['timestamp']}_${m['senderName']}').toSet();
+        final older = <Map<String, dynamic>>[];
+        for (final m in incoming) {
+          final msgMap = Map<String, dynamic>.from(m);
+          await _processMessage(msgMap);
+          if (msgMap['isDecryptionFailed'] == true) continue;
+          final key = '${msgMap['timestamp']}_${msgMap['senderName']}';
+          if (!existingKeys.contains(key)) {
+            older.add(msgMap);
+          }
+        }
+
+        if (!mounted) return;
+        setState(() {
+          if (older.isNotEmpty) {
+            _messages.insertAll(0, older);
+          }
+          _isLoadingMoreHistory = false;
+          _hasMoreHistory = incoming.length >= _historyPageSize;
+          _oldestMessageId = oldestId ?? _oldestMessageId;
+        });
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_scrollController.hasClients) return;
+          final nextMax = _scrollController.position.maxScrollExtent;
+          final delta = nextMax - prevMax;
+          final target = (prevOffset + delta).clamp(0.0, nextMax);
+          _scrollController.jumpTo(target);
+        });
+      },
+    );
+  }
+
   void _connect() {
     socket = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
     _socketInitialized = true;
@@ -349,43 +495,8 @@ class _ChatScreenState extends State<ChatScreen> {
           setState(() { _isCheckingPresence = false; });
         }
       }
-      
-      String historyPartner = widget.partnerPublicKey.startsWith('GROUP_') ? widget.partnerPublicKey : widget.partnerName;
-      socket.emitWithAck('get_direct_history', {'me': widget.userName, 'partner': historyPartner}, ack: (dynamic data) async {
-        List<Map<String, dynamic>> temp = [];
-        bool hasEncryptedOldMessages = false;
 
-        for (var m in (data as List)) {
-          var msgMap = Map<String, dynamic>.from(m);
-          await _processMessage(msgMap);
-          if (msgMap['isDecryptionFailed'] == true) {
-            hasEncryptedOldMessages = true;
-          } else {
-            temp.add(msgMap);
-          }
-        }
-
-        if (hasEncryptedOldMessages) {
-           temp.insert(0, {
-             'isSystem': true,
-             'text': t("🔒 Попередні повідомлення були надійно зашифровані та недоступні для цієї сесії.", "🔒 Previous messages were encrypted and are unavailable in this session."),
-             'timestamp': temp.isNotEmpty ? temp.first['timestamp'] : DateTime.now().toIso8601String(),
-             'senderName': 'system',
-           });
-        }
-
-        if (mounted) {
-          setState(() { _messages.clear(); _messages.addAll(temp); _isLoadingHistory = false; });
-          if (_readReceiptsEnabled) {
-            socket.emit('mark_read', {'chatId': historyPartner, 'readerName': widget.userName});
-          }
-          Future.delayed(const Duration(milliseconds: 100), () {
-            if (_scrollController.hasClients && mounted) {
-              _scrollController.animateTo(_scrollController.position.maxScrollExtent + 100, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
-            }
-          });
-        }
-      });
+      _loadInitialHistory();
     });
 
     socket.onDisconnect((_) {
@@ -398,8 +509,7 @@ class _ChatScreenState extends State<ChatScreen> {
           _safeSetState(() => _isPartnerOnline = data['isOnline']);
         });
       }
-      String historyPartner = widget.partnerPublicKey.startsWith('GROUP_') ? widget.partnerPublicKey : widget.partnerName;
-      socket.emit('get_direct_history', {'me': widget.userName, 'partner': historyPartner});
+      _loadInitialHistory();
     });
 
     socket.on('message', (data) async {
@@ -478,6 +588,17 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     socket.on('typing', (data) { if (data['senderName'] == widget.partnerName && data['receiverName'] == widget.userName && mounted) setState(() => _isPartnerTyping = data['isTyping']); });
+
+    socket.on('user_presence', (data) {
+      if (!mounted || widget.partnerPublicKey.startsWith('GROUP_')) return;
+      final map = Map<String, dynamic>.from(data as Map);
+      if (map['userName'] == widget.partnerName) {
+        _safeSetState(() {
+          _isPartnerOnline = map['isOnline'] == true;
+          _isCheckingPresence = false;
+        });
+      }
+    });
     
     socket.on('reaction_update', (data) {
       if (!mounted) return;
@@ -1016,6 +1137,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
     _typingTimer?.cancel();
     _emitTyping(false);
     socket.dispose();
+    _scrollController.removeListener(_maybeLoadOlderHistory);
     _scrollController.dispose();
     _recordTimer?.cancel();
     _amplitudeSub?.cancel();
@@ -1144,7 +1266,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
             children: [
               Expanded(
                 child: _isLoadingHistory
-                  ? const Center(child: CircularProgressIndicator(color: Colors.white54))
+                  ? const Center(child: AetherLoader(size: 34, color: Colors.white70))
                   : Stack(
                       children: [
                         ListView.builder(
@@ -1218,6 +1340,23 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                                       Padding(padding: const EdgeInsets.only(bottom: 2, left: 2), child: Text(m['senderName'] ?? 'Unknown', style: TextStyle(fontSize: 12, color: isMsgEphemeral ? const Color(0xFFE5B3FF) : messageTextColor, fontWeight: FontWeight.w600))),
                                     ],
                                     if (hasReply) ...[
+                                  if (_isLoadingMoreHistory)
+                                    Positioned(
+                                      top: 8,
+                                      left: 0,
+                                      right: 0,
+                                      child: Center(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(alpha: 0.35),
+                                            borderRadius: BorderRadius.circular(999),
+                                            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                          ),
+                                          child: const AetherLoader(size: 18, color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
                                       Container(
                                         margin: const EdgeInsets.only(bottom: 6), width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                         decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
@@ -1339,7 +1478,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
         Text(timeStr, style: TextStyle(color: metaColor, fontSize: 10)),
         if (isMe && !isMsgEphemeral) ...[
           const SizedBox(width: 4), 
-          Icon(status == 'read' ? Icons.done_all : Icons.check, size: 14, color: status == 'read' ? accent : baseTextColor.withValues(alpha: 0.7)),
+          Icon(Icons.done_all, size: 14, color: status == 'read' ? accent : Colors.white.withValues(alpha: 0.95)),
         ],
         if (isMsgEphemeral) ...[
           Padding(padding: const EdgeInsets.only(left: 4), child: Icon(Icons.local_fire_department, color: accent, size: 12)),

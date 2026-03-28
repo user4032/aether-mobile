@@ -660,7 +660,7 @@ class _ShineButtonState extends State<ShineButton> with SingleTickerProviderStat
           height: 54, borderRadius: 50,
           child: Center(
             child: widget.isLoading
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              ? const SizedBox(height: 20, width: 20, child: AetherLoader(size: 20, color: Colors.white))
               : AnimatedBuilder(
                   animation: _controller,
                   builder: (context, child) {
@@ -715,30 +715,41 @@ class _SafeAvatarState extends State<SafeAvatar> {
 
   @override
   Widget build(BuildContext context) {
+    final avatarContent = widget.isGroup
+        ? Container(
+            key: const ValueKey<String>('group_avatar'),
+            color: Colors.white.withValues(alpha: 0.08),
+            child: Icon(Icons.group, color: Colors.white70, size: widget.radius * 0.9),
+          )
+        : (_imageBytes != null
+            ? Image.memory(
+                _imageBytes!,
+                key: ValueKey<String>('img_${widget.avatarBase64?.hashCode ?? _imageBytes.hashCode}'),
+                width: widget.radius * 2,
+                height: widget.radius * 2,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                errorBuilder: (ctx, err, stack) => _buildFallback(),
+              )
+            : _buildFallback());
+
     return SizedBox(
       width: widget.radius * 2,
       height: widget.radius * 2,
       child: ClipOval(
-        child: widget.isGroup
-            ? Container(
-                color: Colors.white.withValues(alpha: 0.08),
-                child: Icon(Icons.group, color: Colors.white70, size: widget.radius * 0.9),
-              )
-            : (_imageBytes != null
-                ? Image.memory(
-                    _imageBytes!,
-                    width: widget.radius * 2,
-                    height: widget.radius * 2,
-                    fit: BoxFit.cover,
-                    gaplessPlayback: true,
-                    errorBuilder: (ctx, err, stack) => _buildFallback(),
-                  )
-                : _buildFallback()),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 140),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+          child: avatarContent,
+        ),
       ),
     );
   }
 
   Widget _buildFallback() => Container(
+    key: ValueKey<String>('fallback_${widget.fallbackName}'),
     color: Colors.white.withValues(alpha: 0.1),
     alignment: Alignment.center,
     child: Text(
@@ -746,6 +757,109 @@ class _SafeAvatarState extends State<SafeAvatar> {
       style: TextStyle(color: Colors.white, fontSize: widget.radius * 0.7, fontWeight: FontWeight.w600),
     ),
   );
+}
+
+class AetherLoader extends StatefulWidget {
+  final double size;
+  final Color color;
+  const AetherLoader({super.key, this.size = 40, this.color = Colors.white});
+
+  @override
+  State<AetherLoader> createState() => _AetherLoaderState();
+}
+
+class _AetherLoaderState extends State<AetherLoader> with TickerProviderStateMixin {
+  late final AnimationController _motionController;
+  late final AnimationController _rotationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _motionController = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat();
+    _rotationController = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _motionController.dispose();
+    _rotationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_motionController, _rotationController]),
+        builder: (context, _) {
+          final p = _motionController.value;
+          final quarterTurn = ((_rotationController.value * 4).floor() % 4) * (pi / 2);
+          final unit = widget.size / 40.0;
+
+          double leftX;
+          double rightX;
+          double dotY;
+
+          if (p < 0.33) {
+            final t = p / 0.33;
+            leftX = lerpDouble(12, 2, t)!;
+            rightX = lerpDouble(20, 30, t)!;
+            dotY = lerpDouble(5, 15, t)!;
+          } else if (p < 0.66) {
+            leftX = 2;
+            rightX = 30;
+            final t = (p - 0.33) / 0.33;
+            dotY = lerpDouble(15, 30, t)!;
+          } else {
+            final t = (p - 0.66) / 0.34;
+            leftX = lerpDouble(2, 12, t)!;
+            rightX = lerpDouble(30, 20, t)!;
+            dotY = 30;
+          }
+
+          return Transform.rotate(
+            angle: quarterTurn,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: leftX * unit,
+                  top: 16 * unit,
+                  child: _bar(16 * unit, 8 * unit),
+                ),
+                Positioned(
+                  left: rightX * unit,
+                  top: 16 * unit,
+                  child: _bar(16 * unit, 8 * unit),
+                ),
+                Positioned(
+                  left: 15 * unit,
+                  top: dotY * unit,
+                  child: Container(
+                    width: 10 * unit,
+                    height: 10 * unit,
+                    decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _bar(double width, double height) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: widget.color,
+        borderRadius: BorderRadius.circular(height * 0.5),
+      ),
+    );
+  }
 }
 
 class AnimatedSearchInput extends StatefulWidget {
@@ -838,8 +952,12 @@ class AudioMessagePlayer extends StatefulWidget {
 
 class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
   static final ValueNotifier<int?> _activeAudioInstance = ValueNotifier<int?>(null);
+  static final AudioPlayer _sharedAudioPlayer = AudioPlayer();
+  static final ValueNotifier<PlayerState> _sharedPlayerState = ValueNotifier<PlayerState>(PlayerState.stopped);
+  static final ValueNotifier<Duration> _sharedDuration = ValueNotifier<Duration>(Duration.zero);
+  static final ValueNotifier<Duration> _sharedPosition = ValueNotifier<Duration>(Duration.zero);
+  static bool _sharedEventsBound = false;
 
-  final AudioPlayer _audioPlayer = AudioPlayer();
   late final int _instanceId;
   bool _isPlaying = false;
   Duration _duration = Duration.zero;
@@ -847,9 +965,37 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
   String? _filePath;
   late List<double> _waveHeights;
 
-  void _handleActiveAudioChanged() {
-    if (_activeAudioInstance.value != _instanceId && _isPlaying) {
-      _audioPlayer.stop();
+  void _bindSharedEventsIfNeeded() {
+    if (_sharedEventsBound) return;
+    _sharedEventsBound = true;
+
+    _sharedAudioPlayer.onPlayerStateChanged.listen((state) {
+      _sharedPlayerState.value = state;
+    });
+    _sharedAudioPlayer.onDurationChanged.listen((d) {
+      _sharedDuration.value = d;
+    });
+    _sharedAudioPlayer.onPositionChanged.listen((p) {
+      _sharedPosition.value = p;
+    });
+    _sharedAudioPlayer.onPlayerComplete.listen((_) {
+      _activeAudioInstance.value = null;
+      _sharedPosition.value = Duration.zero;
+    });
+  }
+
+  void _syncFromShared() {
+    if (!mounted) return;
+    final isActive = _activeAudioInstance.value == _instanceId;
+    final nextIsPlaying = isActive && _sharedPlayerState.value == PlayerState.playing;
+    final nextDuration = isActive ? _sharedDuration.value : _duration;
+    final nextPosition = isActive ? _sharedPosition.value : (_isPlaying ? Duration.zero : _position);
+    if (_isPlaying != nextIsPlaying || _duration != nextDuration || _position != nextPosition) {
+      setState(() {
+        _isPlaying = nextIsPlaying;
+        _duration = nextDuration;
+        _position = nextPosition;
+      });
     }
   }
 
@@ -872,16 +1018,12 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
     super.initState();
     _instanceId = identityHashCode(this);
     _waveHeights = _buildWaveHeights(widget.base64Audio);
+    _bindSharedEventsIfNeeded();
     _prepareAudio();
-    _activeAudioInstance.addListener(_handleActiveAudioChanged);
-    _audioPlayer.onPlayerStateChanged.listen((state) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _isPlaying = state == PlayerState.playing); }); });
-    _audioPlayer.onDurationChanged.listen((d) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _duration = d); }); });
-    _audioPlayer.onPositionChanged.listen((p) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _position = p); }); });
-    _audioPlayer.onPlayerComplete.listen((_) {
-      if (_activeAudioInstance.value == _instanceId) {
-        _activeAudioInstance.value = null;
-      }
-    });
+    _activeAudioInstance.addListener(_syncFromShared);
+    _sharedPlayerState.addListener(_syncFromShared);
+    _sharedDuration.addListener(_syncFromShared);
+    _sharedPosition.addListener(_syncFromShared);
   }
 
   @override
@@ -892,6 +1034,9 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
       _duration = Duration.zero;
       _isPlaying = false;
       _waveHeights = _buildWaveHeights(widget.base64Audio);
+      if (_activeAudioInstance.value == _instanceId) {
+        _activeAudioInstance.value = null;
+      }
       _prepareAudio();
     }
   }
@@ -912,8 +1057,6 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
       await file.writeAsBytes(bytes);
       if (mounted) {
         _filePath = file.path;
-        await _audioPlayer.stop();
-        await _audioPlayer.setSourceDeviceFile(_filePath!);
       }
     } catch (e) { debugPrint("Audio load error: $e"); }
   }
@@ -923,8 +1066,10 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
     if (_activeAudioInstance.value == _instanceId) {
       _activeAudioInstance.value = null;
     }
-    _activeAudioInstance.removeListener(_handleActiveAudioChanged);
-    _audioPlayer.dispose();
+    _activeAudioInstance.removeListener(_syncFromShared);
+    _sharedPlayerState.removeListener(_syncFromShared);
+    _sharedDuration.removeListener(_syncFromShared);
+    _sharedPosition.removeListener(_syncFromShared);
     if (_filePath != null) { try { final f = File(_filePath!); if (f.existsSync()) f.deleteSync(); } catch (e) { debugPrint('Error deleting file'); } }
     super.dispose();
   }
@@ -947,14 +1092,15 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
             onTap: () async {
               if (_filePath == null) return;
               widget.onPlay?.call();
-              if (_isPlaying) {
-                await _audioPlayer.stop();
-                if (_activeAudioInstance.value == _instanceId) {
-                  _activeAudioInstance.value = null;
-                }
+              final isCurrentActive = _activeAudioInstance.value == _instanceId;
+              if (isCurrentActive && _sharedPlayerState.value == PlayerState.playing) {
+                await _sharedAudioPlayer.stop();
+                _activeAudioInstance.value = null;
+                _sharedPosition.value = Duration.zero;
               } else {
+                await _sharedAudioPlayer.stop();
                 _activeAudioInstance.value = _instanceId;
-                await _audioPlayer.play(DeviceFileSource(_filePath!));
+                await _sharedAudioPlayer.play(DeviceFileSource(_filePath!));
               }
             },
             child: CircleAvatar(radius: 18, backgroundColor: bgColor, child: Icon(_isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: color, size: 24)),
@@ -968,7 +1114,9 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
               onTapDown: (details) async {
                 if (_duration.inMilliseconds > 0) {
                   final pct = (details.localPosition.dx / constraints.maxWidth).clamp(0.0, 1.0);
-                  await _audioPlayer.seek(Duration(milliseconds: (pct * _duration.inMilliseconds).toInt()));
+                  if (_activeAudioInstance.value == _instanceId) {
+                    await _sharedAudioPlayer.seek(Duration(milliseconds: (pct * _duration.inMilliseconds).toInt()));
+                  }
                 }
               },
               child: CustomPaint(

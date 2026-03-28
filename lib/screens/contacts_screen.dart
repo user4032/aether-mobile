@@ -267,6 +267,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           _friends = List<Map<String, dynamic>>.from(payload['friends'] ?? const []);
           _pendingRequests = List<Map<String, dynamic>>.from(payload['pending'] ?? const []);
         });
+        unawaited(_persistProfileCache());
       }
     });
   }
@@ -344,6 +345,17 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     });
   }
 
+  Future<void> _persistProfileCache() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString('my_display_name', _myDisplayName);
+    await p.setString('my_bio', _myBio);
+    if (_myAvatar != null && _myAvatar!.isNotEmpty) {
+      await p.setString('my_avatar', _myAvatar!);
+    } else {
+      await p.remove('my_avatar');
+    }
+  }
+
   String _dmPermissionLabel(String value) {
     switch (value) {
       case 'friends_only':
@@ -418,6 +430,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
       _chatFontSize         = p.getDouble('chat_font_size') ?? 14.0;
       _chatBubbleStyle      = p.getString('bubble_style') ?? 'rounded';
       _compactMode          = p.getBool('compact_mode') ?? false;
+      _myDisplayName        = p.getString('my_display_name') ?? _myDisplayName;
+      _myBio                = p.getString('my_bio') ?? _myBio;
+      _myAvatar             = p.getString('my_avatar') ?? _myAvatar;
       _systemLockEnabled    = p.getBool('system_lock_enabled') ?? false;
       _useFaceIdOnIOS       = p.getBool('use_face_id_ios') ?? false;
     });
@@ -648,6 +663,54 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     _bgSocket.emit('get_friends_data', widget.userName);
   }
 
+  void _applyLocalChatSettings(
+    String partnerName, {
+    bool? isPinned,
+    bool? isHidden,
+    bool? isBlocked,
+    bool isDeleted = false,
+  }) {
+    if (!mounted) return;
+    setState(() {
+      bool updated = false;
+      _recentChats = _recentChats.map((chat) {
+        if (chat['partnerName'] != partnerName) return chat;
+        updated = true;
+        final next = Map<String, dynamic>.from(chat);
+        if (isDeleted) {
+          next['isHidden'] = true;
+          return next;
+        }
+        if (isPinned != null) next['isPinned'] = isPinned;
+        if (isHidden != null) next['isHidden'] = isHidden;
+        if (isBlocked != null) next['isBlocked'] = isBlocked;
+        return next;
+      }).toList();
+
+      if (!updated && !isDeleted) {
+        _recentChats.add({
+          'partnerName': partnerName,
+          'isPinned': isPinned ?? false,
+          'isHidden': isHidden ?? false,
+          'isBlocked': isBlocked ?? false,
+          'isGroup': false,
+          'unreadCount': 0,
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+      }
+
+      _recentChats.removeWhere((c) => c['isHidden'] == true);
+      _recentChats.sort((a, b) {
+        final ap = a['isPinned'] == true ? 1 : 0;
+        final bp = b['isPinned'] == true ? 1 : 0;
+        if (ap != bp) return bp.compareTo(ap);
+        final at = DateTime.tryParse((a['timestamp'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bt = DateTime.tryParse((b['timestamp'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bt.compareTo(at);
+      });
+    });
+  }
+
   Future<void> _updateAvatar() async {
     final XFile? image = await _picker.pickImage(
       source: ImageSource.gallery, imageQuality: 50, maxWidth: 500, maxHeight: 500);
@@ -656,6 +719,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     final base64String = base64Encode(bytes);
     _pendingMyAvatar = base64String;
     setState(() { _myAvatar = base64String; });
+    unawaited(_persistProfileCache());
     _bgSocket.emit('update_avatar', {'userName': widget.userName, 'avatar': base64String});
   }
 
@@ -943,27 +1007,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                     ),
                     const SizedBox(height: 10),
                     Center(
-                      child: Stack(
-                        children: [
-                          SafeAvatar(avatarBase64: _myAvatar, fallbackName: widget.userName, radius: 46),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: GestureDetector(
-                              onTap: _updateAvatar,
-                              child: Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: accent,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.black, width: 2),
-                                ),
-                                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: GestureDetector(
+                        onTap: _updateAvatar,
+                        child: SafeAvatar(avatarBase64: _myAvatar, fallbackName: widget.userName, radius: 46),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1078,6 +1124,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                             _myDisplayName = nextDisplay;
                             _myBio = nextBio;
                           });
+                          unawaited(_persistProfileCache());
                           Navigator.pop(ctx);
                         },
                         style: ElevatedButton.styleFrom(
@@ -1275,6 +1322,12 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                               title: Text(isPinned ? t("Відкріпити чат", "Unpin Chat") : t("Закріпити чат", "Pin Chat"),
                                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                               onTap: () {
+                                _applyLocalChatSettings(
+                                  partnerName,
+                                  isPinned: !isPinned,
+                                  isHidden: chatSettings?['isHidden'] == true,
+                                  isBlocked: isBlocked,
+                                );
                                 _bgSocket.emit('update_chat_settings', {
                                   'userName': widget.userName, 'partnerName': partnerName,
                                   'isPinned': !isPinned, 'isHidden': chatSettings?['isHidden'] == true,
@@ -1289,6 +1342,12 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                               title: Text(t("Приховати чат", "Hide Chat"),
                                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                               onTap: () {
+                                _applyLocalChatSettings(
+                                  partnerName,
+                                  isPinned: isPinned,
+                                  isHidden: true,
+                                  isBlocked: isBlocked,
+                                );
                                 _bgSocket.emit('update_chat_settings', {
                                   'userName': widget.userName, 'partnerName': partnerName,
                                   'isPinned': isPinned, 'isHidden': true,
@@ -1308,13 +1367,18 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                               title: Text(isBlocked ? t("Розблокувати", "Unblock") : t("Заблокувати", "Block"),
                                   style: const TextStyle(color: Color(0xFFFF3B30), fontWeight: FontWeight.w500)),
                               onTap: () {
+                                _applyLocalChatSettings(
+                                  partnerName,
+                                  isPinned: isPinned,
+                                  isHidden: chatSettings?['isHidden'] == true,
+                                  isBlocked: !isBlocked,
+                                );
                                 _bgSocket.emit('update_chat_settings', {
                                   'userName': widget.userName, 'partnerName': partnerName,
                                   'isPinned': isPinned, 'isHidden': chatSettings?['isHidden'] == true,
                                   'isDeleted': false, 'isBlocked': !isBlocked,
                                 });
                                 setStateSB(() { isBlocked = !isBlocked; });
-                                _loadData();
                               },
                             ),
                             Divider(height: 1, indent: 50, color: Colors.white.withValues(alpha: 0.1)),
@@ -1323,6 +1387,13 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                               title: Text(t("Видалити історію", "Delete History"),
                                   style: const TextStyle(color: Color(0xFFFF3B30), fontWeight: FontWeight.w500)),
                               onTap: () {
+                                _applyLocalChatSettings(
+                                  partnerName,
+                                  isPinned: false,
+                                  isHidden: false,
+                                  isBlocked: isBlocked,
+                                  isDeleted: true,
+                                );
                                 _bgSocket.emit('update_chat_settings', {
                                   'userName': widget.userName, 'partnerName': partnerName,
                                   'isPinned': false, 'isHidden': false,
@@ -1374,6 +1445,12 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                         style: const TextStyle(color: Colors.white)),
                     onTap: () {
                       Navigator.pop(context);
+                      _applyLocalChatSettings(
+                        chat['partnerName'],
+                        isPinned: !(chat['isPinned'] == true),
+                        isHidden: chat['isHidden'] == true,
+                        isBlocked: chat['isBlocked'] == true,
+                      );
                       _bgSocket.emit('update_chat_settings', {
                         'userName': widget.userName, 'partnerName': chat['partnerName'],
                         'isPinned': !(chat['isPinned'] == true), 'isHidden': chat['isHidden'] == true,
@@ -1389,6 +1466,12 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
                     onTap: () {
                       Navigator.pop(context);
+                      _applyLocalChatSettings(
+                        chat['partnerName'],
+                        isPinned: chat['isPinned'] == true,
+                        isHidden: true,
+                        isBlocked: chat['isBlocked'] == true,
+                      );
                       _bgSocket.emit('update_chat_settings', {
                         'userName': widget.userName, 'partnerName': chat['partnerName'],
                         'isPinned': chat['isPinned'] == true, 'isHidden': true,
@@ -1402,6 +1485,13 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                     title: Text(t('Видалити', 'Delete'), style: const TextStyle(color: Color(0xFFFF3B30))),
                     onTap: () {
                       Navigator.pop(context);
+                      _applyLocalChatSettings(
+                        chat['partnerName'],
+                        isPinned: false,
+                        isHidden: false,
+                        isBlocked: chat['isBlocked'] == true,
+                        isDeleted: true,
+                      );
                       _bgSocket.emit('update_chat_settings', {
                         'userName': widget.userName, 'partnerName': chat['partnerName'],
                         'isPinned': false, 'isHidden': false,
@@ -1462,13 +1552,18 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                             trailing: GestureDetector(
                               onTap: () {
+                                _applyLocalChatSettings(
+                                  u['partnerName'],
+                                  isPinned: u['isPinned'] == true,
+                                  isHidden: u['isHidden'] == true,
+                                  isBlocked: false,
+                                );
                                 _bgSocket.emit('update_chat_settings', {
                                   'userName': widget.userName, 'partnerName': u['partnerName'],
-                                  'isPinned': false, 'isHidden': false,
+                                  'isPinned': u['isPinned'] == true, 'isHidden': u['isHidden'] == true,
                                   'isDeleted': false, 'isBlocked': false,
                                 });
                                 Navigator.pop(context);
-                                _loadData();
                               },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -1676,7 +1771,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               padding: EdgeInsets.all(10),
               child: SizedBox(
                 width: 20, height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: AetherLoader(size: 20, color: Colors.white),
               ),
             ),
           ),
@@ -1991,27 +2086,19 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
           child: GestureDetector(
             onTap: _showEditProfileSheet,
-            child: GlassContainer(
+            child: Container(
               padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+              ),
               child: Row(
               children: [
-                Stack(children: [
-                  SafeAvatar(avatarBase64: _myAvatar, fallbackName: widget.userName, radius: 34),
-                  Positioned(
-                    bottom: 0, right: 0,
-                    child: GestureDetector(
-                      onTap: _updateAvatar,
-                      child: Container(
-                        width: 22, height: 22,
-                        decoration: BoxDecoration(
-                          color: accent, shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black, width: 2),
-                        ),
-                        child: const Icon(Icons.camera_alt_rounded, size: 11, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ]),
+                GestureDetector(
+                  onTap: _updateAvatar,
+                  child: SafeAvatar(avatarBase64: _myAvatar, fallbackName: widget.userName, radius: 34),
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -2045,8 +2132,6 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.edit_rounded, size: 12, color: accent.withValues(alpha: 0.7)),
                         ]),
                       ),
                     ],

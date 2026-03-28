@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:uuid/uuid.dart';
 import '../utils/globals.dart';
+import '../widgets/ui_core.dart';
 import 'auth_screen.dart';
 import 'contacts_screen.dart';
 
@@ -43,7 +44,7 @@ class _MainGateState extends State<MainGate> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.white)));
+    if (_isLoading) return Scaffold(body: Center(child: AetherLoader(size: 34, color: Colors.white)));
     if (_userName == null) return AuthScreen(deviceId: _deviceId!, publicKey: _publicKey!, onSuccess: (name) { setState(() { _userName = name; }); });
     return ContactsScreen(deviceId: _deviceId!, userName: _userName!, publicKey: _publicKey!);
   }
