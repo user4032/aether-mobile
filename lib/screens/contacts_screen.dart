@@ -7,7 +7,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart';
 import 'package:intl/intl.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../utils/globals.dart';
@@ -22,7 +21,7 @@ class ContactsScreen extends StatefulWidget {
   State<ContactsScreen> createState() => _ContactsScreenState();
 }
 
-class _ContactsScreenState extends State<ContactsScreen> {
+class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   late io.Socket _bgSocket;
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -40,25 +39,45 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   final _addFriendController = TextEditingController();
   final _searchController = TextEditingController();
-
   final _verifySearchController = TextEditingController();
   List<Map<String, dynamic>> _verifyResults = [];
+
+  // --- ЗМІННІ ДЛЯ PIN-LOCK ---
+  bool _isAppLocked = false;
+  String? _savedPin;
+  String _enteredPin = '';
+  bool _isSettingPin = false;
+  String _tempNewPin = '';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initLockState();
+    
     _bgSocket = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
     _bgSocket.connect();
-    _bgSocket.onConnect((_) { _bgSocket.emit('set_active', widget.userName); _loadData(); });
+    _bgSocket.onConnect((_) { 
+      _bgSocket.emit('set_active', widget.userName); 
+      _loadData(); 
+    });
+    
     _bgSocket.on('message', (data) {
       var msg = Map<String, dynamic>.from(data);
       if (msg['receiverName'] == widget.userName || (msg['receiverName'].toString().startsWith('GROUP_') && msg['senderName'] != widget.userName)) {
-        if (currentActiveChat != msg['senderName'] && currentActiveChat != msg['receiverName']) { _audioPlayer.play(AssetSource('ding.mp3')); }
+        if (currentActiveChat != msg['senderName'] && currentActiveChat != msg['receiverName']) { 
+          _audioPlayer.play(AssetSource('ding.mp3')); 
+        }
         _loadData();
       }
     });
-    _bgSocket.on('refresh_chats', (data) { if (data['userName'] == widget.userName || data['userName'] == 'all') _loadData(); });
+    
+    _bgSocket.on('refresh_chats', (data) { 
+      if (data['userName'] == widget.userName || data['userName'] == 'all') _loadData(); 
+    });
+    
     _bgSocket.on('messages_read', (data) { _loadData(); });
+    
     _bgSocket.on('friends_data', (data) {
       if (mounted) {
         setState(() {
@@ -70,6 +89,72 @@ class _ContactsScreenState extends State<ContactsScreen> {
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    currentActiveChat = null;
+    _bgSocket.dispose();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  // --- ЛОГІКА БЛОКУВАННЯ ---
+  Future<void> _initLockState() async {
+    final storage = const FlutterSecureStorage();
+    _savedPin = await storage.read(key: 'app_pin');
+    if (_savedPin != null && _savedPin!.isNotEmpty) {
+      setState(() { _isAppLocked = true; });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      if (_savedPin != null && _savedPin!.isNotEmpty) {
+        setState(() { _isAppLocked = true; _enteredPin = ''; });
+      }
+    }
+  }
+
+  void _onPinTap(String val) {
+    if (val == 'back') {
+      if (_enteredPin.isNotEmpty) setState(() { _enteredPin = _enteredPin.substring(0, _enteredPin.length - 1); });
+      return;
+    }
+    if (_enteredPin.length < 4) {
+      setState(() { _enteredPin += val; });
+      if (_enteredPin.length == 4) {
+        _verifyPin();
+      }
+    }
+  }
+
+  void _verifyPin() async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (_isSettingPin) {
+      if (_tempNewPin.isEmpty) {
+        setState(() { _tempNewPin = _enteredPin; _enteredPin = ''; });
+      } else {
+        if (_tempNewPin == _enteredPin) {
+          await const FlutterSecureStorage().write(key: 'app_pin', value: _enteredPin);
+          setState(() { _savedPin = _enteredPin; _isSettingPin = false; _tempNewPin = ''; _enteredPin = ''; });
+          _showSnack(t("PIN-код встановлено", "PIN code set successfully"));
+        } else {
+          setState(() { _tempNewPin = ''; _enteredPin = ''; });
+          _showSnack(t("Коди не співпадають", "PIN codes do not match"));
+        }
+      }
+    } else if (_isAppLocked) {
+      if (_enteredPin == _savedPin) {
+        setState(() { _isAppLocked = false; _enteredPin = ''; });
+      } else {
+        setState(() { _enteredPin = ''; });
+        HapticFeedback.heavyImpact();
+      }
+    }
   }
 
   Future<SecretKey> _getSecretKey(String remotePub, bool isGroup) async {
@@ -132,40 +217,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Future<void> _updateAvatar() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 50, maxWidth: 256, maxHeight: 256);
-    if (image == null) return;
-    
-    if (!mounted) return;
-    final croppedFile = await ImageCropper().cropImage(
-      sourcePath: image.path,
-      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: t('Профіль', 'Profile'),
-          toolbarColor: Colors.black,
-          toolbarWidgetColor: Colors.white,
-          initAspectRatio: CropAspectRatioPreset.square,
-          lockAspectRatio: true,
-          backgroundColor: Colors.black,
-          dimmedLayerColor: Colors.black.withValues(alpha: 0.8),
-        ),
-        IOSUiSettings(
-          title: 'Profile',
-          cancelButtonTitle: 'Cancel',
-          doneButtonTitle: 'Crop',
-          aspectRatioLockEnabled: true,
-          resetAspectRatioEnabled: false,
-          aspectRatioPickerButtonHidden: true,
-        ),
-      ],
-    );
-    
-    if (croppedFile == null) return;
-
-    final bytes = await croppedFile.readAsBytes();
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 50, maxWidth: 500, maxHeight: 500);
+    if (image == null || !mounted) return;
+    final bytes = await image.readAsBytes();
     final base64String = base64Encode(bytes);
-    
-    if (!mounted) return;
     setState(() { _myAvatar = base64String; });
     _bgSocket.emit('update_avatar', {'userName': widget.userName, 'avatar': base64String});
     _loadData();
@@ -222,7 +277,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                         contentPadding: EdgeInsets.zero,
                         title: Text(friend, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                         value: selectedFriends.contains(friend),
-                        activeColor: Colors.white,
+                        fillColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? Colors.white : Colors.transparent),
                         checkColor: Colors.black,
                         side: const BorderSide(color: Colors.white54),
                         checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
@@ -369,76 +424,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
   }
 
-  void _showImportDialog() {
-    final tokenController = TextEditingController();
-    final passwordController = TextEditingController();
-    bool isLoading = false;
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateSB) => AlertDialog(
-          backgroundColor: Colors.transparent,
-          contentPadding: EdgeInsets.zero,
-          content: GlassContainer(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(t("Відновлення акаунта", "Restore Account"), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 20),
-                GlassInput(controller: tokenController, hintText: t("Вставте ключ (Backup Token)", "Paste Backup Key")),
-                const SizedBox(height: 16),
-                GlassInput(controller: passwordController, hintText: t("Пароль", "Password"), obscureText: true),
-                const SizedBox(height: 24),
-                ShineButton(
-                  text: t("Відновити", "Restore"),
-                  isLoading: isLoading,
-                  onPressed: () async {
-                    final token = tokenController.text.trim();
-                    final pass = passwordController.text.trim();
-                    if (token.isEmpty || pass.isEmpty) return;
-                    setStateSB(() => isLoading = true);
-                    try {
-                      final parts = token.split('.');
-                      if (parts.length != 3) throw Exception("Invalid format");
-                      final nonce = base64Decode(parts[0]);
-                      final cipherText = base64Decode(parts[1]);
-                      final mac = base64Decode(parts[2]);
-                      final passHash = await Sha256().hash(utf8.encode(pass));
-                      final key = await _aes.newSecretKeyFromBytes(passHash.bytes);
-                      final box = SecretBox(cipherText, nonce: nonce, mac: Mac(mac));
-                      final decryptedBytes = await _aes.decrypt(box, secretKey: key);
-                      final payload = jsonDecode(utf8.decode(decryptedBytes));
-                      final prefs = await SharedPreferences.getInstance();
-                      final storage = const FlutterSecureStorage();
-                      await storage.write(key: 'private_key', value: payload['priv']);
-                      await prefs.setString('public_key', payload['pub']);
-                      await prefs.setString('device_id', payload['dev']);
-                      await prefs.setString('user_name', payload['name']);
-                      if (!context.mounted) return;
-                      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const MainGate()), (r) => false);
-                    } catch (e) {
-                      setStateSB(() => isLoading = false);
-                      _showSnack(t("Невірний ключ або пароль", "Invalid token or password"));
-                    }
-                  },
-                ),
-                const SizedBox(height: 8),
-                TextButton(onPressed: () => Navigator.pop(context), child: Text(t('Скасувати', 'Cancel'), style: const TextStyle(color: Colors.white70))),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showUserProfile(String partnerName, String? initialAvatar, String? publicKey, bool isGroup) {
     if (isGroup || partnerName == widget.userName) return;
     String? currentBio;
     String? currentAvatar = initialAvatar;
-    bool fetched = false;
     bool isVerifiedUser = false;
+    bool fetched = false;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -603,9 +594,82 @@ class _ContactsScreenState extends State<ContactsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg, style: const TextStyle(color: Colors.white)), backgroundColor: const Color(0xFF333333), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50))));
   }
 
-  @override
-  void dispose() { _bgSocket.dispose(); _audioPlayer.dispose(); super.dispose(); }
+  // --- ЕКРАН БЛОКУВАННЯ ---
+  Widget _buildLockScreen() {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.lock_outline, size: 50, color: Colors.white),
+            const SizedBox(height: 20),
+            Text(
+              _isSettingPin 
+                  ? (_tempNewPin.isEmpty ? t("Придумайте PIN-код", "Create PIN") : t("Повторіть PIN-код", "Confirm PIN"))
+                  : t("Введіть PIN-код", "Enter PIN"), 
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)
+            ),
+            const SizedBox(height: 40),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(4, (index) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  width: 16, height: 16,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _enteredPin.length > index ? const Color(0xFFB026FF) : Colors.transparent,
+                    border: Border.all(color: _enteredPin.length > index ? const Color(0xFFB026FF) : Colors.white54, width: 2),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 60),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 50),
+              child: GridView.count(
+                shrinkWrap: true,
+                crossAxisCount: 3,
+                mainAxisSpacing: 20,
+                crossAxisSpacing: 20,
+                childAspectRatio: 1.2,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  for (var i = 1; i <= 9; i++) _numButton(i.toString()),
+                  _numButton(''), // Empty
+                  _numButton('0'),
+                  _numButton('back', icon: Icons.backspace_outlined),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
+  Widget _numButton(String val, {IconData? icon}) {
+    if (val.isEmpty) return const SizedBox();
+    return GestureDetector(
+      onTap: () => _onPinTap(val),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: Center(
+          child: icon != null 
+              ? Icon(icon, color: Colors.white, size: 28) 
+              : Text(val, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w600)),
+        ),
+      ),
+    );
+  }
+
+  // --- ТАБИ ---
   Widget _buildChatsTab() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -623,7 +687,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 Text(t("Напишіть щось друзям.", "Write something to friends."), style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16)),
               ]))
             : ListView.separated(
-                padding: const EdgeInsets.only(bottom: 120), // ФІКС: Більший відступ для плаваючого меню
+                padding: const EdgeInsets.only(bottom: 120), // Відступ для нижнього меню
                 itemCount: _recentChats.length,
                 separatorBuilder: (context, index) => Padding(padding: const EdgeInsets.only(left: 76.0), child: Divider(height: 1, color: Colors.white.withValues(alpha: 0.05))),
                 itemBuilder: (context, index) {
@@ -671,7 +735,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   Widget _buildFriendsTab() {
     return ListView(
-      padding: const EdgeInsets.only(top: 20, bottom: 120), // ФІКС: Більший відступ
+      padding: const EdgeInsets.only(top: 20, bottom: 120), // Відступ для нижнього меню
       children: [
         Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text(t("ДОДАТИ ДРУГА", "ADD FRIEND"), style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5), fontWeight: FontWeight.bold, letterSpacing: 1))),
         Container(
@@ -734,7 +798,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   Widget _buildSettingsTab() {
     return ListView(
-      padding: const EdgeInsets.only(top: 20, bottom: 120), // ФІКС: Більший відступ
+      padding: const EdgeInsets.only(top: 20, bottom: 120),
       children: [
         Center(
           child: Stack(children: [
@@ -774,9 +838,26 @@ class _ContactsScreenState extends State<ContactsScreen> {
         GlassContainer(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(children: [
-            ListTile(leading: const Icon(Icons.vpn_key, color: Colors.white), title: Text(t("Експорт акаунта", "Export Account"), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)), subtitle: Text(t("Створити резервну копію ключів", "Create a backup of your keys"), style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)), onTap: _showExportDialog),
+            // НОВА КНОПКА PIN-LOCK
+            ListTile(
+              leading: const Icon(Icons.lock_outline, color: Colors.white), 
+              title: Text(t("PIN-код для входу", "App Lock (PIN)"), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)), 
+              trailing: Switch(
+                value: _savedPin != null && _savedPin!.isNotEmpty,
+                activeColor: const Color(0xFFB026FF),
+                onChanged: (val) {
+                  if (val) {
+                    setState(() { _isAppLocked = true; _isSettingPin = true; _enteredPin = ''; _tempNewPin = ''; });
+                  } else {
+                    setState(() { _isAppLocked = true; _isSettingPin = false; _enteredPin = ''; });
+                    const FlutterSecureStorage().delete(key: 'app_pin');
+                    setState(() { _savedPin = null; });
+                  }
+                },
+              ),
+            ),
             Divider(height: 1, indent: 50, color: Colors.white.withValues(alpha: 0.05)),
-            ListTile(leading: const Icon(Icons.restore, color: Colors.white), title: Text(t("Відновити акаунт", "Restore Account"), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)), subtitle: Text(t("Імпорт з резервної копії", "Import from backup"), style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)), onTap: _showImportDialog),
+            ListTile(leading: const Icon(Icons.vpn_key, color: Colors.white), title: Text(t("Експорт акаунта", "Export Account"), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)), subtitle: Text(t("Створити резервну копію ключів", "Create a backup of your keys"), style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)), onTap: _showExportDialog),
           ]),
         ),
 
@@ -862,36 +943,41 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   // ─────────────────────────────────────────────────────────
-  // НОВИЙ ПРЕМІАЛЬНИЙ BOTTOM NAV (У СТИЛІ UIVERSE + LUMYN)
+  // НОВЕ ПОВНІСТЮ ЧОРНЕ МЕНЮ З UIVERSE (З НАШИМИ 3 КНОПКАМИ)
   // ─────────────────────────────────────────────────────────
-  Widget _buildCustomBottomNav(int totalUnread, int totalPending) {
-    return Padding(
-      // Динамічний відступ знизу для iPhone (SafeArea)
-      padding: EdgeInsets.only(left: 20, right: 20, bottom: MediaQuery.of(context).padding.bottom + 16),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(100),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            height: 70,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              // Чорний напівпрозорий фон
-              color: Colors.black.withValues(alpha: 0.65), 
-              borderRadius: BorderRadius.circular(100),
-              // Легка рамка зверху
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 30, offset: const Offset(0, 10))
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _navItem(0, Icons.chat_bubble_rounded, t("Чати", "Chats"), totalUnread),
-                _navItem(1, Icons.people_alt_rounded, t("Друзі", "Friends"), totalPending),
-                _navItem(2, Icons.settings_rounded, t("Профіль", "Profile"), 0),
-              ],
+  Widget _buildDarkGlassMenu(int totalUnread, int totalPending) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 10, 
+          right: 10, 
+          bottom: MediaQuery.of(context).padding.bottom + 12
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(maxWidth: 520),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6), // Темне матове скло
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 30, offset: const Offset(0, 10))
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _menuItem(0, Icons.chat_bubble_rounded, t("Чати", "Chats"), totalUnread),
+                  _menuItem(1, Icons.people_rounded, t("Друзі", "Friends"), totalPending),
+                  _menuItem(2, Icons.settings_rounded, t("Профіль", "Profile"), 0),
+                ],
+              ),
             ),
           ),
         ),
@@ -899,52 +985,44 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
   }
 
-  Widget _navItem(int index, IconData icon, String label, int badgeCount) {
+  Widget _menuItem(int index, IconData icon, String label, int badgeCount) {
     final isActive = _currentIndex == index;
-    // Кольори для активного і неактивного стану
-    final color = isActive ? const Color(0xFFB026FF) : Colors.white.withValues(alpha: 0.4);
-    final bgColor = isActive ? const Color(0xFFB026FF).withValues(alpha: 0.15) : Colors.transparent;
+    final color = isActive ? Colors.white : Colors.white54;
+    final bgColor = isActive ? Colors.white.withValues(alpha: 0.15) : Colors.transparent;
 
-    return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(100),
-          // Легке внутрішнє світіння для активної кнопки
-          border: isActive ? Border.all(color: const Color(0xFFB026FF).withValues(alpha: 0.3)) : Border.all(color: Colors.transparent),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedScale(
-              scale: isActive ? 1.1 : 1.0, // Кнопка "вистрибує" при натисканні
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutBack,
-              child: Badge(
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _currentIndex = index),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Badge(
                 isLabelVisible: badgeCount > 0,
                 backgroundColor: Colors.white,
                 textColor: Colors.black,
                 label: Text('$badgeCount', style: const TextStyle(fontWeight: FontWeight.bold)),
                 child: Icon(icon, color: color, size: 24),
               ),
-            ),
-            const SizedBox(height: 4),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 250),
-              style: TextStyle(
-                color: color,
-                fontSize: 10,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                letterSpacing: 0.5,
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                ),
               ),
-              child: Text(label),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -952,13 +1030,17 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ЯКЩО ДОДАТОК ЗАБЛОКОВАНИЙ — ПОКАЗУЄМО PIN-LOCK ЕКРАН
+    if (_isAppLocked) {
+      return _buildLockScreen();
+    }
+
     int totalUnread = _recentChats.fold(0, (sum, chat) => sum + ((chat['unreadCount'] ?? 0) as int));
     int totalPending = _pendingRequests.length;
     String appBarTitle = _currentIndex == 0 ? t("Чати", "Chats") : (_currentIndex == 1 ? t("Друзі", "Friends") : t("Профіль", "Profile"));
     
     return Scaffold(
       backgroundColor: Colors.transparent,
-      // Дозволяємо контенту (спискам) скролитися ПІД плаваючою панеллю
       extendBody: true, 
       appBar: AppBar(
         title: Text(appBarTitle),
@@ -966,10 +1048,14 @@ class _ContactsScreenState extends State<ContactsScreen> {
         actions: _currentIndex == 0 ? [Container(margin: const EdgeInsets.only(right: 16), child: IconButton(icon: const Icon(Icons.group_add, color: Colors.white, size: 24), onPressed: _showCreateGroupDialog))] : null,
       ),
       body: LiquidBackground(
-        child: _currentIndex == 0 ? _buildChatsTab() : (_currentIndex == 1 ? _buildFriendsTab() : _buildSettingsTab())
+        child: Stack(
+          children: [
+            _currentIndex == 0 ? _buildChatsTab() : (_currentIndex == 1 ? _buildFriendsTab() : _buildSettingsTab()),
+            // Вставляємо нове круте меню поверх усього
+            _buildDarkGlassMenu(totalUnread, totalPending),
+          ],
+        ),
       ),
-      // НОВА плаваюча панель!
-      bottomNavigationBar: _buildCustomBottomNav(totalUnread, totalPending),
     );
   }
 }
