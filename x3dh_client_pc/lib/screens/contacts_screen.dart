@@ -460,7 +460,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                 Expanded(
                   child: ListView.separated(
                     itemCount: devices.length,
-                    separatorBuilder: (_, __) => Divider(height: 1, indent: 70, color: Colors.white.withValues(alpha: 0.08)),
+                    separatorBuilder: (_, _) => Divider(height: 1, indent: 70, color: Colors.white.withValues(alpha: 0.08)),
                     itemBuilder: (context, i) {
                       final d = devices[i];
                       final isCurrent = d['isCurrent'] == true;
@@ -1071,6 +1071,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     );
   }
 
+  // ignore: unused_element
   void _showEditBioDialog() {
     final bioController = TextEditingController(text: _myBio);
     showDialog(
@@ -2882,12 +2883,12 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     double tempSize = _chatFontSize;
     bool useSystemSize = false;
 
-    String _nameOrFallback(int idx, String fallback) {
+    String nameOrFallback(int idx, String fallback) {
       if (sampleNames.isEmpty) return fallback;
       return sampleNames[idx % sampleNames.length];
     }
 
-    String _textOrFallback(int idx, String fallback) {
+    String textOrFallback(int idx, String fallback) {
       if (sampleTexts.isEmpty) return fallback;
       return sampleTexts[idx % sampleTexts.length];
     }
@@ -2958,7 +2959,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                                                 borderRadius: BorderRadius.circular(14),
                                               ),
                                               child: Text(
-                                                _textOrFallback(0, t("Він щось довго пояснював 🙂", "He was explaining for a while 🙂")),
+                                                textOrFallback(0, t("Він щось довго пояснював 🙂", "He was explaining for a while 🙂")),
                                                 style: TextStyle(color: Colors.white, fontSize: appliedFont),
                                               ),
                                             ),
@@ -2971,7 +2972,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                                               borderRadius: BorderRadius.circular(14),
                                             ),
                                             child: Text(
-                                              _textOrFallback(1, t("Голову праворуч і виразно.", "Turn your head right and clearly.")),
+                                              textOrFallback(1, t("Голову праворуч і виразно.", "Turn your head right and clearly.")),
                                               style: TextStyle(color: Colors.white, fontSize: appliedFont),
                                             ),
                                           ),
@@ -2985,7 +2986,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                                                 borderRadius: BorderRadius.circular(14),
                                               ),
                                               child: Text(
-                                                _textOrFallback(2, t("І все? Звучало довше 🤔", "And that's all? It sounded longer 🤔")),
+                                                textOrFallback(2, t("І все? Звучало довше 🤔", "And that's all? It sounded longer 🤔")),
                                                 style: TextStyle(color: Colors.white, fontSize: appliedFont),
                                               ),
                                             ),
@@ -3010,8 +3011,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                                 itemCount: 6,
                                 separatorBuilder: (_, _) => Divider(height: 1, indent: 72, color: Colors.white.withValues(alpha: 0.05)),
                                 itemBuilder: (context, i) {
-                                  final name = _nameOrFallback(i, t("Контакт", "Contact"));
-                                  final preview = _textOrFallback(i, t("Тестове повідомлення", "Sample message"));
+                                  final name = nameOrFallback(i, t("Контакт", "Contact"));
+                                  final preview = textOrFallback(i, t("Тестове повідомлення", "Sample message"));
                                   final time = ['1:02 PM', '2:01 PM', '1:53 PM', '1:50 PM', '1:16 PM', '12:54 PM'][i];
                                   return ListTile(
                                     dense: true,
@@ -3053,7 +3054,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                       const SizedBox(height: 8),
                       ValueListenableBuilder<int>(
                         valueListenable: pageIdx,
-                        builder: (_, idx, __) {
+                        builder: (_, idx, _) {
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [

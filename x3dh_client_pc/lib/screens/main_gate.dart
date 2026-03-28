@@ -5,7 +5,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:uuid/uuid.dart';
 import '../utils/globals.dart';
-import '../widgets/ui_core.dart';
 import 'auth_screen.dart';
 import 'contacts_screen.dart';
 
