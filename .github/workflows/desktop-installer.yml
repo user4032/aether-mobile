@@ -6,6 +6,12 @@ on:
     tags:
       - "pc-v*"
 
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-windows-installer:
     runs-on: windows-latest
@@ -61,4 +67,3 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: x3dh_client_pc/build/installer/AetherMessengerSetup.exe
-          generate_release_notes: true
