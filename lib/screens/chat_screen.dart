@@ -178,6 +178,7 @@ class _ChatScreenState extends State<ChatScreen> {
           msg['text'] = parsed['text'];
           msg['replyTo'] = parsed['replyTo'];
           if (parsed['imageBytes'] != null) {
+            // ФІКС ЛАГІВ: Декодуємо фото один раз тут, а не під час скролу!
             msg['imageBytes'] = base64Decode(parsed['imageBytes']);
           }
         } else { msg['text'] = dec; }
@@ -189,8 +190,12 @@ class _ChatScreenState extends State<ChatScreen> {
     if (msg['senderName'] == widget.partnerName && msg['publicKey'] != null && !msg['publicKey'].toString().startsWith('GROUP_')) {
       _currentPartnerKey = msg['publicKey'];
     }
+    // Сумісність зі старими фотографіями
     if (msg['type'] == 'image' && msg['text'] != null && msg['text'].toString().length > 100) {
-      try { msg['imageBytes'] = base64Decode(msg['text']); } catch (_) {}
+      try { 
+        msg['imageBytes'] = base64Decode(msg['text']); 
+        msg['text'] = ""; 
+      } catch (_) {}
     }
   }
 
@@ -795,6 +800,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildImage(dynamic bytesOrString) {
     final Widget errorWidget = Container(padding: const EdgeInsets.all(12), color: const Color(0xFF222222), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.broken_image, color: Colors.white70), const SizedBox(width: 8), Text(t("Помилка", "Error"), style: const TextStyle(color: Colors.white70))]));
+    if (bytesOrString == null) return errorWidget;
     Uint8List bytes = bytesOrString is Uint8List ? bytesOrString : base64Decode(bytesOrString);
     return Image.memory(
       bytes, 
@@ -954,6 +960,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           final msgReactions = Map<String, List<String>>.from(_reactions[msgKey] ?? {});
                           final isSearchMatch = _isSearchMode && _searchMatchIndices.isNotEmpty && _searchMatchIndices[_currentSearchIdx] == i;
 
+                          bool hasValidImage = m['imageBytes'] != null || (m['text'] != null && m['text'].toString().length > 100);
+                          bool hasCaption = m['text'] != null && m['text'].toString().isNotEmpty && m['text'].toString().length < 1000;
+
                           Widget timeAndStatusWidget = Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -1043,9 +1052,13 @@ class _ChatScreenState extends State<ChatScreen> {
                                       const SizedBox(height: 2),
                                       timeAndStatusWidget,
                                     ])
-                                  else if (isImage && m['text'] != null && m['text'].toString().length > 100)
+                                  else if (isImage && hasValidImage)
                                     Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                                       ClipRRect(borderRadius: BorderRadius.circular(14), child: _buildImage(m['imageBytes'] ?? m['text'])),
+                                      if (hasCaption) ...[
+                                        const SizedBox(height: 6),
+                                        _buildMessageText(m['text'].toString(), isMsgEphemeral),
+                                      ],
                                       const SizedBox(height: 4),
                                       timeAndStatusWidget,
                                     ])
