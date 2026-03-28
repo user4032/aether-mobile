@@ -1,0 +1,64 @@
+name: Build Desktop Installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "pc-v*"
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Get dependencies
+        working-directory: x3dh_client_pc
+        run: flutter pub get
+
+      - name: Build Windows app (release)
+        working-directory: x3dh_client_pc
+        run: flutter build windows --release
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer (.exe)
+        working-directory: x3dh_client_pc
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "installer\windows\aether_desktop.iss"
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AetherMessengerSetup
+          path: x3dh_client_pc/build/installer/AetherMessengerSetup.exe
+          if-no-files-found: error
+
+      - name: Upload portable build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AetherMessengerPortable
+          path: x3dh_client_pc/build/windows/x64/runner/Release/
+          if-no-files-found: error
+
+      - name: Publish release asset
+        if: startsWith(github.ref, 'refs/tags/pc-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: x3dh_client_pc/build/installer/AetherMessengerSetup.exe
+          generate_release_notes: true
