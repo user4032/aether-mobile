@@ -11,12 +11,12 @@
     { "source": "/en-us/", "destination": "/en-us", "permanent": true }
   ],
   "rewrites": [
-    { "source": "/uk-ua",          "destination": "/index.html" },
+    { "source": "/uk-ua",          "destination": "/uk-ua.html" },
     { "source": "/uk-ua/:path*",   "destination": "/:path*" },
     { "source": "/uk-ua/download", "destination": "/download.html" },
     { "source": "/uk-ua/faq",      "destination": "/faq.html" },
     { "source": "/uk-ua/support",  "destination": "/support.html" },
-    { "source": "/en-us",          "destination": "/en.html" },
+    { "source": "/en-us",          "destination": "/en-us.html" },
     { "source": "/en-us/:path*",   "destination": "/:path*" },
     { "source": "/en-us/download", "destination": "/download.html" },
     { "source": "/en-us/faq",      "destination": "/faq.html" },
