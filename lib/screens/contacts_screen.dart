@@ -159,6 +159,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
 
   final _addFriendController = TextEditingController();
   final _searchController = TextEditingController();
+  final _friendsSearchController = TextEditingController();
   final _verifySearchController = TextEditingController();
   List<Map<String, dynamic>> _verifyResults = [];
 
@@ -200,6 +201,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentIndex);
+    _searchController.addListener(_onSearchChanged);
+    _friendsSearchController.addListener(_onSearchChanged);
     WidgetsBinding.instance.addObserver(this);
     _loadSettings();
 
@@ -302,12 +305,84 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     currentActiveChat = null;
+    _searchController.removeListener(_onSearchChanged);
+    _friendsSearchController.removeListener(_onSearchChanged);
+    _addFriendController.dispose();
+    _searchController.dispose();
+    _friendsSearchController.dispose();
+    _verifySearchController.dispose();
     _pageController.dispose();
     _desktopChatsScrollController.dispose();
     _tokenRefreshSub?.cancel();
     _bgSocket.dispose();
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  String _normalizeSearch(String value) => value.trim().toLowerCase();
+
+  Widget _buildHighlightedText(
+    String text,
+    String query,
+    TextStyle baseStyle, {
+    TextOverflow overflow = TextOverflow.ellipsis,
+    int maxLines = 1,
+  }) {
+    final normalizedQuery = _normalizeSearch(query);
+    if (normalizedQuery.isEmpty) {
+      return Text(text, style: baseStyle, overflow: overflow, maxLines: maxLines);
+    }
+
+    final lowerText = text.toLowerCase();
+    final start = lowerText.indexOf(normalizedQuery);
+    if (start == -1) {
+      return Text(text, style: baseStyle, overflow: overflow, maxLines: maxLines);
+    }
+
+    final end = start + normalizedQuery.length;
+    final highlightStyle = baseStyle.copyWith(
+      color: Colors.white,
+      backgroundColor: Colors.white.withValues(alpha: 0.16),
+      fontWeight: FontWeight.w700,
+    );
+
+    return RichText(
+      overflow: overflow,
+      maxLines: maxLines,
+      text: TextSpan(
+        style: baseStyle,
+        children: [
+          if (start > 0) TextSpan(text: text.substring(0, start)),
+          TextSpan(text: text.substring(start, end), style: highlightStyle),
+          if (end < text.length) TextSpan(text: text.substring(end)),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _filteredRecentChats() {
+    final query = _normalizeSearch(_searchController.text);
+    if (query.isEmpty) return _recentChats;
+    return _recentChats.where((chat) {
+      final userName = (chat['partnerName'] ?? '').toString().toLowerCase();
+      final displayName = (chat['displayName'] ?? '').toString().toLowerCase();
+      return userName.contains(query) || displayName.contains(query);
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> _filteredFriends() {
+    final query = _normalizeSearch(_friendsSearchController.text);
+    if (query.isEmpty) return _friends;
+    return _friends.where((friend) {
+      final userName = (friend['userName'] ?? '').toString().toLowerCase();
+      final displayName = (friend['displayName'] ?? '').toString().toLowerCase();
+      return userName.contains(query) || displayName.contains(query);
+    }).toList();
   }
 
   Future<void> _initWebPushIfNeeded() async {
@@ -1048,13 +1123,14 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     final accent = _accentColors[_accentColor]!;
     final groupNameController = TextEditingController();
     List<String> selectedFriends = [];
+    bool isCreating = false;
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateSB) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setStateSB) => Dialog(
           backgroundColor: Colors.transparent,
-          contentPadding: EdgeInsets.zero,
-          content: GlassContainer(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: GlassContainer(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1101,24 +1177,65 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: isCreating ? null : () => Navigator.pop(dialogContext),
                       child: Text(t('Скасувати', 'Cancel'),
                           style: const TextStyle(color: Colors.white70, fontSize: 14)),
                     ),
                     TextButton(
-                      onPressed: () {
-                        if (groupNameController.text.trim().isNotEmpty && selectedFriends.isNotEmpty) {
-                          _bgSocket.emitWithAck('create_group', {
-                            'name': groupNameController.text.trim(),
-                            'participants': selectedFriends,
-                            'creator': widget.userName,
-                          }, ack: (dynamic data) {
-                            if (data['success'] == true) _loadData();
-                          });
-                          Navigator.pop(context);
-                        }
-                      },
-                      child: Text(t('Створити', 'Create'),
+                      onPressed: isCreating
+                          ? null
+                          : () {
+                              final groupName = groupNameController.text.trim();
+                              final participants = selectedFriends
+                                  .map((e) => e.trim())
+                                  .where((e) => e.isNotEmpty && e != widget.userName)
+                                  .toSet()
+                                  .toList();
+
+                              if (groupName.isEmpty) {
+                                _showSnack(t('Вкажіть назву групи', 'Enter group name'));
+                                return;
+                              }
+                              if (participants.isEmpty) {
+                                _showSnack(t('Оберіть хоча б одного друга', 'Select at least one friend'));
+                                return;
+                              }
+
+                              setStateSB(() => isCreating = true);
+                              _bgSocket.emitWithAck('create_group', {
+                                'name': groupName,
+                                'participants': participants,
+                                'creator': widget.userName,
+                              }, ack: (dynamic raw) {
+                                if (!mounted) return;
+                                final data = raw is Map<String, dynamic>
+                                    ? raw
+                                    : (raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{});
+                                final success = data['success'] == true;
+
+                                if (!success) {
+                                  if (Navigator.of(dialogContext).canPop()) {
+                                    setStateSB(() => isCreating = false);
+                                  }
+                                  _showSnack(
+                                    (data['message'] ?? t('Не вдалося створити групу', 'Failed to create group')).toString(),
+                                  );
+                                  return;
+                                }
+
+                                final groupId = (data['groupId'] ?? '').toString();
+                                _searchController.clear();
+                                _loadData();
+                                if (Navigator.of(dialogContext).canPop()) {
+                                  Navigator.of(dialogContext).pop();
+                                }
+                                _showSnack(t('Групу створено', 'Group created'));
+                                if (groupId.startsWith('GROUP_')) {
+                                  _startChat(groupName, groupId);
+                                }
+                              });
+                            },
+                      child: Text(isCreating ? t('Створення...', 'Creating...') : t('Створити', 'Create'),
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                     ),
                   ],
@@ -2061,8 +2178,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   // TABS
   // ─────────────────────────────────────────────────────────
   void _moveDesktopChatSelection(int delta) {
-    if (_recentChats.isEmpty) return;
-    final maxIndex = _recentChats.length - 1;
+    final visibleChats = _filteredRecentChats();
+    if (visibleChats.isEmpty) return;
+    final maxIndex = visibleChats.length - 1;
     final next = (_desktopSelectedChatIndex + delta).clamp(0, maxIndex);
     if (next == _desktopSelectedChatIndex) return;
     setState(() => _desktopSelectedChatIndex = next);
@@ -2070,7 +2188,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   }
 
   void _scrollDesktopChatsToSelected() {
-    if (!_desktopChatsScrollController.hasClients || _recentChats.isEmpty) return;
+    final visibleChats = _filteredRecentChats();
+    if (!_desktopChatsScrollController.hasClients || visibleChats.isEmpty) return;
     final approxItemExtent = 84.0;
     final target = _desktopSelectedChatIndex * approxItemExtent;
     final max = _desktopChatsScrollController.position.maxScrollExtent;
@@ -2082,13 +2201,14 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   }
 
   void _openSelectedDesktopChat() {
-    if (_recentChats.isEmpty) return;
-    final maxIndex = _recentChats.length - 1;
+    final visibleChats = _filteredRecentChats();
+    if (visibleChats.isEmpty) return;
+    final maxIndex = visibleChats.length - 1;
     final selected = _desktopSelectedChatIndex.clamp(0, maxIndex);
     if (selected != _desktopSelectedChatIndex) {
       setState(() => _desktopSelectedChatIndex = selected);
     }
-    final chat = _recentChats[selected];
+    final chat = visibleChats[selected];
     final chatVerified = chat['isVerified'] == true;
     _startChat(
       chat['partnerName'],
@@ -2102,10 +2222,11 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   Widget _buildChatsTab() {
     final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
     final isDesktopPlatform = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
-    if (_recentChats.isEmpty && _desktopSelectedChatIndex != 0) {
+    final visibleChats = _filteredRecentChats();
+    if (visibleChats.isEmpty && _desktopSelectedChatIndex != 0) {
       _desktopSelectedChatIndex = 0;
-    } else if (_recentChats.isNotEmpty && _desktopSelectedChatIndex >= _recentChats.length) {
-      _desktopSelectedChatIndex = _recentChats.length - 1;
+    } else if (visibleChats.isNotEmpty && _desktopSelectedChatIndex >= visibleChats.length) {
+      _desktopSelectedChatIndex = visibleChats.length - 1;
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2121,6 +2242,24 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                       _isSearching ? null : _startChat(_searchController.text.trim(), null),
                 ),
               ),
+              if (_searchController.text.trim().isNotEmpty) ...[
+                const SizedBox(width: 10),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                    tooltip: t('Очистити пошук', 'Clear search'),
+                    onPressed: () {
+                      _searchController.clear();
+                      if (mounted) setState(() => _desktopSelectedChatIndex = 0);
+                    },
+                  ),
+                ),
+              ],
               const SizedBox(width: 10),
               Container(
                 decoration: BoxDecoration(
@@ -2148,13 +2287,17 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
             ),
           ),
         Expanded(
-          child: _recentChats.isEmpty
+          child: visibleChats.isEmpty
               ? Center(
                   child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text(t("Чатів поки що немає.", "No chats yet."),
+                    Text(_searchController.text.trim().isNotEmpty
+                            ? t("Нічого не знайдено.", "No results found.")
+                            : t("Чатів поки що немає.", "No chats yet."),
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16)),
                     const SizedBox(height: 4),
-                    Text(t("Напишіть щось друзям.", "Write something to friends."),
+                    Text(_searchController.text.trim().isNotEmpty
+                            ? t("Спробуйте інший запит.", "Try a different query.")
+                            : t("Напишіть щось друзям.", "Write something to friends."),
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16)),
                   ]),
                 )
@@ -2179,13 +2322,13 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                   child: ListView.separated(
                     controller: isDesktopPlatform ? _desktopChatsScrollController : null,
                     padding: const EdgeInsets.only(bottom: 120),
-                    itemCount: _recentChats.length,
+                    itemCount: visibleChats.length,
                     separatorBuilder: (context, index) => Padding(
                       padding: const EdgeInsets.only(left: 76.0),
                       child: Divider(height: 1, color: Colors.white.withValues(alpha: 0.05)),
                     ),
                     itemBuilder: (context, index) {
-                    final chat = _recentChats[index];
+                    final chat = visibleChats[index];
                     final isGroup = chat['isGroup'] == true;
                     final unreadCount = chat['unreadCount'] ?? 0;
                     final isSelf = chat['partnerName'] == widget.userName;
@@ -2204,26 +2347,22 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                               backgroundColor: Colors.white.withValues(alpha: 0.1),
                               child: const Icon(Icons.bookmark, color: Colors.white70),
                             )
-                          : Tooltip(
-                              message: t('Профіль', 'Profile'),
-                              waitDuration: const Duration(milliseconds: 280),
-                              child: MouseRegion(
-                                cursor: SystemMouseCursors.click,
-                                child: GestureDetector(
-                                  onTap: () => _showUserProfile(
-                                    chat['partnerName'],
-                                    chat['avatar'],
-                                    chat['publicKey'],
-                                    isGroup,
-                                    initialDisplayName: chat['displayName'],
-                                  ),
-                                  child: StoryRingAvatar(
-                                    avatarBase64: chat['avatar'],
-                                    fallbackName: chat['partnerName'],
-                                    radius: 24,
-                                    isGroup: isGroup,
-                                    hasUnread: unreadCount > 0,
-                                  ),
+                          : MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: () => _showUserProfile(
+                                  chat['partnerName'],
+                                  chat['avatar'],
+                                  chat['publicKey'],
+                                  isGroup,
+                                  initialDisplayName: chat['displayName'],
+                                ),
+                                child: StoryRingAvatar(
+                                  avatarBase64: chat['avatar'],
+                                  fallbackName: chat['partnerName'],
+                                  radius: 24,
+                                  isGroup: isGroup,
+                                  hasUnread: unreadCount > 0,
                                 ),
                               ),
                             ),
@@ -2247,15 +2386,15 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                                       Row(
                                         children: [
                                           Flexible(
-                                            child: Text(
+                                            child: _buildHighlightedText(
                                               chatDisplayName.isNotEmpty ? chatDisplayName : chat['partnerName'],
-                                              style: const TextStyle(
+                                              _searchController.text,
+                                              const TextStyle(
                                                 color: Colors.white,
                                                 fontWeight: FontWeight.w600,
                                                 fontSize: 16,
                                                 letterSpacing: -0.2,
                                               ),
-                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                           if (!isGroup && chatVerified) ...[
@@ -2323,12 +2462,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                             isVerified: chatVerified);
                         },
                     );
-                    if (!isDesktopPlatform) return tile;
-                    return Tooltip(
-                      message: t('Відкрити чат', 'Open chat'),
-                      waitDuration: const Duration(milliseconds: 260),
-                      child: tile,
-                    );
+                    return tile;
                     },
                   ),
                 ),
@@ -2339,6 +2473,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
 
   Widget _buildFriendsTab() {
     final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
+    final visibleFriends = _filteredFriends();
     return ListView(
       padding: const EdgeInsets.only(top: 20, bottom: 120),
       children: [
@@ -2363,6 +2498,35 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
             const SizedBox(width: 10),
             ElegantButton(text: t("ДОДАТИ", "ADD"), onPressed: _sendFriendRequest),
           ]),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: GlassInput(
+                  controller: _friendsSearchController,
+                  hintText: t('Пошук друзів', 'Search friends'),
+                ),
+              ),
+              if (_friendsSearchController.text.trim().isNotEmpty) ...[
+                const SizedBox(width: 10),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                    tooltip: t('Очистити пошук', 'Clear search'),
+                    onPressed: _friendsSearchController.clear,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
         const SizedBox(height: 32),
         if (_pendingRequests.isNotEmpty) ...[
@@ -2440,16 +2604,18 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                 fontWeight: FontWeight.bold, letterSpacing: 1,
               )),
         ),
-        _friends.isEmpty
+        visibleFriends.isEmpty
             ? Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(t("У вас ще немає друзів.", "No friends yet."),
+                child: Text(_friendsSearchController.text.trim().isNotEmpty
+                        ? t("Нічого не знайдено.", "No results found.")
+                        : t("У вас ще немає друзів.", "No friends yet."),
                     style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14)),
               )
             : GlassContainer(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
-                  children: _friends.asMap().entries.map((entry) {
+                  children: visibleFriends.asMap().entries.map((entry) {
                     int idx = entry.key;
                     var f = entry.value;
                     return Column(children: [
@@ -2460,10 +2626,11 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                         ),
                         title: Row(children: [
                           Flexible(
-                            child: Text(
-                                (f['displayName'] ?? '').toString().trim().isNotEmpty ? f['displayName'] : f['userName'],
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 16),
-                                overflow: TextOverflow.ellipsis),
+                            child: _buildHighlightedText(
+                              (f['displayName'] ?? '').toString().trim().isNotEmpty ? f['displayName'] : f['userName'],
+                              _friendsSearchController.text,
+                              const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 16),
+                            ),
                           ),
                           if (f['isVerified'] == true || f['isVerified'] == 1) ...[
                             const SizedBox(width: 5), VerifiedBadge(size: 13, color: accent),
@@ -2475,7 +2642,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                           targetDisplayName: f['displayName'],
                           isVerified: (f['isVerified'] == true || f['isVerified'] == 1)),
                       ),
-                      if (idx != _friends.length - 1)
+                      if (idx != visibleFriends.length - 1)
                         Divider(height: 1, indent: 60, color: Colors.white.withValues(alpha: 0.05)),
                     ]);
                   }).toList(),
@@ -3013,15 +3180,22 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   }
 
   void _showTextSizeSheet(Color accent) {
-    final previewChats = _recentChats.take(6).toList();
-    final sampleNames = previewChats
-        .map((c) => ((c['displayName'] ?? c['partnerName']) ?? '').toString().trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-    final sampleTexts = previewChats
-        .map((c) => (c['decryptedText'] ?? '').toString().trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
+    final sampleNames = [
+      t('Alex', 'Alex'),
+      t('Mila', 'Mila'),
+      t('Den', 'Den'),
+      t('Noah', 'Noah'),
+      t('Sara', 'Sara'),
+      t('Kai', 'Kai'),
+    ];
+    final sampleTexts = [
+      t('Готово, зустрінемось о 19:00', 'Done, let\'s meet at 7:00 PM'),
+      t('Голосове повідомлення', 'Voice message'),
+      t('Дякую, все працює', 'Thanks, everything works'),
+      t('Надішли фото, будь ласка', 'Send the photo please'),
+      t('Захищений чат активний', 'Secure chat is active'),
+      t('Побачимось пізніше', 'See you later'),
+    ];
 
     final PageController pageController = PageController(viewportFraction: 0.98);
     final ValueNotifier<int> pageIdx = ValueNotifier<int>(0);
