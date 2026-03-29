@@ -431,6 +431,30 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     return DateFormat('dd.MM HH:mm').format(dt);
   }
 
+  IconData _getDeviceIcon(Map<String, dynamic> device) {
+    final deviceName = (device['deviceName'] ?? '').toString().toLowerCase();
+    final deviceType = (device['deviceType'] ?? '').toString().toLowerCase();
+    
+    // Перевірити за deviceType спочатку
+    if (deviceType.contains('iphone') || deviceType.contains('ios')) return Icons.phone_iphone_rounded;
+    if (deviceType.contains('ipad')) return Icons.tablet_mac_rounded;
+    if (deviceType.contains('mac') || deviceType.contains('macos')) return Icons.laptop_mac_rounded;
+    if (deviceType.contains('windows')) return Icons.computer_rounded;
+    if (deviceType.contains('android')) return Icons.android_rounded;
+    if (deviceType.contains('linux')) return Icons.memory_rounded;
+    
+    // Потім перевірити за deviceName
+    if (deviceName.contains('iphone')) return Icons.phone_iphone_rounded;
+    if (deviceName.contains('ipad')) return Icons.tablet_mac_rounded;
+    if (deviceName.contains('mac') || deviceName.contains('macbook')) return Icons.laptop_mac_rounded;
+    if (deviceName.contains('windows') || deviceName.contains('pc')) return Icons.computer_rounded;
+    if (deviceName.contains('android')) return Icons.android_rounded;
+    if (deviceName.contains('linux')) return Icons.memory_rounded;
+    if (deviceName.contains('web')) return Icons.language_rounded;
+    
+    return Icons.devices_other_rounded; // За замовчуванням
+  }
+
   void _showMyDevicesSheet() {
     _bgSocket.emitWithAck('get_my_devices', {
       'userName': widget.userName,
@@ -467,7 +491,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                         leading: CircleAvatar(
                           radius: 20,
                           backgroundColor: Colors.white.withValues(alpha: 0.08),
-                          child: Icon(isCurrent ? Icons.smartphone_rounded : Icons.devices_other_rounded, color: Colors.white70),
+                          child: Icon(_getDeviceIcon(d), color: Colors.white70),
                         ),
                         title: Text((d['deviceName'] ?? t('Пристрій', 'Device')).toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                         subtitle: Text(
