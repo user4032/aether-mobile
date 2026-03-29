@@ -2,6 +2,38 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/uk-ua",
+      "destination": "/"
+    },
+    {
+      "source": "/uk-ua/download",
+      "destination": "/download.html"
+    },
+    {
+      "source": "/uk-ua/faq",
+      "destination": "/faq.html"
+    },
+    {
+      "source": "/uk-ua/support",
+      "destination": "/support.html"
+    },
+    {
+      "source": "/en-us",
+      "destination": "/en.html"
+    },
+    {
+      "source": "/en-us/download",
+      "destination": "/download.html"
+    },
+    {
+      "source": "/en-us/faq",
+      "destination": "/faq.html"
+    },
+    {
+      "source": "/en-us/support",
+      "destination": "/support.html"
+    },
+    {
       "source": "/index",
       "destination": "/"
     }

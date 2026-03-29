@@ -1,6 +1,6 @@
-#define MyAppName "Aether Messenger"
+#define MyAppName "Lumyn Messenger"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "Aether"
+#define MyAppPublisher "Lumyn"
 #define MyAppExeName "x3dh_client_pc.exe"
 
 [Setup]
@@ -8,11 +8,11 @@ AppId={{D0C8CF40-2B52-4E72-B714-8E1380EFA1A8}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\Aether Messenger
-DefaultGroupName=Aether Messenger
+DefaultDirName={autopf}\Lumyn Messenger
+DefaultGroupName=Lumyn Messenger
 DisableProgramGroupPage=yes
 OutputDir=..\..\build\installer
-OutputBaseFilename=AetherMessengerSetup
+OutputBaseFilename=LumynMessengerSetup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -28,8 +28,8 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Source: "..\..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{autoprograms}\Aether Messenger"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\Aether Messenger"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autoprograms}\Lumyn Messenger"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\Lumyn Messenger"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch Aether Messenger"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch Lumyn Messenger"; Flags: nowait postinstall skipifsilent

@@ -15,5 +15,5 @@ if (!(Test-Path $inno)) {
   throw "Inno Setup not found. Install Inno Setup 6 and retry."
 }
 
-& $inno "installer\windows\aether_desktop.iss"
+& $inno "installer\windows\lumyn_desktop.iss"
 Write-Host "Done. Installer is in build\installer"

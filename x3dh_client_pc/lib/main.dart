@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Aether',
+      title: 'Lumyn',
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.black, 
         fontFamily: 'Inter', 

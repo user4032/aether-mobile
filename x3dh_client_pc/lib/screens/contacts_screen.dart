@@ -200,7 +200,6 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     super.initState();
     _pageController = PageController(initialPage: _currentIndex);
     WidgetsBinding.instance.addObserver(this);
-    _initLockState();
     _loadSettings();
 
     _bgSocket = io.io('https://aether-backend-hrmq.onrender.com', {
@@ -617,6 +616,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
       _systemLockEnabled    = p.getBool('system_lock_enabled') ?? false;
       _useFaceIdOnIOS       = p.getBool('use_face_id_ios') ?? false;
     });
+    if (_systemLockEnabled) {
+      _initLockState();
+    }
     if (kIsWeb && _notificationsEnabled) {
       unawaited(_initWebPushIfNeeded());
     }
@@ -634,14 +636,14 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   // SYSTEM LOCK
   // ─────────────────────────────────────────────────────────
   Future<void> _initLockState() async {
-    if (_systemLockEnabled) {
-      setState(() {
-        _isAppLocked = true;
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _unlockWithSystemAuth();
-      });
-    }
+    if (!_systemLockEnabled || !mounted || _authInProgress) return;
+    setState(() {
+      _isAppLocked = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_isAppLocked || _authInProgress) return;
+      _unlockWithSystemAuth();
+    });
   }
 
   Future<void> _persistSystemLockSettings() async {
@@ -652,7 +654,11 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   Future<bool> _authenticateSystem() async {
     if (_authInProgress) return false;
 
-    _authInProgress = true;
+    if (mounted) {
+      setState(() => _authInProgress = true);
+    } else {
+      _authInProgress = true;
+    }
     try {
       final canCheck = await _localAuth.canCheckBiometrics;
       final isSupported = await _localAuth.isDeviceSupported();
@@ -662,7 +668,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
       }
 
       return await _localAuth.authenticate(
-        localizedReason: t("Підтвердіть вхід у Aether", "Authenticate to unlock Aether"),
+        localizedReason: t("Підтвердіть вхід у Lumyn", "Authenticate to unlock Lumyn"),
         options: AuthenticationOptions(
           biometricOnly: Platform.isIOS && _useFaceIdOnIOS,
           stickyAuth: true,
@@ -673,7 +679,11 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     } on PlatformException {
       return false;
     } finally {
-      _authInProgress = false;
+      if (mounted) {
+        setState(() => _authInProgress = false);
+      } else {
+        _authInProgress = false;
+      }
     }
   }
 
@@ -812,7 +822,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           bool isEph = m['isEphemeral'] == true || msgType.startsWith('ephemeral_');
           msgType = msgType.replaceFirst('ephemeral_', '');
           if (isEph) {
-            chat['decryptedText'] = "✨ ${t('Ефірне повідомлення', 'Aether message')}";
+            chat['decryptedText'] = "✨ ${t('Ефірне повідомлення', 'Lumyn message')}";
           } else if (msgType == 'audio') {
             chat['decryptedText'] = t("Голосове повідомлення", "Voice message");
           } else if (msgType == 'image') {
@@ -1840,87 +1850,154 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   // LOCK SCREEN
   // ─────────────────────────────────────────────────────────
   Widget _buildLockScreen() {
-    const accent = Colors.white;
+    const accent = Color(0xFF5DA8FF);
+    const deepBg = Color(0xFF0D1117);
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: deepBg,
       body: Stack(
         children: [
-          Positioned(
-            top: -80, left: -60,
-            child: Container(
-              width: 280, height: 280,
+          Positioned.fill(
+            child: DecoratedBox(
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accent.withValues(alpha: 0.08),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFF111827),
+                    const Color(0xFF0B1020),
+                    deepBg,
+                  ],
+                ),
               ),
             ),
           ),
           Positioned(
-            bottom: -100, right: -80,
+            top: -120,
+            left: -100,
             child: Container(
-              width: 320, height: 320,
+              width: 340,
+              height: 340,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: accent.withValues(alpha: 0.05),
+                color: accent.withValues(alpha: 0.18),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -130,
+            right: -80,
+            child: Container(
+              width: 380,
+              height: 380,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.07),
               ),
             ),
           ),
           SafeArea(
             child: Column(
               children: [
-                const Spacer(flex: 2),
-                // Кастомна іконка замка
-                const _AppleLockIcon(accent: accent),
-                const SizedBox(height: 24),
-                // Заголовок
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: Text(
-                    key: const ValueKey('system-auth'),
-                    t("Підтвердження системою", "System Authentication"),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  t("Використайте пароль пристрою або біометрію", "Use your device passcode or biometrics"),
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 14),
-                ),
                 const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  child: Column(children: [
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _unlockWithSystemAuth,
-                        icon: const Icon(Icons.lock_open_rounded),
-                        label: Text(t("Розблокувати", "Unlock")),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 30,
+                        offset: const Offset(0, 14),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      const _AppleLockIcon(accent: accent),
+                      const SizedBox(height: 14),
+                      Text(
+                        t("Захист Lumyn", "Lumyn Protection"),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _authInProgress
-                          ? t("Перевірка...", "Authenticating...")
-                          : t("Якщо відхилили автентифікацію, натисніть ще раз", "If authentication was canceled, tap again"),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
-                    ),
-                  ]),
+                      const SizedBox(height: 8),
+                      Text(
+                        t("Використайте Face ID, відбиток або пароль пристрою", "Use Face ID, fingerprint, or your device passcode"),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.62), fontSize: 14, height: 1.4),
+                      ),
+                      const SizedBox(height: 18),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: Container(
+                          key: ValueKey(_authInProgress),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _authInProgress
+                                ? accent.withValues(alpha: 0.2)
+                                : Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: _authInProgress
+                                  ? accent.withValues(alpha: 0.55)
+                                  : Colors.white.withValues(alpha: 0.14),
+                            ),
+                          ),
+                          child: Text(
+                            _authInProgress
+                                ? t("Перевірка системою...", "Checking system authentication...")
+                                : t("Захищений вхід увімкнено", "Secure sign-in is enabled"),
+                            style: TextStyle(
+                              color: _authInProgress ? accent : Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _authInProgress ? null : _unlockWithSystemAuth,
+                          icon: _authInProgress
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.black),
+                                )
+                              : const Icon(Icons.lock_open_rounded),
+                          label: Text(_authInProgress
+                              ? t("Перевірка...", "Authenticating...")
+                              : t("Розблокувати", "Unlock")),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            disabledBackgroundColor: Colors.white70,
+                            disabledForegroundColor: Colors.black87,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        t("Якщо автентифікація скасована, натисніть кнопку ще раз", "If authentication is canceled, press the button again"),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
+                      ),
+                    ],
+                  ),
                 ),
-                const Spacer(),
+                const Spacer(flex: 2),
               ],
             ),
           ),
@@ -2860,7 +2937,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         ),
         const SizedBox(height: 8),
         Center(
-          child: Text(t("Aether • версія 1.0.0", "Aether • v1.0.0"),
+          child: Text(t("Lumyn • версія 1.0.0", "Lumyn • v1.0.0"),
               style: TextStyle(color: Colors.white.withValues(alpha: 0.15), fontSize: 11)),
         ),
       ],

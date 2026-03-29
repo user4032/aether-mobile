@@ -31,4 +31,4 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build_windows_installer.ps1
 
 Output installer:
 
-- `x3dh_client_pc/build/installer/AetherMessengerSetup.exe`
+- `x3dh_client_pc/build/installer/LumynMessengerSetup.exe`
