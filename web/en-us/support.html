@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
   <meta name="author" content="LUMYN Protocol">
-  <meta name="description" content="Зв'яжіться з підтримкою LUMYN">
-  <link rel="icon" href="icons/favicon.png">
-  <link rel="apple-touch-icon" href="icons/logo-192.png?v=6">
-  <link rel="manifest" href="manifest.json">
-  <title>LUMYN | Підтримка</title>
+  <meta name="description" content="Contact LUMYN Support">
+  <link rel="icon" href="../icons/favicon.png">
+  <link rel="apple-touch-icon" href="../icons/logo-192.png?v=6">
+  <link rel="manifest" href="../manifest.json">
+  <title>LUMYN | Support</title>
   <script defer src="/locale-routing.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   
@@ -34,15 +34,11 @@
       display: flex; flex-direction: column; min-height: 100vh;
     }
 
-    /* ─── CANVAS BG ─── */
     #bg-canvas {
       position: fixed; inset: 0; width: 100%; height: 100%;
       pointer-events: none; z-index: 0;
     }
 
-
-
-    /* ─── NAV ─── */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 200;
       padding: 0 40px; height: 80px;
@@ -60,14 +56,12 @@
     .btn-outline:hover { background: #fff; color: #000 !important; }
     @media (max-width: 768px) { .nav-links { display: none; } nav { padding: 0 20px; } #mobile-menu-btn { display: block !important; } }
 
-    /* ─── MAIN ─── */
     main {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; padding-top: 160px; padding-bottom: 100px;
       position: relative; z-index: 10;
     }
 
-    /* ─── PAGE HEADER ─── */
     .page-header { text-align: center; margin-bottom: 50px; }
     .page-badge {
       display: inline-flex; align-items: center; gap: 8px;
@@ -92,7 +86,6 @@
       animation: fadeUp 0.9s ease 0.2s both;
     }
 
-    /* ─── FORM CONTAINER ─── */
     .support-form-container {
       width: 100%; max-width: 500px; padding: 0 24px;
       animation: fadeUp 0.9s ease 0.3s both;
@@ -104,7 +97,6 @@
       backdrop-filter: blur(20px);
       position: relative; overflow: hidden;
     }
-    /* Subtle glow top border */
     .form-inner::before {
       content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
@@ -144,7 +136,6 @@
     }
     .btn-submit:active { transform: translateY(0); }
 
-    /* ─── STATUS INDICATORS ─── */
     .form-status {
       display: flex; gap: 24px; justify-content: center;
       margin-top: 24px; padding-top: 24px;
@@ -156,9 +147,6 @@
     }
     .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; opacity: 0.6; }
 
-
-
-    /* ─── APPLE FOOTER ─── */
     .apple-footer { background: #111111; color: #86868b; font-family: var(--font-main); font-size: 12px; line-height: 1.33337; font-weight: 400; padding: 0 22px; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; position: relative; z-index: 10; }
     .apple-footer-content { max-width: 980px; margin: 0 auto; padding: 20px 0; }
     .footer-breadcrumbs { display: flex; align-items: center; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
@@ -184,41 +172,39 @@
 </head>
 <body>
 
-
-
 <nav>
   <a href="/" class="nav-logo">
-    <img src="icons/logo-192.png" alt="Logo"> LUMYN
+    <img src="../icons/logo-192.png" alt="Logo"> LUMYN
   </a>
   <div class="nav-links">
-    <a href="/">Головна</a>
-    <a href="/download">Додатки</a>
-    <a href="/faq">ЧаПи</a>
-    <a href="/support" class="active">Підтримка</a>
-    <a href="/en" class="btn-outline" style="margin-left:20px;">EN</a>
+    <a href="/">Home</a>
+    <a href="/download">Downloads</a>
+    <a href="/faq">FAQ</a>
+    <a href="/support" class="active">Support</a>
+    <a href="/uk-ua" class="btn-outline" style="margin-left:20px;">UA</a>
   </div>
   <button id="mobile-menu-btn" style="display:none;background:none;border:none;color:white;font-size:26px;cursor:pointer;">☰</button>
 </nav>
 
 <div id="mobile-dropdown" style="display:none;position:fixed;top:80px;left:0;right:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.1);padding:20px;z-index:199;flex-direction:column;gap:16px;text-align:center;">
-  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Головна</a>
-  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Додатки</a>
-  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">ЧаПи</a>
-  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Підтримка</a>
-  <a href="/en" style="color:white;text-decoration:none;font-size:16px;opacity:0.5;margin-top:8px;">EN (English)</a>
+  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Home</a>
+  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Downloads</a>
+  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">FAQ</a>
+  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Support</a>
+  <a href="/uk-ua" style="color:white;text-decoration:none;font-size:16px;opacity:0.5;margin-top:8px;">UA (Ukrainian)</a>
 </div>
 
 <main>
   <header class="page-header">
-    <h1>ЗВ'ЯЗОК.</h1>
-    <p>Знайшли баг чи маєте пропозиції? Напишіть нам.</p>
+    <h1>GET IN TOUCH.</h1>
+    <p>Found a bug or have a feature request? Let us know.</p>
   </header>
 
   <div class="support-form-container">
     <div class="form-inner">
       <form action="https://formspree.io/f/xlgojwbv" method="POST">
         <div class="form-group">
-          <label for="name">Ваше ім'я</label>
+          <label for="name">Your Name</label>
           <input type="text" id="name" name="name" class="form-control" placeholder="John Doe" required>
         </div>
         <div class="form-group">
@@ -226,12 +212,12 @@
           <input type="email" id="email" name="_replyto" class="form-control" placeholder="john@example.com" required>
         </div>
         <div class="form-group">
-          <label for="message">Повідомлення</label>
-          <textarea id="message" name="message" class="form-control" placeholder="Опишіть вашу проблему..." required></textarea>
+          <label for="message">Message</label>
+          <textarea id="message" name="message" class="form-control" placeholder="Describe your issue..." required></textarea>
         </div>
         <input type="hidden" name="_next" value="support.html">
         <input type="hidden" name="_gotcha" style="display:none">
-        <button type="submit" class="btn-submit">Надіслати запит</button>
+        <button type="submit" class="btn-submit">Send Request</button>
       </form>
     </div>
   </div>
@@ -240,26 +226,26 @@
 <footer class="apple-footer">
   <div class="apple-footer-content">
     <div class="footer-breadcrumbs">
-      <a href="/"><img src="icons/logo-192.png" alt="LUMYN"> LUMYN</a>
-      <span>›</span><span>Підтримка</span>
+      <a href="/"><img src="../icons/logo-192.png" alt="LUMYN"> LUMYN</a>
+      <span>›</span><span>Support</span>
     </div>
     <div class="footer-directory">
       <div class="footer-directory-column">
         <h3 class="footer-directory-column-title">LUMYN</h3>
         <ul class="footer-directory-list">
-          <li><a href="/">Головна</a></li>
-          <li><a href="/download">Додатки</a></li>
+          <li><a href="/">Home</a></li>
+          <li><a href="/download">Downloads</a></li>
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Ресурси</h3>
+        <h3 class="footer-directory-column-title">Resources</h3>
         <ul class="footer-directory-list">
-          <li><a href="/faq">ЧаПи</a></li>
-          <li><a href="/support">Підтримка</a></li>
+          <li><a href="/faq">FAQ</a></li>
+          <li><a href="/support">Support</a></li>
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Проєкт</h3>
+        <h3 class="footer-directory-column-title">Project</h3>
         <ul class="footer-directory-list">
           <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub</a></li>
           <li><a href="https://t.me/lumynspace" target="_blank" rel="noopener noreferrer">Telegram</a></li>
@@ -287,7 +273,6 @@
   window.addEventListener('resize', resize); resize();
   window.addEventListener('mousemove', function(e){ mouse.tx = e.clientX; mouse.ty = e.clientY; });
 
-  /* Stars */
   var stars = [];
   for (var i = 0; i < 160; i++) {
     stars.push({
@@ -299,7 +284,6 @@
     });
   }
 
-  /* Aurora bands config */
   var bands = [
     { yFactor: 0.55, amp: 0.10, freq: 1.1, speed: 0.35, thickness: 0.30, alpha: 0.045 },
     { yFactor: 0.62, amp: 0.08, freq: 1.4, speed: 0.28, thickness: 0.22, alpha: 0.055 },
@@ -308,7 +292,6 @@
     { yFactor: 0.78, amp: 0.09, freq: 1.2, speed: 0.55, thickness: 0.20, alpha: 0.028 },
   ];
 
-  /* Floating orbs */
   var orbs = [];
   for (var j = 0; j < 5; j++) {
     orbs.push({
@@ -322,7 +305,6 @@
     });
   }
 
-  /* Hex grid nodes */
   var hexNodes = [];
   var hexCols = 10, hexRows = 7;
   var hexW = 1 / hexCols, hexH = 1 / hexRows;
@@ -374,11 +356,9 @@
     ctx.clearRect(0, 0, W, H);
     t += 0.008;
 
-    /* Smooth mouse */
     mouse.x += (mouse.tx - mouse.x) * 0.04;
     mouse.y += (mouse.ty - mouse.y) * 0.04;
 
-    /* ── Deep space gradient ── */
     var bg = ctx.createRadialGradient(W*0.5, H*0.6, 0, W*0.5, H*0.6, Math.max(W,H)*0.85);
     bg.addColorStop(0,   'rgba(14,14,18,1)');
     bg.addColorStop(0.5, 'rgba(6,6,8,1)');
@@ -386,7 +366,6 @@
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    /* ── Floating orbs ── */
     orbs.forEach(function(o) {
       o.bx += o.sxp; o.by += o.syp;
       if (o.bx < 0 || o.bx > 1) o.sxp *= -1;
@@ -402,12 +381,10 @@
       ctx.fillRect(ox - o.r, oy - o.r, o.r * 2, o.r * 2);
     });
 
-    /* ── Aurora bands (drawn back to front) ── */
     ctx.globalCompositeOperation = 'screen';
     bands.forEach(function(b) { drawAuroraBand(b, t); });
     ctx.globalCompositeOperation = 'source-over';
 
-    /* ── Hex lattice (very faint) ── */
     hexNodes.forEach(function(n, idx) {
       var ox = n.bx * W + Math.sin(t * n.sp + n.ph) * 4;
       var oy = n.by * H + Math.cos(t * n.sp * 0.7 + n.ph) * 3;
@@ -418,7 +395,6 @@
       ctx.fillStyle = 'rgba(255,255,255,' + (0.06 * pulse + mouseBoost) + ')';
       ctx.fill();
 
-      /* Connect to nearby nodes */
       hexNodes.slice(idx+1).forEach(function(n2) {
         var ox2 = n2.bx * W + Math.sin(t * n2.sp + n2.ph) * 4;
         var oy2 = n2.by * H + Math.cos(t * n2.sp * 0.7 + n2.ph) * 3;
@@ -432,7 +408,6 @@
       });
     });
 
-    /* ── Stars ── */
     stars.forEach(function(s) {
       var sx = s.x * W, sy = s.y * H;
       var twinkle = s.a * (0.5 + 0.5 * Math.sin(t * s.sp + s.ph));
@@ -444,7 +419,6 @@
       ctx.fill();
     });
 
-    /* ── Mouse glow ── */
     if (mouse.x > 0) {
       var mg = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 180);
       mg.addColorStop(0,   'rgba(255,255,255,0.04)');
@@ -459,7 +433,6 @@
   draw();
 })();
 
-/* ─── MOBILE MENU ─── */
 var mobileBtn = document.getElementById('mobile-menu-btn');
 if (mobileBtn) {
   mobileBtn.addEventListener('click', function() {
