@@ -74,6 +74,31 @@
       scroll-behavior: smooth;
     }
 
+    /* Standalone PWA must fully occupy the phone viewport. */
+    html.pwa-standalone,
+    html.pwa-standalone body {
+      width: 100%;
+      height: 100dvh;
+      min-height: 100dvh;
+      overflow: hidden !important;
+      overscroll-behavior: none;
+    }
+
+    html.pwa-standalone #landing {
+      display: none !important;
+    }
+
+    html.pwa-standalone flutter-view,
+    html.pwa-standalone flt-glass-pane,
+    html.pwa-standalone flt-scene-host,
+    html.pwa-standalone #flutter-host {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100dvh !important;
+      max-height: 100dvh !important;
+    }
+
     /* ─── FLUTTER LOADING ─── */
     #flutter-loading {
       position: fixed; inset: 0; background: #000;
@@ -664,6 +689,7 @@ document.getElementById('mobile-menu-btn').addEventListener('click', function() 
   var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
   if (standalone) {
+    document.documentElement.classList.add('pwa-standalone');
     document.getElementById('flutter-loading').style.display = 'flex';
     document.addEventListener('touchend', function(e){
       var now = Date.now();
@@ -681,6 +707,7 @@ document.getElementById('mobile-menu-btn').addEventListener('click', function() 
     sc.src = 'flutter_bootstrap.js'; sc.async = true;
     document.body.appendChild(sc);
   } else {
+    document.documentElement.classList.remove('pwa-standalone');
     document.getElementById('landing').style.display = 'block';
     if (isIOS) {
       setTimeout(function(){ document.getElementById('ios-hint').style.display = 'flex'; }, 2000);

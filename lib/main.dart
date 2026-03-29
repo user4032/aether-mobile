@@ -24,6 +24,12 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Lumyn',
+      builder: (context, child) {
+        return TooltipVisibility(
+          visible: false,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.black, 
         fontFamily: 'Inter', 

@@ -105,7 +105,12 @@ class _AuthScreenState extends State<AuthScreen> {
     final pass = _passController.text.trim();
     if (name.isEmpty || pass.isEmpty) return;
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
+    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
+      'transports': ['websocket', 'polling'],
+      'upgrade': true,
+      'timeout': 20000,
+      'forceNew': true,
+    });
     
     // Timeout для з'єднання (30 секунд)
     Timer? connectionTimeout;
@@ -179,7 +184,12 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
+    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
+      'transports': ['websocket', 'polling'],
+      'upgrade': true,
+      'timeout': 20000,
+      'forceNew': true,
+    });
     
     Timer? connectionTimeout;
     bool isConnected = false;
@@ -235,7 +245,12 @@ class _AuthScreenState extends State<AuthScreen> {
     final code = _codeController.text.trim();
     if (code.length != 6) return;
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
+    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
+      'transports': ['websocket', 'polling'],
+      'upgrade': true,
+      'timeout': 20000,
+      'forceNew': true,
+    });
     s.connect();
     s.onConnect((_) {
       s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {

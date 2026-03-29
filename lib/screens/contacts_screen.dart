@@ -136,6 +136,8 @@ class ContactsScreen extends StatefulWidget {
 class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   int _desktopSelectedChatIndex = 0;
+  String _chatFolder = 'all';
+  List<Map<String, dynamic>> _customChatFolders = [];
   late final PageController _pageController;
   final ScrollController _desktopChatsScrollController = ScrollController();
   late io.Socket _bgSocket;
@@ -184,6 +186,12 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   double _chatFontSize = 14.0;
   String _chatBubbleStyle = 'rounded';
   bool _compactMode = false;
+  bool _autoDownloadMedia = true;
+  bool _saveMediaToDevice = false;
+  bool _lowDataMode = false;
+  bool _animatedEmojiEnabled = true;
+  bool _quickReactionsEnabled = true;
+  bool _emojiLargeRenderEnabled = true;
   StreamSubscription<String>? _tokenRefreshSub;
 
   static const _accentColors = {
@@ -207,7 +215,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     _loadSettings();
 
     _bgSocket = io.io('https://aether-backend-hrmq.onrender.com', {
-      'transports': ['websocket'],
+      'transports': ['websocket', 'polling'],
+      'upgrade': true,
+      'timeout': 20000,
       'forceNew': true,
     });
     _bgSocket.connect();
@@ -326,6 +336,80 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
 
   String _normalizeSearch(String value) => value.trim().toLowerCase();
 
+  Future<void> _saveCustomChatFolders() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString('custom_chat_folders', jsonEncode(_customChatFolders));
+  }
+
+  Map<String, dynamic>? _customFolderByKey(String key) {
+    if (!key.startsWith('custom:')) return null;
+    final id = key.substring('custom:'.length);
+    for (final folder in _customChatFolders) {
+      if ((folder['id'] ?? '').toString() == id) return folder;
+    }
+    return null;
+  }
+
+  bool _matchesChatFolder(Map<String, dynamic> chat) {
+    final custom = _customFolderByKey(_chatFolder);
+    if (custom != null) {
+      final onlyUnread = custom['onlyUnread'] == true;
+      final includeDirect = custom['includeDirect'] != false;
+      final includeGroups = custom['includeGroups'] != false;
+      final pinnedOnly = custom['pinnedOnly'] == true;
+      final isGroup = chat['isGroup'] == true;
+      final unreadCount = (chat['unreadCount'] ?? 0) as int;
+
+      if (onlyUnread && unreadCount <= 0) return false;
+      if (pinnedOnly && chat['isPinned'] != true) return false;
+      if (isGroup && !includeGroups) return false;
+      if (!isGroup && !includeDirect) return false;
+      return true;
+    }
+
+    switch (_chatFolder) {
+      case 'unread':
+        return (chat['unreadCount'] ?? 0) > 0;
+      case 'direct':
+        return chat['isGroup'] != true;
+      case 'groups':
+        return chat['isGroup'] == true;
+      default:
+        return true;
+    }
+  }
+
+  int _chatFolderCount(String folder) {
+    return _recentChats.where((chat) {
+      final custom = _customFolderByKey(folder);
+      if (custom != null) {
+        final onlyUnread = custom['onlyUnread'] == true;
+        final includeDirect = custom['includeDirect'] != false;
+        final includeGroups = custom['includeGroups'] != false;
+        final pinnedOnly = custom['pinnedOnly'] == true;
+        final isGroup = chat['isGroup'] == true;
+        final unreadCount = (chat['unreadCount'] ?? 0) as int;
+
+        if (onlyUnread && unreadCount <= 0) return false;
+        if (pinnedOnly && chat['isPinned'] != true) return false;
+        if (isGroup && !includeGroups) return false;
+        if (!isGroup && !includeDirect) return false;
+        return true;
+      }
+
+      switch (folder) {
+        case 'unread':
+          return (chat['unreadCount'] ?? 0) > 0;
+        case 'direct':
+          return chat['isGroup'] != true;
+        case 'groups':
+          return chat['isGroup'] == true;
+        default:
+          return true;
+      }
+    }).length;
+  }
+
   Widget _buildHighlightedText(
     String text,
     String query,
@@ -367,8 +451,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
 
   List<Map<String, dynamic>> _filteredRecentChats() {
     final query = _normalizeSearch(_searchController.text);
-    if (query.isEmpty) return _recentChats;
-    return _recentChats.where((chat) {
+    final folderFiltered = _recentChats.where(_matchesChatFolder).toList();
+    if (query.isEmpty) return folderFiltered;
+    return folderFiltered.where((chat) {
       final userName = (chat['partnerName'] ?? '').toString().toLowerCase();
       final displayName = (chat['displayName'] ?? '').toString().toLowerCase();
       return userName.contains(query) || displayName.contains(query);
@@ -635,6 +720,12 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
       'compactMode': _compactMode,
       'soundEnabled': _soundEnabled,
       'vibrationEnabled': _vibrationEnabled,
+      'autoDownloadMedia': _autoDownloadMedia,
+      'saveMediaToDevice': _saveMediaToDevice,
+      'lowDataMode': _lowDataMode,
+      'animatedEmojiEnabled': _animatedEmojiEnabled,
+      'quickReactionsEnabled': _quickReactionsEnabled,
+      'emojiLargeRenderEnabled': _emojiLargeRenderEnabled,
       'myDisplayName': _myDisplayName,
     });
   }
@@ -710,6 +801,26 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   // ─────────────────────────────────────────────────────────
   Future<void> _loadSettings() async {
     final p = await SharedPreferences.getInstance();
+    List<Map<String, dynamic>> loadedFolders = [];
+    final rawFolders = p.getString('custom_chat_folders');
+    if (rawFolders != null && rawFolders.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawFolders) as List<dynamic>;
+        loadedFolders = decoded
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .where((f) => (f['id'] ?? '').toString().isNotEmpty && (f['name'] ?? '').toString().trim().isNotEmpty)
+            .toList();
+      } catch (_) {}
+    }
+    String selectedFolder = p.getString('chat_folder_selected') ?? 'all';
+    final isCustomSelected = selectedFolder.startsWith('custom:');
+    if (isCustomSelected) {
+      final id = selectedFolder.substring('custom:'.length);
+      final exists = loadedFolders.any((f) => (f['id'] ?? '').toString() == id);
+      if (!exists) selectedFolder = 'all';
+    }
+
     if (!mounted) return;
     setState(() {
       _notificationsEnabled = p.getBool('notif_enabled') ?? true;
@@ -724,8 +835,16 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
       _chatFontSize         = p.getDouble('chat_font_size') ?? 14.0;
       _chatBubbleStyle      = p.getString('bubble_style') ?? 'rounded';
       _compactMode          = p.getBool('compact_mode') ?? false;
+      _autoDownloadMedia    = p.getBool('auto_download_media') ?? true;
+      _saveMediaToDevice    = p.getBool('save_media_to_device') ?? false;
+      _lowDataMode          = p.getBool('low_data_mode') ?? false;
+      _animatedEmojiEnabled = p.getBool('animated_emoji_enabled') ?? true;
+      _quickReactionsEnabled = p.getBool('quick_reactions_enabled') ?? true;
+      _emojiLargeRenderEnabled = p.getBool('emoji_large_render_enabled') ?? true;
       _myDisplayName        = p.getString('my_display_name') ?? _myDisplayName;
       _myBio                = p.getString('my_bio') ?? _myBio;
+      _customChatFolders    = loadedFolders;
+      _chatFolder           = selectedFolder;
       _myAvatar             = p.getString('my_avatar') ?? _myAvatar;
       _systemLockEnabled    = p.getBool('system_lock_enabled') ?? false;
       _useFaceIdOnIOS       = p.getBool('use_face_id_ios') ?? false;
@@ -802,6 +921,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   }
 
   Future<void> _unlockWithSystemAuth() async {
+    if (_authInProgress) return;
+
     if (!_systemLockEnabled) {
       if (mounted) {
         setState(() => _isAppLocked = false);
@@ -812,7 +933,10 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     final ok = await _authenticateSystem();
     if (!mounted) return;
     if (ok) {
-      setState(() => _isAppLocked = false);
+      setState(() {
+        _isAppLocked = false;
+        _lockOnResume = false;
+      });
     } else {
       setState(() => _isAppLocked = true);
     }
@@ -877,14 +1001,18 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
+    if (!_systemLockEnabled || !mounted) return;
+
+    // local_auth can temporarily background/resume the app while the OS prompt
+    // is open; relocking in that window causes an unlock loop on desktop.
+    if (_authInProgress) return;
+
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      if (_systemLockEnabled) {
-        setState(() {
-          _lockOnResume = true;
-        });
-      }
+      setState(() {
+        _lockOnResume = true;
+      });
     } else if (state == AppLifecycleState.resumed) {
-      if (_lockOnResume && _systemLockEnabled) {
+      if (_lockOnResume) {
         setState(() {
           _isAppLocked = true;
           _lockOnResume = false;
@@ -1122,128 +1250,486 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     }
     final accent = _accentColors[_accentColor]!;
     final groupNameController = TextEditingController();
-    List<String> selectedFriends = [];
+    final groupDescriptionController = TextEditingController();
+    final selectedFriends = <String>{};
     bool isCreating = false;
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setStateSB) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          child: GlassContainer(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(t('Створити групу', 'Create Group'),
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                const SizedBox(height: 20),
-                GlassInput(controller: groupNameController, hintText: t('Назва групи', 'Group Name')),
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(t("Учасники", "Members"),
-                      style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.white70, fontSize: 13)),
+        builder: (dialogContext, setStateSB) {
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.92),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 18,
+                  right: 18,
+                  top: 12,
+                  bottom: 16 + MediaQuery.of(dialogContext).viewInsets.bottom,
                 ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 150,
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _friends.length,
-                    itemBuilder: (context, index) {
-                      final friend = _friends[index]['userName'];
-                      return CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(friend, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-                        value: selectedFriends.contains(friend),
-                        fillColor: WidgetStateProperty.resolveWith((states) =>
-                          states.contains(WidgetState.selected) ? accent : Colors.transparent),
-                        checkColor: Colors.black,
-                        side: BorderSide(color: accent.withValues(alpha: 0.55)),
-                        checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                        onChanged: (bool? value) {
-                          setStateSB(() {
-                            if (value == true) { selectedFriends.add(friend); }
-                            else { selectedFriends.remove(friend); }
-                          });
-                        },
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextButton(
-                      onPressed: isCreating ? null : () => Navigator.pop(dialogContext),
-                      child: Text(t('Скасувати', 'Cancel'),
-                          style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.28),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
                     ),
-                    TextButton(
-                      onPressed: isCreating
-                          ? null
-                          : () {
-                              final groupName = groupNameController.text.trim();
-                              final participants = selectedFriends
-                                  .map((e) => e.trim())
-                                  .where((e) => e.isNotEmpty && e != widget.userName)
-                                  .toSet()
-                                  .toList();
-
-                              if (groupName.isEmpty) {
-                                _showSnack(t('Вкажіть назву групи', 'Enter group name'));
-                                return;
-                              }
-                              if (participants.isEmpty) {
-                                _showSnack(t('Оберіть хоча б одного друга', 'Select at least one friend'));
-                                return;
-                              }
-
-                              setStateSB(() => isCreating = true);
-                              _bgSocket.emitWithAck('create_group', {
-                                'name': groupName,
-                                'participants': participants,
-                                'creator': widget.userName,
-                              }, ack: (dynamic raw) {
-                                if (!mounted) return;
-                                final data = raw is Map<String, dynamic>
-                                    ? raw
-                                    : (raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{});
-                                final success = data['success'] == true;
-
-                                if (!success) {
-                                  if (Navigator.of(dialogContext).canPop()) {
-                                    setStateSB(() => isCreating = false);
-                                  }
-                                  _showSnack(
-                                    (data['message'] ?? t('Не вдалося створити групу', 'Failed to create group')).toString(),
-                                  );
-                                  return;
-                                }
-
-                                final groupId = (data['groupId'] ?? '').toString();
-                                _searchController.clear();
-                                _loadData();
-                                if (Navigator.of(dialogContext).canPop()) {
-                                  Navigator.of(dialogContext).pop();
-                                }
-                                _showSnack(t('Групу створено', 'Group created'));
-                                if (groupId.startsWith('GROUP_')) {
-                                  _startChat(groupName, groupId);
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: accent.withValues(alpha: 0.22),
+                            border: Border.all(color: accent.withValues(alpha: 0.5)),
+                          ),
+                          child: Icon(Icons.groups_rounded, color: accent),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            t('Нова група', 'New Group'),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 19),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    GlassInput(controller: groupNameController, hintText: t('Назва групи', 'Group Name')),
+                    const SizedBox(height: 10),
+                    GlassInput(controller: groupDescriptionController, hintText: t('Опис (необов\'язково)', 'Description (optional)')),
+                    const SizedBox(height: 14),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        t('Учасники', 'Members'),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.78), fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 230),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: _friends.length,
+                        separatorBuilder: (_, _) => Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+                        itemBuilder: (context, index) {
+                          final friend = (_friends[index]['userName'] ?? '').toString();
+                          final display = (_friends[index]['displayName'] ?? '').toString().trim();
+                          if (friend.isEmpty) return const SizedBox.shrink();
+                          final selected = selectedFriends.contains(friend);
+                          return CheckboxListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                            dense: true,
+                            value: selected,
+                            onChanged: (value) {
+                              setStateSB(() {
+                                if (value == true) {
+                                  selectedFriends.add(friend);
+                                } else {
+                                  selectedFriends.remove(friend);
                                 }
                               });
                             },
-                      child: Text(isCreating ? t('Створення...', 'Creating...') : t('Створити', 'Create'),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                            fillColor: WidgetStateProperty.resolveWith((states) =>
+                                states.contains(WidgetState.selected) ? accent : Colors.transparent),
+                            checkColor: onAccent(accent),
+                            side: BorderSide(color: accent.withValues(alpha: 0.55)),
+                            checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                            title: Text(
+                              display.isNotEmpty ? '$display @$friend' : friend,
+                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${selectedFriends.length} ${t('обрано', 'selected')}',
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.64), fontSize: 12),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: isCreating ? null : () => Navigator.pop(dialogContext),
+                          child: Text(t('Скасувати', 'Cancel'), style: const TextStyle(color: Colors.white70)),
+                        ),
+                        const SizedBox(width: 6),
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: accent,
+                            foregroundColor: onAccent(accent),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: isCreating
+                              ? null
+                              : () {
+                                  final groupName = groupNameController.text.trim();
+                                  final groupDescription = groupDescriptionController.text.trim();
+                                  final participants = selectedFriends
+                                      .map((e) => e.trim())
+                                      .where((e) => e.isNotEmpty && e != widget.userName)
+                                      .toSet()
+                                      .toList();
+
+                                  if (groupName.isEmpty) {
+                                    _showSnack(t('Вкажіть назву групи', 'Enter group name'));
+                                    return;
+                                  }
+                                  if (participants.isEmpty) {
+                                    _showSnack(t('Оберіть хоча б одного друга', 'Select at least one friend'));
+                                    return;
+                                  }
+
+                                  setStateSB(() => isCreating = true);
+                                  _bgSocket.emitWithAck('create_group', {
+                                    'name': groupName,
+                                    'description': groupDescription,
+                                    'participants': participants,
+                                    'creator': widget.userName,
+                                  }, ack: (dynamic raw) {
+                                    if (!mounted) return;
+                                    final data = raw is Map<String, dynamic>
+                                        ? raw
+                                        : (raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{});
+                                    final success = data['success'] == true;
+
+                                    if (!success) {
+                                      setStateSB(() => isCreating = false);
+                                      _showSnack(
+                                        (data['message'] ?? t('Не вдалося створити групу', 'Failed to create group')).toString(),
+                                      );
+                                      return;
+                                    }
+
+                                    final groupId = (data['groupId'] ?? '').toString();
+                                    _searchController.clear();
+                                    _loadData();
+                                    if (Navigator.of(dialogContext).canPop()) {
+                                      Navigator.of(dialogContext).pop();
+                                    }
+                                    _showSnack(t('Групу створено', 'Group created'));
+                                    if (groupId.startsWith('GROUP_')) {
+                                      _startChat(groupName, groupId);
+                                    }
+                                  });
+                                },
+                          child: Text(isCreating ? t('Створення...', 'Creating...') : t('Створити', 'Create')),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
+      ),
+    );
+  }
+
+  Color onAccent(Color color) {
+    return ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black;
+  }
+
+  Future<Map<String, dynamic>?> _fetchGroupInfo(String groupId) async {
+    final completer = Completer<Map<String, dynamic>?>();
+    _bgSocket.emitWithAck(
+      'get_group_info',
+      {'groupId': groupId, 'userName': widget.userName},
+      ack: (dynamic raw) {
+        try {
+          if (raw is Map<String, dynamic>) {
+            completer.complete(raw);
+            return;
+          }
+          if (raw is Map) {
+            completer.complete(Map<String, dynamic>.from(raw));
+            return;
+          }
+          completer.complete(null);
+        } catch (_) {
+          completer.complete(null);
+        }
+      },
+    );
+    return completer.future.timeout(const Duration(seconds: 8), onTimeout: () => null);
+  }
+
+  Future<void> _showEditGroupSheet(Map<String, dynamic> chat) async {
+    final groupId = (chat['publicKey'] ?? '').toString();
+    if (!groupId.startsWith('GROUP_')) return;
+
+    final info = await _fetchGroupInfo(groupId);
+    if (!mounted) return;
+    if (info == null || info['success'] != true) {
+      _showSnack((info?['message'] ?? t('Не вдалося завантажити групу', 'Failed to load group')).toString());
+      return;
+    }
+
+    final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
+    final groupNameController = TextEditingController(text: (info['name'] ?? chat['partnerName'] ?? '').toString());
+    final groupDescriptionController = TextEditingController(text: (info['description'] ?? '').toString());
+    final members = List<Map<String, dynamic>>.from((info['members'] as List?) ?? const []);
+    final selectedMembers = members
+        .map((m) => (m['userName'] ?? '').toString())
+        .where((u) => u.isNotEmpty)
+        .toSet();
+    selectedMembers.add(widget.userName);
+
+    final memberDisplayMap = <String, String>{};
+    for (final m in members) {
+      final userName = (m['userName'] ?? '').toString();
+      if (userName.isEmpty) continue;
+      final display = (m['displayName'] ?? '').toString().trim();
+      memberDisplayMap[userName] = display;
+    }
+    for (final f in _friends) {
+      final userName = (f['userName'] ?? '').toString();
+      if (userName.isEmpty) continue;
+      final display = (f['displayName'] ?? '').toString().trim();
+      if (!memberDisplayMap.containsKey(userName)) {
+        memberDisplayMap[userName] = display;
+      }
+    }
+
+    bool isSaving = false;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setStateSB) {
+          final availableUsers = <String>{...selectedMembers, ..._friends.map((e) => (e['userName'] ?? '').toString())}
+            ..removeWhere((u) => u.isEmpty);
+          final sortedUsers = availableUsers.toList()..sort();
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.92),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 18,
+                  right: 18,
+                  top: 12,
+                  bottom: 16 + MediaQuery.of(dialogContext).viewInsets.bottom,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.28),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: accent.withValues(alpha: 0.22),
+                            border: Border.all(color: accent.withValues(alpha: 0.5)),
+                          ),
+                          child: Icon(Icons.edit_note_rounded, color: accent),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            t('Редагувати групу', 'Edit Group'),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 19),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    GlassInput(controller: groupNameController, hintText: t('Назва групи', 'Group Name')),
+                    const SizedBox(height: 10),
+                    GlassInput(controller: groupDescriptionController, hintText: t('Опис', 'Description')),
+                    const SizedBox(height: 14),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        t('Учасники', 'Members'),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.78), fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 230),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: sortedUsers.length,
+                        separatorBuilder: (_, _) => Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+                        itemBuilder: (context, index) {
+                          final user = sortedUsers[index];
+                          final display = (memberDisplayMap[user] ?? '').trim();
+                          final isMe = user == widget.userName;
+                          final selected = selectedMembers.contains(user);
+                          return CheckboxListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                            dense: true,
+                            value: selected,
+                            onChanged: isMe
+                                ? null
+                                : (value) {
+                                    setStateSB(() {
+                                      if (value == true) {
+                                        selectedMembers.add(user);
+                                      } else {
+                                        selectedMembers.remove(user);
+                                      }
+                                    });
+                                  },
+                            fillColor: WidgetStateProperty.resolveWith((states) =>
+                                states.contains(WidgetState.selected) ? accent : Colors.transparent),
+                            checkColor: onAccent(accent),
+                            side: BorderSide(color: accent.withValues(alpha: 0.55)),
+                            checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                            title: Text(
+                              isMe
+                                  ? '${display.isNotEmpty ? display : user} (${t('ви', 'you')})'
+                                  : (display.isNotEmpty ? '$display @$user' : user),
+                              style: TextStyle(
+                                color: isMe ? Colors.white70 : Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton.icon(
+                            onPressed: isSaving
+                                ? null
+                                : () {
+                                    final localPartnerName = (chat['partnerName'] ?? '').toString();
+                                    _applyLocalChatSettings(
+                                      localPartnerName,
+                                      isPinned: false,
+                                      isHidden: false,
+                                      isBlocked: chat['isBlocked'] == true,
+                                      isDeleted: true,
+                                    );
+                                    _bgSocket.emit('update_chat_settings', {
+                                      'userName': widget.userName,
+                                      'partnerName': groupId,
+                                      'isPinned': false,
+                                      'isHidden': false,
+                                      'isDeleted': true,
+                                      'isBlocked': chat['isBlocked'] == true,
+                                    });
+                                    Navigator.pop(dialogContext);
+                                    _loadData();
+                                    _showSnack(t('Ви вийшли з групи', 'You left the group'));
+                                  },
+                            icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFFF5E57), size: 18),
+                            label: Text(
+                              t('Вийти з групи', 'Leave Group'),
+                              style: const TextStyle(color: Color(0xFFFF5E57), fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        TextButton(
+                          onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                          child: Text(t('Скасувати', 'Cancel'), style: const TextStyle(color: Colors.white70)),
+                        ),
+                        const SizedBox(width: 6),
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: accent,
+                            foregroundColor: onAccent(accent),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: isSaving
+                              ? null
+                              : () {
+                                  final nextName = groupNameController.text.trim();
+                                  if (nextName.isEmpty) {
+                                    _showSnack(t('Вкажіть назву групи', 'Enter group name'));
+                                    return;
+                                  }
+                                  if (selectedMembers.length < 2) {
+                                    _showSnack(t('У групі має бути щонайменше 2 учасники', 'Group must have at least 2 members'));
+                                    return;
+                                  }
+                                  setStateSB(() => isSaving = true);
+                                  _bgSocket.emitWithAck('update_group', {
+                                    'groupId': groupId,
+                                    'editor': widget.userName,
+                                    'name': nextName,
+                                    'description': groupDescriptionController.text.trim(),
+                                    'participants': selectedMembers.toList(),
+                                  }, ack: (dynamic raw) {
+                                    final data = raw is Map<String, dynamic>
+                                        ? raw
+                                        : (raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{});
+                                    if (!mounted) return;
+                                    if (data['success'] != true) {
+                                      setStateSB(() => isSaving = false);
+                                      _showSnack((data['message'] ?? t('Не вдалося оновити групу', 'Failed to update group')).toString());
+                                      return;
+                                    }
+                                    Navigator.pop(dialogContext);
+                                    _loadData();
+                                    _showSnack(t('Групу оновлено', 'Group updated'));
+                                  });
+                                },
+                          child: Text(isSaving ? t('Збереження...', 'Saving...') : t('Зберегти', 'Save')),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -1601,7 +2087,66 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     String? currentDisplayName = initialDisplayName;
     bool isVerifiedUser = false;
     bool fetched = false;
-    showModalBottomSheet(
+    bool isPresenceLoading = true;
+    bool isPartnerOnline = false;
+    List<String> sharedMedia = [];
+    bool sheetOpen = true;
+
+    void safeSheetSetState(StateSetter setStateSB, VoidCallback fn) {
+      if (!mounted || !sheetOpen) return;
+      setStateSB(fn);
+    }
+
+    Future<List<String>> loadSharedMediaPreviews() async {
+      if (publicKey == null || publicKey.isEmpty) return [];
+      final rows = await _loadHistoryForGlobalSearch({
+        'publicKey': publicKey,
+        'partnerName': partnerName,
+        'isGroup': false,
+      }, limit: 64);
+      if (rows.isEmpty) return [];
+
+      final out = <String>[];
+      for (final m in rows.reversed) {
+        String msgType = (m['type'] ?? 'text').toString().replaceFirst('ephemeral_', '');
+        if (msgType != 'image') continue;
+
+        final rawText = (m['text'] ?? '').toString();
+        if (rawText.length > 100 && !rawText.startsWith('{')) {
+          out.add(rawText);
+        } else if (m['ciphertext'] != null && m['nonce'] != null && m['mac'] != null) {
+          final dec = await _decrypt(
+            (m['ciphertext'] ?? '').toString(),
+            (m['nonce'] ?? '').toString(),
+            (m['mac'] ?? '').toString(),
+            publicKey,
+            false,
+          );
+          if (dec != 'Encrypted' && dec.startsWith('{') && dec.endsWith('}')) {
+            try {
+              final j = jsonDecode(dec);
+              if (j is Map && j['imageBytes'] != null) {
+                final b64 = j['imageBytes'].toString();
+                if (b64.isNotEmpty) out.add(b64);
+              }
+            } catch (_) {
+              // Ignore malformed payloads in preview loader.
+            }
+          }
+        }
+
+        if (out.length >= 8) break;
+      }
+      return out;
+    }
+
+    String lastSeenText() {
+      if (isPresenceLoading) return t('оновлення...', 'updating...');
+      if (isPartnerOnline) return t('в мережі', 'online');
+      return t('був(ла) нещодавно', 'last seen recently');
+    }
+
+    final sheetFuture = showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1617,7 +2162,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               fetched = true;
               _bgSocket.emitWithAck('get_user_profile', partnerName, ack: (dynamic data) {
                 if (data['success'] == true) {
-                  setStateSB(() {
+                  safeSheetSetState(setStateSB, () {
                     currentBio = data['bio'];
                     currentAvatar = data['avatar'] ?? currentAvatar;
                     currentDisplayName = data['displayName'] ?? currentDisplayName;
@@ -1625,147 +2170,353 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                   });
                 }
               });
+              _bgSocket.emitWithAck('check_presence', partnerName, ack: (dynamic data) {
+                safeSheetSetState(setStateSB, () {
+                  isPartnerOnline = data is Map && data['isOnline'] == true;
+                  isPresenceLoading = false;
+                });
+              });
+              unawaited(() async {
+                final previews = await loadSharedMediaPreviews();
+                safeSheetSetState(setStateSB, () {
+                  sharedMedia = previews;
+                });
+              }());
             }
+            final displayName = (currentDisplayName != null && currentDisplayName!.trim().isNotEmpty)
+                ? currentDisplayName!.trim()
+                : partnerName;
+            final bioText = (currentBio ?? '').trim();
+            final keyPreview = (publicKey != null && publicKey.isNotEmpty)
+                ? '${publicKey.substring(0, publicKey.length > 20 ? 20 : publicKey.length)}...'
+                : t('Не вказано', 'Not available');
             return Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6),
+                color: const Color(0xFF17212B),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
               ),
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SafeAvatar(avatarBase64: currentAvatar, fallbackName: partnerName, radius: 46),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                  child: SafeArea(
+                    top: false,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.92),
+                      child: SingleChildScrollView(
+                        child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text((currentDisplayName != null && currentDisplayName!.trim().isNotEmpty) ? currentDisplayName!.trim() : partnerName,
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 24,
-                                    fontWeight: FontWeight.bold, letterSpacing: -0.5)),
-                            if (isVerifiedUser) ...[const SizedBox(width: 8), VerifiedBadge(size: 22, color: accent)],
+                            const SizedBox(height: 10),
+                            Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.fromLTRB(18, 20, 18, 16),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    accent.withValues(alpha: 0.38),
+                                    const Color(0xFF253341),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                              ),
+                              child: Column(
+                                children: [
+                                  SafeAvatar(avatarBase64: currentAvatar, fallbackName: partnerName, radius: 46),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          displayName,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 23,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                      if (isVerifiedUser) ...[
+                                        const SizedBox(width: 8),
+                                        VerifiedBadge(size: 20, color: accent),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '@$partnerName',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.72),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 220),
+                                    child: Row(
+                                      key: ValueKey('$isPresenceLoading$isPartnerOnline'),
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        AnimatedContainer(
+                                          duration: const Duration(milliseconds: 240),
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: isPresenceLoading
+                                                ? Colors.white38
+                                                : (isPartnerOnline ? const Color(0xFF4CC85A) : Colors.white38),
+                                            shape: BoxShape.circle,
+                                            boxShadow: isPartnerOnline
+                                                ? [
+                                                    BoxShadow(
+                                                      color: const Color(0xFF4CC85A).withValues(alpha: 0.45),
+                                                      blurRadius: 8,
+                                                      spreadRadius: 1,
+                                                    ),
+                                                  ]
+                                                : const [],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          lastSeenText(),
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(alpha: 0.82),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (bioText.isNotEmpty) ...[
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      bioText,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.86),
+                                        fontSize: 14,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1F2B38),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                              ),
+                              child: Column(
+                                children: [
+                                  ListTile(
+                                    leading: Icon(Icons.alternate_email_rounded, color: accent),
+                                    title: Text('@$partnerName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                                    subtitle: Text(t('Імʼя користувача', 'Username'), style: TextStyle(color: Colors.white.withValues(alpha: 0.55))),
+                                  ),
+                                  Divider(height: 1, indent: 56, color: Colors.white.withValues(alpha: 0.08)),
+                                  ListTile(
+                                    leading: Icon(Icons.key_rounded, color: accent),
+                                    title: Text(keyPreview, style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 13)),
+                                    subtitle: Text(t('Публічний ключ', 'Public key'), style: TextStyle(color: Colors.white.withValues(alpha: 0.55))),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (sharedMedia.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1F2B38),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      t('Спільні медіа', 'Shared media'),
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.95),
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    SizedBox(
+                                      height: 84,
+                                      child: ListView.separated(
+                                        scrollDirection: Axis.horizontal,
+                                        itemCount: sharedMedia.length,
+                                        separatorBuilder: (context, index) => const SizedBox(width: 8),
+                                        itemBuilder: (context, i) {
+                                          return ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Image.memory(
+                                              base64Decode(sharedMedia[i]),
+                                              width: 84,
+                                              height: 84,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => Container(
+                                                width: 84,
+                                                height: 84,
+                                                color: Colors.white10,
+                                                child: const Icon(Icons.broken_image_outlined, color: Colors.white54),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1F2B38),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                              ),
+                              child: Column(children: [
+                                ListTile(
+                                  leading: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                                  title: Text(t("Написати", "Message"), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    _startChat(
+                                      partnerName,
+                                      publicKey,
+                                      targetAvatar: currentAvatar,
+                                      targetDisplayName: currentDisplayName,
+                                      isVerified: isVerifiedUser,
+                                    );
+                                  },
+                                ),
+                                Divider(height: 1, indent: 56, color: Colors.white.withValues(alpha: 0.08)),
+                                ListTile(
+                                  leading: Icon(isPinned ? Icons.push_pin : Icons.push_pin_outlined, color: Colors.white),
+                                  title: Text(isPinned ? t("Відкріпити чат", "Unpin Chat") : t("Закріпити чат", "Pin Chat"), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                                  onTap: () {
+                                    _applyLocalChatSettings(
+                                      partnerName,
+                                      isPinned: !isPinned,
+                                      isHidden: chatSettings?['isHidden'] == true,
+                                      isBlocked: isBlocked,
+                                    );
+                                    _bgSocket.emit('update_chat_settings', {
+                                      'userName': widget.userName, 'partnerName': partnerName,
+                                      'isPinned': !isPinned, 'isHidden': chatSettings?['isHidden'] == true,
+                                      'isDeleted': false, 'isBlocked': isBlocked,
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                                Divider(height: 1, indent: 56, color: Colors.white.withValues(alpha: 0.08)),
+                                ListTile(
+                                  leading: const Icon(Icons.visibility_off, color: Colors.white),
+                                  title: Text(t("Приховати чат", "Hide Chat"), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                                  onTap: () {
+                                    _applyLocalChatSettings(
+                                      partnerName,
+                                      isPinned: isPinned,
+                                      isHidden: true,
+                                      isBlocked: isBlocked,
+                                    );
+                                    _bgSocket.emit('update_chat_settings', {
+                                      'userName': widget.userName, 'partnerName': partnerName,
+                                      'isPinned': isPinned, 'isHidden': true,
+                                      'isDeleted': false, 'isBlocked': isBlocked,
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              ]),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1F2B38),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                              ),
+                              child: Column(children: [
+                                ListTile(
+                                  leading: Icon(isBlocked ? Icons.lock_open : Icons.block, color: const Color(0xFFFF5E57)),
+                                  title: Text(
+                                    isBlocked ? t("Розблокувати", "Unblock") : t("Заблокувати", "Block"),
+                                    style: const TextStyle(color: Color(0xFFFF5E57), fontWeight: FontWeight.w600),
+                                  ),
+                                  onTap: () {
+                                    _applyLocalChatSettings(
+                                      partnerName,
+                                      isPinned: isPinned,
+                                      isHidden: chatSettings?['isHidden'] == true,
+                                      isBlocked: !isBlocked,
+                                    );
+                                    _bgSocket.emit('update_chat_settings', {
+                                      'userName': widget.userName, 'partnerName': partnerName,
+                                      'isPinned': isPinned, 'isHidden': chatSettings?['isHidden'] == true,
+                                      'isDeleted': false, 'isBlocked': !isBlocked,
+                                    });
+                                    setStateSB(() { isBlocked = !isBlocked; });
+                                  },
+                                ),
+                                Divider(height: 1, indent: 56, color: Colors.white.withValues(alpha: 0.08)),
+                                ListTile(
+                                  leading: const Icon(Icons.delete_outline, color: Color(0xFFFF5E57)),
+                                  title: Text(t("Видалити історію", "Delete History"), style: const TextStyle(color: Color(0xFFFF5E57), fontWeight: FontWeight.w600)),
+                                  onTap: () {
+                                    _applyLocalChatSettings(
+                                      partnerName,
+                                      isPinned: false,
+                                      isHidden: false,
+                                      isBlocked: isBlocked,
+                                      isDeleted: true,
+                                    );
+                                    _bgSocket.emit('update_chat_settings', {
+                                      'userName': widget.userName, 'partnerName': partnerName,
+                                      'isPinned': false, 'isHidden': false,
+                                      'isDeleted': true, 'isBlocked': isBlocked,
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              ]),
+                            ),
+                            const SizedBox(height: 18),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        Text('@$partnerName', style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 13)),
-                        if (currentBio != null && currentBio!.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Text(currentBio!, textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 15)),
-                        ],
-                        const SizedBox(height: 32),
-                        GlassContainer(
-                          child: Column(children: [
-                            ListTile(
-                              leading: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-                              title: Text(t("Написати", "Message"),
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-                              onTap: () {
-                                Navigator.pop(context);
-                                _startChat(partnerName, publicKey,
-                                    targetAvatar: currentAvatar,
-                                    targetDisplayName: currentDisplayName,
-                                    isVerified: isVerifiedUser);
-                              },
-                            ),
-                            Divider(height: 1, indent: 50, color: Colors.white.withValues(alpha: 0.1)),
-                            ListTile(
-                              leading: Icon(isPinned ? Icons.push_pin : Icons.push_pin_outlined, color: Colors.white),
-                              title: Text(isPinned ? t("Відкріпити чат", "Unpin Chat") : t("Закріпити чат", "Pin Chat"),
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-                              onTap: () {
-                                _applyLocalChatSettings(
-                                  partnerName,
-                                  isPinned: !isPinned,
-                                  isHidden: chatSettings?['isHidden'] == true,
-                                  isBlocked: isBlocked,
-                                );
-                                _bgSocket.emit('update_chat_settings', {
-                                  'userName': widget.userName, 'partnerName': partnerName,
-                                  'isPinned': !isPinned, 'isHidden': chatSettings?['isHidden'] == true,
-                                  'isDeleted': false, 'isBlocked': isBlocked,
-                                });
-                                Navigator.pop(context);
-                              },
-                            ),
-                            Divider(height: 1, indent: 50, color: Colors.white.withValues(alpha: 0.1)),
-                            ListTile(
-                              leading: const Icon(Icons.visibility_off, color: Colors.white),
-                              title: Text(t("Приховати чат", "Hide Chat"),
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-                              onTap: () {
-                                _applyLocalChatSettings(
-                                  partnerName,
-                                  isPinned: isPinned,
-                                  isHidden: true,
-                                  isBlocked: isBlocked,
-                                );
-                                _bgSocket.emit('update_chat_settings', {
-                                  'userName': widget.userName, 'partnerName': partnerName,
-                                  'isPinned': isPinned, 'isHidden': true,
-                                  'isDeleted': false, 'isBlocked': isBlocked,
-                                });
-                                Navigator.pop(context);
-                              },
-                            ),
-                          ]),
-                        ),
-                        const SizedBox(height: 16),
-                        GlassContainer(
-                          child: Column(children: [
-                            ListTile(
-                              leading: Icon(isBlocked ? Icons.lock_open : Icons.block,
-                                  color: const Color(0xFFFF3B30)),
-                              title: Text(isBlocked ? t("Розблокувати", "Unblock") : t("Заблокувати", "Block"),
-                                  style: const TextStyle(color: Color(0xFFFF3B30), fontWeight: FontWeight.w500)),
-                              onTap: () {
-                                _applyLocalChatSettings(
-                                  partnerName,
-                                  isPinned: isPinned,
-                                  isHidden: chatSettings?['isHidden'] == true,
-                                  isBlocked: !isBlocked,
-                                );
-                                _bgSocket.emit('update_chat_settings', {
-                                  'userName': widget.userName, 'partnerName': partnerName,
-                                  'isPinned': isPinned, 'isHidden': chatSettings?['isHidden'] == true,
-                                  'isDeleted': false, 'isBlocked': !isBlocked,
-                                });
-                                setStateSB(() { isBlocked = !isBlocked; });
-                              },
-                            ),
-                            Divider(height: 1, indent: 50, color: Colors.white.withValues(alpha: 0.1)),
-                            ListTile(
-                              leading: const Icon(Icons.delete_outline, color: Color(0xFFFF3B30)),
-                              title: Text(t("Видалити історію", "Delete History"),
-                                  style: const TextStyle(color: Color(0xFFFF3B30), fontWeight: FontWeight.w500)),
-                              onTap: () {
-                                _applyLocalChatSettings(
-                                  partnerName,
-                                  isPinned: false,
-                                  isHidden: false,
-                                  isBlocked: isBlocked,
-                                  isDeleted: true,
-                                );
-                                _bgSocket.emit('update_chat_settings', {
-                                  'userName': widget.userName, 'partnerName': partnerName,
-                                  'isPinned': false, 'isHidden': false,
-                                  'isDeleted': true, 'isBlocked': isBlocked,
-                                });
-                                Navigator.pop(context);
-                              },
-                            ),
-                          ]),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -1775,9 +2526,20 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         );
       },
     );
+    sheetFuture.whenComplete(() {
+      sheetOpen = false;
+    });
   }
 
   void _showChatOptions(Map<String, dynamic> chat) {
+    final isGroup = chat['isGroup'] == true;
+    final localPartnerName = (chat['partnerName'] ?? '').toString();
+    final serverPartnerKey = isGroup
+        ? ((chat['publicKey'] ?? '').toString().startsWith('GROUP_')
+            ? (chat['publicKey'] ?? '').toString()
+            : localPartnerName)
+        : localPartnerName;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1797,6 +2559,21 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (isGroup) ...[
+                    ListTile(
+                      leading: const Icon(Icons.edit_note_rounded, color: Colors.white),
+                      title: Text(t('Редагувати групу', 'Edit Group'), style: const TextStyle(color: Colors.white)),
+                      subtitle: Text(
+                        t('Назва, опис, учасники', 'Name, description, members'),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showEditGroupSheet(chat);
+                      },
+                    ),
+                    Divider(height: 1, color: Colors.white.withValues(alpha: 0.1)),
+                  ],
                   ListTile(
                     leading: Icon(
                         chat['isPinned'] == true ? Icons.push_pin : Icons.push_pin_outlined,
@@ -1806,13 +2583,13 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                     onTap: () {
                       Navigator.pop(context);
                       _applyLocalChatSettings(
-                        chat['partnerName'],
+                        localPartnerName,
                         isPinned: !(chat['isPinned'] == true),
                         isHidden: chat['isHidden'] == true,
                         isBlocked: chat['isBlocked'] == true,
                       );
                       _bgSocket.emit('update_chat_settings', {
-                        'userName': widget.userName, 'partnerName': chat['partnerName'],
+                        'userName': widget.userName, 'partnerName': serverPartnerKey,
                         'isPinned': !(chat['isPinned'] == true), 'isHidden': chat['isHidden'] == true,
                         'isDeleted': false, 'isBlocked': chat['isBlocked'] == true,
                       });
@@ -1827,13 +2604,13 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                     onTap: () {
                       Navigator.pop(context);
                       _applyLocalChatSettings(
-                        chat['partnerName'],
+                        localPartnerName,
                         isPinned: chat['isPinned'] == true,
                         isHidden: true,
                         isBlocked: chat['isBlocked'] == true,
                       );
                       _bgSocket.emit('update_chat_settings', {
-                        'userName': widget.userName, 'partnerName': chat['partnerName'],
+                        'userName': widget.userName, 'partnerName': serverPartnerKey,
                         'isPinned': chat['isPinned'] == true, 'isHidden': true,
                         'isDeleted': false, 'isBlocked': chat['isBlocked'] == true,
                       });
@@ -1842,21 +2619,25 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                   Divider(height: 1, color: Colors.white.withValues(alpha: 0.1)),
                   ListTile(
                     leading: const Icon(Icons.delete_outline, color: Color(0xFFFF3B30)),
-                    title: Text(t('Видалити', 'Delete'), style: const TextStyle(color: Color(0xFFFF3B30))),
+                    title: Text(
+                      isGroup ? t('Вийти з групи', 'Leave Group') : t('Видалити', 'Delete'),
+                      style: const TextStyle(color: Color(0xFFFF3B30)),
+                    ),
                     onTap: () {
                       Navigator.pop(context);
                       _applyLocalChatSettings(
-                        chat['partnerName'],
+                        localPartnerName,
                         isPinned: false,
                         isHidden: false,
                         isBlocked: chat['isBlocked'] == true,
                         isDeleted: true,
                       );
                       _bgSocket.emit('update_chat_settings', {
-                        'userName': widget.userName, 'partnerName': chat['partnerName'],
+                        'userName': widget.userName, 'partnerName': serverPartnerKey,
                         'isPinned': false, 'isHidden': false,
                         'isDeleted': true, 'isBlocked': chat['isBlocked'] == true,
                       });
+                      _loadData();
                     },
                   ),
                 ],
@@ -2268,6 +3049,32 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: IconButton(
+                  icon: const Icon(Icons.manage_search_rounded, color: Colors.white, size: 22),
+                  tooltip: t('Пошук повідомлень', 'Search messages'),
+                  onPressed: _showGlobalMessageSearchSheet,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.folder_copy_rounded, color: Colors.white, size: 21),
+                  tooltip: t('Керувати папками', 'Manage folders'),
+                  onPressed: () => _showManageChatFoldersSheet(accent),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
                   icon: const Icon(Icons.group_add, color: Colors.white, size: 22),
                   tooltip: t('Створити групу', 'Create group'),
                   onPressed: _showCreateGroupDialog,
@@ -2276,6 +3083,61 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
             ],
           ),
         ),
+        SizedBox(
+          height: 42,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              _buildChatFolderChip(
+                key: 'all',
+                label: t('Усі', 'All'),
+                count: _chatFolderCount('all'),
+                accent: accent,
+              ),
+              const SizedBox(width: 8),
+              _buildChatFolderChip(
+                key: 'unread',
+                label: t('Непрочитані', 'Unread'),
+                count: _chatFolderCount('unread'),
+                accent: accent,
+              ),
+              const SizedBox(width: 8),
+              _buildChatFolderChip(
+                key: 'direct',
+                label: t('Особисті', 'Direct'),
+                count: _chatFolderCount('direct'),
+                accent: accent,
+              ),
+              const SizedBox(width: 8),
+              _buildChatFolderChip(
+                key: 'groups',
+                label: t('Групи', 'Groups'),
+                count: _chatFolderCount('groups'),
+                accent: accent,
+              ),
+              if (_customChatFolders.isNotEmpty)
+                ..._customChatFolders.map((folder) {
+                  final id = (folder['id'] ?? '').toString();
+                  final name = (folder['name'] ?? '').toString();
+                  if (id.isEmpty || name.trim().isEmpty) return const SizedBox.shrink();
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(width: 8),
+                      _buildChatFolderChip(
+                        key: 'custom:$id',
+                        label: name,
+                        count: _chatFolderCount('custom:$id'),
+                        accent: accent,
+                      ),
+                    ],
+                  );
+                }),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
         if (_isSearching)
           const Center(
             child: Padding(
@@ -2469,6 +3331,481 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         ),
       ],
     );
+  }
+
+  Widget _buildChatFolderChip({
+    required String key,
+    required String label,
+    required int count,
+    required Color accent,
+  }) {
+    final selected = _chatFolder == key;
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: () {
+        setState(() {
+          _chatFolder = key;
+          _desktopSelectedChatIndex = 0;
+        });
+        unawaited(_saveSetting('chat_folder_selected', key));
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? accent.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? accent.withValues(alpha: 0.65) : Colors.white.withValues(alpha: 0.12),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: selected ? accent : Colors.white.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showManageChatFoldersSheet(Color accent) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111216),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setStateSB) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          t('Папки чатів', 'Chat folders'),
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: () async {
+                            await _showCreateCustomFolderDialog(accent);
+                            if (mounted) setStateSB(() {});
+                          },
+                          icon: const Icon(Icons.add_rounded, color: Colors.white),
+                          label: Text(t('Нова', 'New'), style: const TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (_customChatFolders.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        child: Text(
+                          t('Ще немає власних папок', 'No custom folders yet'),
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+                        ),
+                      )
+                    else
+                      ..._customChatFolders.map((folder) {
+                        final id = (folder['id'] ?? '').toString();
+                        final name = (folder['name'] ?? '').toString();
+                        final onlyUnread = folder['onlyUnread'] == true;
+                        final includeDirect = folder['includeDirect'] != false;
+                        final includeGroups = folder['includeGroups'] != false;
+                        final pinnedOnly = folder['pinnedOnly'] == true;
+                        final rules = <String>[
+                          if (includeDirect) t('direct', 'direct'),
+                          if (includeGroups) t('groups', 'groups'),
+                          if (onlyUnread) t('unread', 'unread'),
+                          if (pinnedOnly) t('pinned', 'pinned'),
+                        ].join(' • ');
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                          subtitle: Text(
+                            rules.isEmpty ? t('no rules', 'no rules') : rules,
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12),
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                            onPressed: () async {
+                              setState(() {
+                                _customChatFolders.removeWhere((f) => (f['id'] ?? '').toString() == id);
+                                if (_chatFolder == 'custom:$id') _chatFolder = 'all';
+                              });
+                              await _saveCustomChatFolders();
+                              await _saveSetting('chat_folder_selected', _chatFolder);
+                              if (mounted) setStateSB(() {});
+                            },
+                          ),
+                        );
+                      }),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showCreateCustomFolderDialog(Color accent) async {
+    final nameController = TextEditingController();
+    bool includeDirect = true;
+    bool includeGroups = true;
+    bool onlyUnread = false;
+    bool pinnedOnly = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setStateSB) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF17181C),
+              title: Text(t('Нова папка', 'New folder'), style: const TextStyle(color: Colors.white)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GlassInput(controller: nameController, hintText: t('Назва папки', 'Folder name')),
+                    const SizedBox(height: 14),
+                    SwitchListTile(
+                      title: Text(t('Особисті чати', 'Direct chats'), style: const TextStyle(color: Colors.white)),
+                      value: includeDirect,
+                      activeThumbColor: accent,
+                      onChanged: (v) => setStateSB(() => includeDirect = v),
+                    ),
+                    SwitchListTile(
+                      title: Text(t('Групи', 'Groups'), style: const TextStyle(color: Colors.white)),
+                      value: includeGroups,
+                      activeThumbColor: accent,
+                      onChanged: (v) => setStateSB(() => includeGroups = v),
+                    ),
+                    SwitchListTile(
+                      title: Text(t('Тільки непрочитані', 'Unread only'), style: const TextStyle(color: Colors.white)),
+                      value: onlyUnread,
+                      activeThumbColor: accent,
+                      onChanged: (v) => setStateSB(() => onlyUnread = v),
+                    ),
+                    SwitchListTile(
+                      title: Text(t('Тільки закріплені', 'Pinned only'), style: const TextStyle(color: Colors.white)),
+                      value: pinnedOnly,
+                      activeThumbColor: accent,
+                      onChanged: (v) => setStateSB(() => pinnedOnly = v),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(t('Скасувати', 'Cancel'), style: const TextStyle(color: Colors.white70)),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    if (name.isEmpty) {
+                      _showSnack(t('Вкажіть назву папки', 'Enter folder name'));
+                      return;
+                    }
+                    if (!includeDirect && !includeGroups) {
+                      _showSnack(t('Оберіть хоч один тип чату', 'Select at least one chat type'));
+                      return;
+                    }
+                    final folder = {
+                      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+                      'name': name,
+                      'includeDirect': includeDirect,
+                      'includeGroups': includeGroups,
+                      'onlyUnread': onlyUnread,
+                      'pinnedOnly': pinnedOnly,
+                    };
+                    setState(() {
+                      _customChatFolders.add(folder);
+                      _chatFolder = 'custom:${folder['id']}';
+                      _desktopSelectedChatIndex = 0;
+                    });
+                    await _saveCustomChatFolders();
+                    await _saveSetting('chat_folder_selected', _chatFolder);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  },
+                  child: Text(t('Створити', 'Create'), style: const TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _loadHistoryForGlobalSearch(Map<String, dynamic> chat, {int limit = 80}) async {
+    final c = Completer<List<Map<String, dynamic>>>();
+    final pub = (chat['publicKey'] ?? '').toString();
+    final partner = pub.startsWith('GROUP_') ? pub : (chat['partnerName'] ?? '').toString();
+    if (partner.isEmpty) return [];
+
+    _bgSocket.emitWithAck(
+      'get_direct_history',
+      {'me': widget.userName, 'partner': partner, 'limit': limit},
+      ack: (dynamic data) {
+        try {
+          final rows = List<Map<String, dynamic>>.from(data as List);
+          if (!c.isCompleted) c.complete(rows);
+        } catch (_) {
+          if (!c.isCompleted) c.complete([]);
+        }
+      },
+    );
+    return c.future.timeout(const Duration(seconds: 8), onTimeout: () => []);
+  }
+
+  Future<String> _searchableMessageText(Map<String, dynamic> m, Map<String, dynamic> chat) async {
+    String msgType = (m['type'] ?? 'text').toString();
+    final isEph = m['isEphemeral'] == true || msgType.startsWith('ephemeral_');
+    msgType = msgType.replaceFirst('ephemeral_', '');
+    if (isEph) return t('Ефірне повідомлення', 'Lumyn message');
+    if (msgType == 'audio') return t('Голосове повідомлення', 'Voice message');
+    if (msgType == 'image') return t('Фотографія', 'Image');
+
+    if (m['ciphertext'] != null && m['nonce'] != null && m['mac'] != null && chat['publicKey'] != null) {
+      final dec = await _decrypt(
+        (m['ciphertext'] ?? '').toString(),
+        (m['nonce'] ?? '').toString(),
+        (m['mac'] ?? '').toString(),
+        (chat['publicKey'] ?? '').toString(),
+        chat['isGroup'] == true,
+      );
+      if (dec == 'Encrypted') return t('🔒 Повідомлення зашифровано', '🔒 Message encrypted');
+      try {
+        if (dec.startsWith('{') && dec.endsWith('}')) {
+          final j = jsonDecode(dec);
+          if (j is Map && j['text'] != null) return (j['text']).toString();
+        }
+      } catch (_) {}
+      return dec;
+    }
+
+    return (m['text'] ?? '').toString();
+  }
+
+  Future<List<Map<String, dynamic>>> _runGlobalMessageSearch(String query) async {
+    final q = _normalizeSearch(query);
+    if (q.length < 2) return [];
+    final chats = _recentChats.take(20).toList();
+    final batches = await Future.wait(chats.map((c) => _loadHistoryForGlobalSearch(c)));
+
+    final out = <Map<String, dynamic>>[];
+    for (int i = 0; i < chats.length; i++) {
+      final chat = chats[i];
+      final history = batches[i];
+      for (final raw in history) {
+        final m = Map<String, dynamic>.from(raw);
+        final text = (await _searchableMessageText(m, chat)).trim();
+        if (text.isEmpty) continue;
+        if (!_normalizeSearch(text).contains(q)) continue;
+
+        out.add({
+          'targetName': (chat['partnerName'] ?? '').toString(),
+          'targetKey': (chat['publicKey'] ?? '').toString(),
+          'chatAvatar': chat['avatar'],
+          'chatDisplayName': chat['displayName'],
+          'chatVerified': chat['isVerified'] == true,
+          'isGroup': chat['isGroup'] == true,
+          'senderName': (m['senderName'] ?? '').toString(),
+          'text': text,
+          'timestamp': (m['timestamp'] ?? '').toString(),
+        });
+      }
+    }
+
+    out.sort((a, b) {
+      final ad = DateTime.tryParse((a['timestamp'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bd = DateTime.tryParse((b['timestamp'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bd.compareTo(ad);
+    });
+    return out.take(120).toList();
+  }
+
+  void _showGlobalMessageSearchSheet() {
+    final controller = TextEditingController();
+    Timer? debounce;
+    bool loading = false;
+    List<Map<String, dynamic>> results = [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF111216),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setStateSB) {
+            Future<void> doSearch(String value) async {
+              setStateSB(() => loading = true);
+              final found = await _runGlobalMessageSearch(value);
+              if (!ctx.mounted) return;
+              setStateSB(() {
+                results = found;
+                loading = false;
+              });
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 10, 16, 16 + MediaQuery.of(ctx).viewInsets.bottom),
+                child: SizedBox(
+                  height: MediaQuery.of(ctx).size.height * 0.72,
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Text(t('Пошук повідомлень', 'Search messages'), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                          ),
+                        ],
+                      ),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.04),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                            ),
+                            child: TextField(
+                              controller: controller,
+                              onChanged: (value) {
+                                debounce?.cancel();
+                                debounce = Timer(const Duration(milliseconds: 350), () {
+                                  if (value.trim().length < 2) {
+                                    setStateSB(() {
+                                      loading = false;
+                                      results = [];
+                                    });
+                                    return;
+                                  }
+                                  unawaited(doSearch(value));
+                                });
+                              },
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                hintText: t('Введіть текст (мінімум 2 символи)', 'Type text (min 2 chars)'),
+                                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45)),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                prefixIcon: const Icon(Icons.search_rounded, color: Colors.white70),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: loading
+                            ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                            : controller.text.trim().length < 2
+                                ? Center(
+                                    child: Text(
+                                      t('Введіть мінімум 2 символи', 'Enter at least 2 characters'),
+                                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                                    ),
+                                  )
+                                : results.isEmpty
+                                    ? Center(
+                                        child: Text(
+                                          t('Нічого не знайдено', 'Nothing found'),
+                                          style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                                        ),
+                                      )
+                                    : ListView.separated(
+                                        itemCount: results.length,
+                                        separatorBuilder: (_, sepIndex) => Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+                                        itemBuilder: (context, i) {
+                                          final r = results[i];
+                                          final targetName = (r['targetName'] ?? '').toString();
+                                          final targetKey = (r['targetKey'] ?? '').toString();
+                                          final sender = (r['senderName'] ?? '').toString();
+                                          final text = (r['text'] ?? '').toString();
+                                          final isGroup = r['isGroup'] == true;
+                                          final title = ((r['chatDisplayName'] ?? '').toString().trim().isNotEmpty)
+                                              ? (r['chatDisplayName']).toString()
+                                              : targetName;
+
+                                          return ListTile(
+                                            leading: SafeAvatar(
+                                              avatarBase64: r['chatAvatar']?.toString(),
+                                              fallbackName: targetName.isEmpty ? '?' : targetName,
+                                              radius: 21,
+                                              isGroup: isGroup,
+                                            ),
+                                            title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                            subtitle: Text(
+                                              isGroup && sender.isNotEmpty ? '$sender: $text' : text,
+                                              style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 13),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            onTap: () {
+                                              Navigator.pop(ctx);
+                                              _startChat(
+                                                targetName,
+                                                targetKey.isEmpty ? null : targetKey,
+                                                targetAvatar: r['chatAvatar']?.toString(),
+                                                targetDisplayName: r['chatDisplayName']?.toString(),
+                                                isVerified: r['chatVerified'] == true,
+                                              );
+                                            },
+                                          );
+                                        },
+                                      ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() => debounce?.cancel());
   }
 
   Widget _buildFriendsTab() {
@@ -2777,6 +4114,133 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           ]),
         ),
 
+        // ── ДАНІ Й СХОВИЩЕ ──────────────────────────────────
+        _sectionHeader(t("ДАНІ Й СХОВИЩЕ", "DATA & STORAGE")),
+        GlassContainer(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(children: [
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+              leading: _settingIcon(Icons.bar_chart_rounded, accent),
+              title: Text(
+                t("Використання даних", "Data usage"),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 15),
+              ),
+              subtitle: Text(
+                t("Статистика чатів і орієнтовний трафік", "Chat stats and estimated traffic"),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+              ),
+              trailing: Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 20),
+              onTap: () => _showDataUsageSheet(accent),
+            ),
+            _divider(),
+            _settingToggle(
+              icon: Icons.download_rounded,
+              iconColor: accent,
+              title: t("Автозавантаження медіа", "Auto-download media"),
+              subtitle: t("Фото й файли завантажуються автоматично", "Photos and files download automatically"),
+              value: _autoDownloadMedia,
+              onChanged: (v) {
+                setState(() => _autoDownloadMedia = v);
+                _saveSetting('auto_download_media', v);
+                _syncSettingsToBackend();
+              },
+              accent: accent,
+            ),
+            _divider(),
+            _settingToggle(
+              icon: Icons.save_alt_rounded,
+              iconColor: accent,
+              title: t("Зберігати медіа на пристрій", "Save media to device"),
+              subtitle: t("Завантажені фото й відео доступні офлайн", "Downloaded photos and videos are available offline"),
+              value: _saveMediaToDevice,
+              onChanged: (v) {
+                setState(() => _saveMediaToDevice = v);
+                _saveSetting('save_media_to_device', v);
+                _syncSettingsToBackend();
+              },
+              accent: accent,
+            ),
+            _divider(),
+            _settingToggle(
+              icon: Icons.network_check_rounded,
+              iconColor: accent,
+              title: t("Економія трафіку", "Low data mode"),
+              subtitle: t("Менше фонових завантажень", "Fewer background downloads"),
+              value: _lowDataMode,
+              onChanged: (v) {
+                setState(() => _lowDataMode = v);
+                _saveSetting('low_data_mode', v);
+                _syncSettingsToBackend();
+              },
+              accent: accent,
+            ),
+            _divider(),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+              leading: _settingIcon(Icons.cleaning_services_rounded, accent),
+              title: Text(
+                t("Очистити кеш зображень", "Clear image cache"),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 15),
+              ),
+              subtitle: Text(
+                '${t("Зараз", "Now")}: ${_imageCacheSizeLabel()}',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+              ),
+              trailing: Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 20),
+              onTap: _clearImageCache,
+            ),
+          ]),
+        ),
+
+        // ── ІНСТРУМЕНТИ ЧАТІВ ───────────────────────────────
+        _sectionHeader(t("ІНСТРУМЕНТИ ЧАТІВ", "CHAT TOOLS")),
+        GlassContainer(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(children: [
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+              leading: _settingIcon(Icons.folder_copy_rounded, accent),
+              title: Text(t("Папки чатів", "Chat folders"),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 15)),
+              subtitle: Text(
+                _customChatFolders.isEmpty
+                    ? t("Налаштуйте власні фільтри чатів", "Create custom chat filters")
+                    : '${_customChatFolders.length} ${t('папок', 'folders')}',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+              ),
+              trailing: Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 20),
+              onTap: () => _showManageChatFoldersSheet(accent),
+            ),
+            _divider(),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+              leading: _settingIcon(Icons.manage_search_rounded, accent),
+              title: Text(t("Глобальний пошук", "Global search"),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 15)),
+              subtitle: Text(
+                t("Пошук повідомлень у всіх чатах", "Search messages across all chats"),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+              ),
+              trailing: Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 20),
+              onTap: _showGlobalMessageSearchSheet,
+            ),
+            _divider(),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+              leading: _settingIcon(Icons.group_add_rounded, accent),
+              title: Text(t("Створити групу", "Create group"),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 15)),
+              subtitle: Text(
+                t("Швидкий перехід до створення групового чату", "Quick access to create a group chat"),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+              ),
+              trailing: Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 20),
+              onTap: _showCreateGroupDialog,
+            ),
+          ]),
+        ),
+
         // ── КОНФІДЕНЦІЙНІСТЬ ──────────────────────────────────
         _sectionHeader(t("КОНФІДЕНЦІЙНІСТЬ", "PRIVACY")),
         GlassContainer(
@@ -3049,6 +4513,55 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               subtitle: t("Менші відступи у чатах", "Smaller padding in chats"),
               value: _compactMode,
               onChanged: (v) { setState(() => _compactMode = v); _saveSetting('compact_mode', v); _syncSettingsToBackend(); },
+              accent: accent,
+            ),
+          ]),
+        ),
+
+        // ── STICKERS & EMOJI ───────────────────────────────
+        _sectionHeader(t("СТІКЕРИ ТА ЕМОДЗІ", "STICKERS & EMOJI")),
+        GlassContainer(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(children: [
+            _settingToggle(
+              icon: Icons.auto_awesome_rounded,
+              iconColor: accent,
+              title: t("Анімовані емодзі", "Animated emoji"),
+              subtitle: t("Легка анімація для emoji-повідомлень", "Subtle animation for emoji-only messages"),
+              value: _animatedEmojiEnabled,
+              onChanged: (v) {
+                setState(() => _animatedEmojiEnabled = v);
+                _saveSetting('animated_emoji_enabled', v);
+                _syncSettingsToBackend();
+              },
+              accent: accent,
+            ),
+            _divider(),
+            _settingToggle(
+              icon: Icons.emoji_emotions_rounded,
+              iconColor: accent,
+              title: t("Великі емодзі", "Large emoji"),
+              subtitle: t("Окремі emoji відображаються більшими", "Single emoji messages are rendered larger"),
+              value: _emojiLargeRenderEnabled,
+              onChanged: (v) {
+                setState(() => _emojiLargeRenderEnabled = v);
+                _saveSetting('emoji_large_render_enabled', v);
+                _syncSettingsToBackend();
+              },
+              accent: accent,
+            ),
+            _divider(),
+            _settingToggle(
+              icon: Icons.emoji_flags_rounded,
+              iconColor: accent,
+              title: t("Швидкі реакції", "Quick reactions"),
+              subtitle: t("Панель реакцій у меню повідомлення", "Reaction strip in message menu"),
+              value: _quickReactionsEnabled,
+              onChanged: (v) {
+                setState(() => _quickReactionsEnabled = v);
+                _saveSetting('quick_reactions_enabled', v);
+                _syncSettingsToBackend();
+              },
               accent: accent,
             ),
           ]),
@@ -3486,6 +4999,221 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         color: active ? Colors.white : Colors.white38,
         borderRadius: BorderRadius.circular(20),
       ),
+    );
+  }
+
+  String _imageCacheSizeLabel() {
+    final bytes = PaintingBinding.instance.imageCache.currentSizeBytes;
+    final mb = bytes / (1024 * 1024);
+    if (mb < 1) return '< 1 MB';
+    return '${mb.toStringAsFixed(1)} MB';
+  }
+
+  void _clearImageCache() {
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    if (mounted) setState(() {});
+    _showSnack(t('Кеш зображень очищено', 'Image cache cleared'));
+  }
+
+  int _estimateChatUsageBytes(Map<String, dynamic> chat) {
+    final preview = (chat['decryptedText'] ?? '').toString();
+    final previewBytes = utf8.encode(preview).length;
+    final unread = (chat['unreadCount'] ?? 0) is int ? (chat['unreadCount'] as int) : 0;
+    final lastMsg = chat['lastMessage'];
+    String msgType = 'text';
+    if (lastMsg is Map) {
+      msgType = (lastMsg['type'] ?? 'text').toString().replaceFirst('ephemeral_', '');
+    }
+
+    int mediaWeight = 0;
+    if (msgType == 'image') mediaWeight += 180 * 1024;
+    if (msgType == 'audio') mediaWeight += 95 * 1024;
+
+    final avatarLen = (chat['avatar'] ?? '').toString().length;
+    final avatarBytes = avatarLen > 0 ? (avatarLen * 0.75).round() : 0;
+    final unreadWeight = unread * 140;
+
+    return previewBytes + mediaWeight + avatarBytes + unreadWeight;
+  }
+
+  String _humanBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    final kb = bytes / 1024;
+    if (kb < 1024) return '${kb.toStringAsFixed(kb < 10 ? 1 : 0)} KB';
+    final mb = kb / 1024;
+    return '${mb.toStringAsFixed(mb < 10 ? 1 : 0)} MB';
+  }
+
+  void _showDataUsageSheet(Color accent) {
+    final chats = List<Map<String, dynamic>>.from(_recentChats);
+    final mapped = chats.map((c) {
+      final bytes = _estimateChatUsageBytes(c);
+      return {
+        'chat': c,
+        'bytes': bytes,
+      };
+    }).toList()
+      ..sort((a, b) => (b['bytes'] as int).compareTo(a['bytes'] as int));
+
+    final totalBytes = mapped.fold<int>(0, (sum, e) => sum + (e['bytes'] as int));
+    final totalUnread = chats.fold<int>(0, (sum, c) => sum + (((c['unreadCount'] ?? 0) as int)));
+    final groupsCount = chats.where((c) => c['isGroup'] == true).length;
+    final directCount = chats.length - groupsCount;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF111216),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            child: SizedBox(
+              height: MediaQuery.of(ctx).size.height * 0.76,
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Text(t('Використання даних', 'Data usage'), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  GlassContainer(
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: _settingIcon(Icons.storage_rounded, accent),
+                          title: Text(t('Орієнтовний обсяг', 'Estimated usage'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                          subtitle: Text(_humanBytes(totalBytes), style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+                        ),
+                        _divider(),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(t('Чати', 'Chats'), style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12)),
+                                    const SizedBox(height: 2),
+                                    Text('${chats.length}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(t('Непрочитані', 'Unread'), style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12)),
+                                    const SizedBox(height: 2),
+                                    Text('$totalUnread', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(t('Direct / Group', 'Direct / Group'), style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12)),
+                                    const SizedBox(height: 2),
+                                    Text('$directCount / $groupsCount', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Text(t('Топ чатів за обсягом', 'Top chats by usage'), style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13, fontWeight: FontWeight.w600)),
+                      const Spacer(),
+                      Text(t('Оцінка', 'Estimate'), style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: mapped.isEmpty
+                        ? Center(
+                            child: Text(
+                              t('Поки що немає даних', 'No usage data yet'),
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: mapped.length > 12 ? 12 : mapped.length,
+                            separatorBuilder: (_, sepIndex) => Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+                            itemBuilder: (context, i) {
+                              final row = mapped[i];
+                              final chat = Map<String, dynamic>.from(row['chat'] as Map);
+                              final name = ((chat['displayName'] ?? '').toString().trim().isNotEmpty)
+                                  ? (chat['displayName']).toString()
+                                  : (chat['partnerName'] ?? t('Чат', 'Chat')).toString();
+                              final bytes = row['bytes'] as int;
+                              final ratio = totalBytes > 0 ? (bytes / totalBytes).clamp(0.0, 1.0) : 0.0;
+
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
+                                leading: SafeAvatar(
+                                  avatarBase64: chat['avatar']?.toString(),
+                                  fallbackName: name,
+                                  radius: 20,
+                                  isGroup: chat['isGroup'] == true,
+                                ),
+                                title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(99),
+                                    child: LinearProgressIndicator(
+                                      minHeight: 5,
+                                      value: ratio,
+                                      backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                      color: accent,
+                                    ),
+                                  ),
+                                ),
+                                trailing: Text(_humanBytes(bytes), style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 12)),
+                              );
+                            },
+                          ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        _clearImageCache();
+                        Navigator.pop(ctx);
+                      },
+                      icon: const Icon(Icons.cleaning_services_rounded, color: Colors.white70, size: 18),
+                      label: Text(t('Очистити кеш зображень', 'Clear image cache'), style: const TextStyle(color: Colors.white)),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.white.withValues(alpha: 0.16)),
+                        backgroundColor: Colors.white.withValues(alpha: 0.04),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
