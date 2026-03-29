@@ -3551,30 +3551,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         title: SizedBox(
           width: 40,
           height: 40,
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFFB026FF).withValues(alpha: 0.8),
-                  const Color(0xFF7D1FFF).withValues(alpha: 0.8),
-                ],
-              ),
-            ),
-            child: const Center(
-              child: Text(
-                'L',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
-          ),
+          child: Image.asset('web/icons/favicon.png', width: 40, height: 40),
         ),
       ),
       body: Shortcuts(
