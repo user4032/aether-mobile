@@ -3548,10 +3548,33 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         elevation: 0,
         backgroundColor: Colors.transparent,
         centerTitle: true,
-        title: const SizedBox(
-          width: 32,
-          height: 32,
-          child: Icon(Icons.lock, color: Colors.white, size: 32),
+        title: SizedBox(
+          width: 40,
+          height: 40,
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFFB026FF).withValues(alpha: 0.8),
+                  const Color(0xFF7D1FFF).withValues(alpha: 0.8),
+                ],
+              ),
+            ),
+            child: const Center(
+              child: Text(
+                'L',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
       body: Shortcuts(
