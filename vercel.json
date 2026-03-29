@@ -6,6 +6,16 @@
   "outputDirectory": "build/web",
   "cleanUrls": true,
   "trailingSlash": false,
+  "routes": [
+    { "src": "/uk-ua/?$", "dest": "/uk-ua/index.html" },
+    { "src": "/uk-ua/download/?$", "dest": "/uk-ua/download/index.html" },
+    { "src": "/uk-ua/faq/?$", "dest": "/uk-ua/faq/index.html" },
+    { "src": "/uk-ua/support/?$", "dest": "/uk-ua/support/index.html" },
+    { "src": "/en-us/?$", "dest": "/en-us/index.html" },
+    { "src": "/en-us/download/?$", "dest": "/en-us/download/index.html" },
+    { "src": "/en-us/faq/?$", "dest": "/en-us/faq/index.html" },
+    { "src": "/en-us/support/?$", "dest": "/en-us/support/index.html" }
+  ],
   "redirects": [
     { "source": "/uk-ua/", "destination": "/uk-ua", "permanent": true },
     { "source": "/en-us/", "destination": "/en-us", "permanent": true }
