@@ -67,6 +67,36 @@
   var html = document.documentElement;
   if (html) html.lang = localeInPath === 'en-us' ? 'en' : 'uk';
 
+  function setupAntiCopyProtection() {
+    var styleId = 'lumyn-anti-copy-style';
+    if (!document.getElementById(styleId)) {
+      var style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = [
+        'html, body { -webkit-touch-callout: none; }',
+        'body { user-select: none; -webkit-user-select: none; }',
+        'input, textarea, [contenteditable="true"] { user-select: text; -webkit-user-select: text; }'
+      ].join('\n');
+      document.head.appendChild(style);
+    }
+
+    function isEditableTarget(target) {
+      if (!target || !target.closest) return false;
+      return !!target.closest('input, textarea, [contenteditable="true"]');
+    }
+
+    function blockIfNonEditable(e) {
+      if (isEditableTarget(e.target)) return;
+      e.preventDefault();
+    }
+
+    document.addEventListener('copy', blockIfNonEditable);
+    document.addEventListener('cut', blockIfNonEditable);
+    document.addEventListener('contextmenu', blockIfNonEditable);
+    document.addEventListener('selectstart', blockIfNonEditable);
+    document.addEventListener('dragstart', blockIfNonEditable);
+  }
+
   function syncActiveNavLinks() {
     var navLinks = document.querySelectorAll('nav a[href], #mobile-dropdown a[href]');
     for (var i = 0; i < navLinks.length; i++) {
@@ -137,4 +167,5 @@
   }
 
   syncActiveNavLinks();
+  setupAntiCopyProtection();
 })();
