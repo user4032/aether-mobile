@@ -106,8 +106,28 @@ class _AuthScreenState extends State<AuthScreen> {
     if (name.isEmpty || pass.isEmpty) return;
     setState(() => isLoading = true);
     io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
-    s.connect();
+    
+    // Timeout для з'єднання (30 секунд)
+    Timer? connectionTimeout;
+    bool isConnected = false;
+    
+    void cleanupSocket() {
+      connectionTimeout?.cancel();
+      if (!isConnected) s.dispose();
+    }
+    
+    connectionTimeout = Timer(const Duration(seconds: 30), () {
+      if (!isConnected && mounted) {
+        s.dispose();
+        setState(() => isLoading = false);
+        _showSnack(t('Помилка подключення', 'Connection timeout'), isError: true);
+      }
+    });
+    
     s.onConnect((_) {
+      isConnected = true;
+      connectionTimeout?.cancel();
+      
       s.emitWithAck('login_device_request', {
         'userName': name,
         'password': pass,
@@ -137,6 +157,16 @@ class _AuthScreenState extends State<AuthScreen> {
         _showSnack((response['message'] ?? t('Помилка', 'Error')).toString(), isError: true);
       });
     });
+    
+    s.onConnectError((error) {
+      cleanupSocket();
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t('Помилка подключення', 'Connection error'), isError: true);
+      }
+    });
+    
+    s.connect();
   }
 
   void _sendCode() async {
@@ -150,8 +180,27 @@ class _AuthScreenState extends State<AuthScreen> {
     }
     setState(() => isLoading = true);
     io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
-    s.connect();
+    
+    Timer? connectionTimeout;
+    bool isConnected = false;
+    
+    void cleanupSocket() {
+      connectionTimeout?.cancel();
+      if (!isConnected) s.dispose();
+    }
+    
+    connectionTimeout = Timer(const Duration(seconds: 30), () {
+      if (!isConnected && mounted) {
+        s.dispose();
+        setState(() => isLoading = false);
+        _showSnack(t('Помилка подключення', 'Connection timeout'), isError: true);
+      }
+    });
+    
     s.onConnect((_) {
+      isConnected = true;
+      connectionTimeout?.cancel();
+      
       s.emitWithAck('send_verification_email', {
         'userName': name,
         'email': email,
@@ -170,6 +219,16 @@ class _AuthScreenState extends State<AuthScreen> {
         }
       });
     });
+    
+    s.onConnectError((error) {
+      cleanupSocket();
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t('Помилка подключення', 'Connection error'), isError: true);
+      }
+    });
+    
+    s.connect();
   }
 
   void _verifyCode() async {
@@ -260,21 +319,23 @@ class _AuthScreenState extends State<AuthScreen> {
       backgroundColor: Colors.black,
       body: LiquidBackground(
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 350),
-              transitionBuilder: (child, anim) => FadeTransition(
-                opacity: anim,
-                child: SlideTransition(
-                  position: Tween(begin: const Offset(0.05, 0), end: Offset.zero).animate(anim),
-                  child: child,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                transitionBuilder: (child, anim) => FadeTransition(
+                  opacity: anim,
+                  child: SlideTransition(
+                    position: Tween(begin: const Offset(0.05, 0), end: Offset.zero).animate(anim),
+                    child: child,
+                  ),
                 ),
+                child: _step == 3 ? _buildRestoreStep() 
+                     : (_step == 2 ? _buildCodeStep() 
+                     : (_step == 1 ? _buildRegisterStep() 
+                     : _buildLoginStep())),
               ),
-              child: _step == 3 ? _buildRestoreStep() 
-                   : (_step == 2 ? _buildCodeStep() 
-                   : (_step == 1 ? _buildRegisterStep() 
-                   : _buildLoginStep())),
             ),
           ),
         ),
@@ -285,9 +346,10 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildLoginStep() {
     return Column(
       key: const ValueKey('login'),
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const SizedBox(height: 60),
         Text(t("З поверненням.", "Welcome back."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
         const Text("LUMYN Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
@@ -316,6 +378,7 @@ class _AuthScreenState extends State<AuthScreen> {
           onTap: () => setState(() => _step = 3),
           child: Text(t("Відновити з копії", "Restore from backup"), textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFB026FF), fontSize: 14, fontWeight: FontWeight.w600)),
         ),
+        const SizedBox(height: 60),
       ],
     );
   }
@@ -323,9 +386,10 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildRegisterStep() {
     return Column(
       key: const ValueKey('register'),
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const SizedBox(height: 60),
         Text(t("Створити акаунт.", "Create account."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
         const Text("LUMYN Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
@@ -358,6 +422,7 @@ class _AuthScreenState extends State<AuthScreen> {
           onTap: () => setState(() => _step = 0),
           child: Text(t("Вже є акаунт? Увійти", "Already have an account? Sign In"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
         ),
+        const SizedBox(height: 60),
       ],
     );
   }
@@ -365,9 +430,10 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildCodeStep() {
     return Column(
       key: const ValueKey('code'),
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const SizedBox(height: 40),
         const Icon(Icons.email_outlined, color: Colors.white70, size: 48),
         const SizedBox(height: 24),
         Text(t("Перевір пошту.", "Check your email."), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
@@ -410,6 +476,7 @@ class _AuthScreenState extends State<AuthScreen> {
           onPressed: () => setState(() { _step = 1; _codeController.clear(); }),
           child: Text(t("← Назад", "← Back"), style: const TextStyle(color: Colors.white70)),
         ),
+        const SizedBox(height: 40),
       ],
     );
   }

@@ -143,6 +143,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   final ImagePicker _picker = ImagePicker();
   final AesGcm _aes = AesGcm.with256bits();
   bool _isSearching = false;
+  bool _isLoadingData = false; // Prevent race condition in _loadData
 
   List<Map<String, dynamic>> _recentChats = [];
   List<Map<String, dynamic>> _friends = [];
@@ -851,7 +852,17 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   // DATA
   // ─────────────────────────────────────────────────────────
   void _loadData() {
+    // Prevent multiple concurrent _loadData() calls (race condition)
+    if (_isLoadingData) return;
+    _isLoadingData = true;
+    
     _bgSocket.emitWithAck('get_recent_chats', widget.userName, ack: (dynamic data) async {
+      // Cancel if widget was disposed or another load finished
+      if (!mounted) {
+        _isLoadingData = false;
+        return;
+      }
+      
       List<Map<String, dynamic>> tempChats = List<Map<String, dynamic>>.from(data);
       for (var chat in tempChats) {
         if (chat['lastMessage'] != null) {
@@ -888,6 +899,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
       }
       tempChats.removeWhere((c) => c['isHidden'] == true);
       if (mounted) setState(() { _recentChats = tempChats; });
+      _isLoadingData = false;
     });
     _bgSocket.emit('get_friends_data', widget.userName);
   }
@@ -3242,7 +3254,11 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                         children: [
                           Expanded(
                             child: InkWell(
-                              onTap: () => Navigator.pop(ctx),
+                              onTap: () {
+                                pageController.dispose();
+                                pageIdx.dispose();
+                                Navigator.pop(ctx);
+                              },
                               child: Container(
                                 height: 48,
                                 alignment: Alignment.center,
@@ -3260,6 +3276,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                                 setState(() => _chatFontSize = tempSize);
                                 _saveSetting('chat_font_size', tempSize);
                                 _syncSettingsToBackend();
+                                pageController.dispose();
+                                pageIdx.dispose();
                                 Navigator.pop(ctx);
                               },
                               child: Container(
