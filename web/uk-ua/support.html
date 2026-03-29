@@ -264,174 +264,37 @@
 </footer>
 
 <script>
-/* ─── BACKGROUND: AURORA PLASMA ─── */
+/* ─── PARTICLE CANVAS ─── */
 (function(){
   var canvas = document.getElementById('bg-canvas');
   if (!canvas) return;
   var ctx = canvas.getContext('2d');
   if (!ctx) return;
-  var W, H, t = 0;
-  var mouse = { x: -999, y: -999, tx: -999, ty: -999 };
+  var W, H, particles = [], time = 0;
 
   function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
   window.addEventListener('resize', resize); resize();
-  window.addEventListener('mousemove', function(e){ mouse.tx = e.clientX; mouse.ty = e.clientY; });
 
-  var stars = [];
-  for (var i = 0; i < 160; i++) {
-    stars.push({
-      x: Math.random(), y: Math.random(),
-      r: Math.random() * 1.0 + 0.1,
-      a: Math.random() * 0.55 + 0.05,
-      ph: Math.random() * Math.PI * 2,
-      sp: 0.2 + Math.random() * 0.5
+  for (var i = 0; i < 60; i++) {
+    particles.push({
+      x: Math.random() * 1920, y: Math.random() * 1080,
+      vx: (Math.random()-0.5)*0.2, vy: (Math.random()-0.5)*0.2,
+      r: Math.random() * 1.4 + 0.2, a: Math.random() * 0.3 + 0.05,
+      phase: Math.random() * Math.PI * 2
     });
-  }
-
-  var bands = [
-    { yFactor: 0.55, amp: 0.10, freq: 1.1, speed: 0.35, thickness: 0.30, alpha: 0.045 },
-    { yFactor: 0.62, amp: 0.08, freq: 1.4, speed: 0.28, thickness: 0.22, alpha: 0.055 },
-    { yFactor: 0.70, amp: 0.12, freq: 0.9, speed: 0.42, thickness: 0.25, alpha: 0.038 },
-    { yFactor: 0.48, amp: 0.07, freq: 1.7, speed: 0.20, thickness: 0.18, alpha: 0.030 },
-    { yFactor: 0.78, amp: 0.09, freq: 1.2, speed: 0.55, thickness: 0.20, alpha: 0.028 },
-  ];
-
-  var orbs = [];
-  for (var j = 0; j < 5; j++) {
-    orbs.push({
-      x: 0.1 + Math.random() * 0.8,
-      y: 0.2 + Math.random() * 0.6,
-      r: 80 + Math.random() * 140,
-      ph: Math.random() * Math.PI * 2,
-      sxp: (Math.random() - 0.5) * 0.00012,
-      syp: (Math.random() - 0.5) * 0.00008,
-      a: 0.018 + Math.random() * 0.022
-    });
-  }
-
-  var hexNodes = [];
-  var hexCols = 10, hexRows = 7;
-  var hexW = 1 / hexCols, hexH = 1 / hexRows;
-  for (var r = 0; r < hexRows; r++) {
-    for (var c = 0; c < hexCols; c++) {
-      hexNodes.push({
-        bx: (c + (r % 2) * 0.5) * hexW,
-        by: r * hexH,
-        ph: Math.random() * Math.PI * 2,
-        sp: 0.3 + Math.random() * 0.5
-      });
-    }
-  }
-
-  function noise2(x, y) {
-    return Math.sin(x * 2.1 + Math.cos(y * 1.7)) *
-           Math.cos(y * 1.3 + Math.sin(x * 2.4)) * 0.5 + 0.5;
-  }
-
-  function drawAuroraBand(band, time) {
-    var steps = 120;
-    var cy = H * band.yFactor;
-    var thi = H * band.thickness;
-
-    ctx.save();
-    for (var s = 0; s <= steps; s++) {
-      var px = (s / steps) * W;
-      var nx = px / W;
-      var wave = Math.sin(nx * Math.PI * 3 * band.freq + time * band.speed) * H * band.amp
-               + Math.sin(nx * Math.PI * 5 * band.freq * 0.7 + time * band.speed * 1.3 + 1.2) * H * band.amp * 0.4
-               + Math.cos(nx * Math.PI * 2 * band.freq * 1.2 + time * band.speed * 0.8 + 2.4) * H * band.amp * 0.25;
-      var py = cy + wave;
-
-      var localA = band.alpha * (0.5 + 0.5 * noise2(nx * 4 + time * 0.1, time * 0.07));
-      var grad = ctx.createLinearGradient(px, py - thi, px, py + thi);
-      grad.addColorStop(0,   'rgba(255,255,255,0)');
-      grad.addColorStop(0.35,'rgba(255,255,255,' + (localA * 0.6) + ')');
-      grad.addColorStop(0.5, 'rgba(255,255,255,' + localA + ')');
-      grad.addColorStop(0.65,'rgba(255,255,255,' + (localA * 0.6) + ')');
-      grad.addColorStop(1,   'rgba(255,255,255,0)');
-
-      ctx.fillStyle = grad;
-      ctx.fillRect(px - 1, py - thi, W / steps + 1, thi * 2);
-    }
-    ctx.restore();
   }
 
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    t += 0.008;
-
-    mouse.x += (mouse.tx - mouse.x) * 0.04;
-    mouse.y += (mouse.ty - mouse.y) * 0.04;
-
-    var bg = ctx.createRadialGradient(W*0.5, H*0.6, 0, W*0.5, H*0.6, Math.max(W,H)*0.85);
-    bg.addColorStop(0,   'rgba(14,14,18,1)');
-    bg.addColorStop(0.5, 'rgba(6,6,8,1)');
-    bg.addColorStop(1,   'rgba(0,0,0,1)');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
-
-    orbs.forEach(function(o) {
-      o.bx += o.sxp; o.by += o.syp;
-      if (o.bx < 0 || o.bx > 1) o.sxp *= -1;
-      if (o.by < 0 || o.by > 1) o.syp *= -1;
-      var ox = o.bx * W + Math.sin(t * 0.3 + o.ph) * 30;
-      var oy = o.by * H + Math.cos(t * 0.22 + o.ph) * 20;
-      var pulse = 0.7 + 0.3 * Math.sin(t * 0.8 + o.ph);
-      var gr = ctx.createRadialGradient(ox, oy, 0, ox, oy, o.r * pulse);
-      gr.addColorStop(0,   'rgba(255,255,255,' + (o.a * pulse) + ')');
-      gr.addColorStop(0.4, 'rgba(200,210,255,' + (o.a * 0.4 * pulse) + ')');
-      gr.addColorStop(1,   'rgba(255,255,255,0)');
-      ctx.fillStyle = gr;
-      ctx.fillRect(ox - o.r, oy - o.r, o.r * 2, o.r * 2);
+    time += 0.005;
+    particles.forEach(function(p) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      var alpha = p.a * (0.6 + 0.4 * Math.sin(time + p.phase));
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')'; ctx.fill();
     });
-
-    ctx.globalCompositeOperation = 'screen';
-    bands.forEach(function(b) { drawAuroraBand(b, t); });
-    ctx.globalCompositeOperation = 'source-over';
-
-    hexNodes.forEach(function(n, idx) {
-      var ox = n.bx * W + Math.sin(t * n.sp + n.ph) * 4;
-      var oy = n.by * H + Math.cos(t * n.sp * 0.7 + n.ph) * 3;
-      var pulse = 0.5 + 0.5 * Math.sin(t * n.sp + n.ph);
-      var dist = Math.sqrt(Math.pow(ox - mouse.x, 2) + Math.pow(oy - mouse.y, 2));
-      var mouseBoost = dist < 160 ? (1 - dist/160) * 0.12 : 0;
-      ctx.beginPath(); ctx.arc(ox, oy, 1, 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(255,255,255,' + (0.06 * pulse + mouseBoost) + ')';
-      ctx.fill();
-
-      hexNodes.slice(idx+1).forEach(function(n2) {
-        var ox2 = n2.bx * W + Math.sin(t * n2.sp + n2.ph) * 4;
-        var oy2 = n2.by * H + Math.cos(t * n2.sp * 0.7 + n2.ph) * 3;
-        var dx = ox-ox2, dy = oy-oy2;
-        var d = Math.sqrt(dx*dx+dy*dy);
-        if (d < W * hexW * 1.5) {
-          ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox2, oy2);
-          ctx.strokeStyle = 'rgba(255,255,255,' + ((1-d/(W*hexW*1.5))*0.04) + ')';
-          ctx.lineWidth = 0.4; ctx.stroke();
-        }
-      });
-    });
-
-    stars.forEach(function(s) {
-      var sx = s.x * W, sy = s.y * H;
-      var twinkle = s.a * (0.5 + 0.5 * Math.sin(t * s.sp + s.ph));
-      var dx = sx - mouse.x, dy = sy - mouse.y;
-      var dist2 = Math.sqrt(dx*dx+dy*dy);
-      var boost = dist2 < 120 ? (1-dist2/120)*0.35 : 0;
-      ctx.beginPath(); ctx.arc(sx, sy, s.r, 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(255,255,255,' + Math.min(twinkle + boost, 0.95) + ')';
-      ctx.fill();
-    });
-
-    if (mouse.x > 0) {
-      var mg = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 180);
-      mg.addColorStop(0,   'rgba(255,255,255,0.04)');
-      mg.addColorStop(0.5, 'rgba(255,255,255,0.01)');
-      mg.addColorStop(1,   'rgba(255,255,255,0)');
-      ctx.fillStyle = mg;
-      ctx.fillRect(mouse.x-180, mouse.y-180, 360, 360);
-    }
-
     requestAnimationFrame(draw);
   }
   draw();

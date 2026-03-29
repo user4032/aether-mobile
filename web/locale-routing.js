@@ -67,6 +67,32 @@
   var html = document.documentElement;
   if (html) html.lang = localeInPath === 'en-us' ? 'en' : 'uk';
 
+  function syncActiveNavLinks() {
+    var navLinks = document.querySelectorAll('nav a[href], #mobile-dropdown a[href]');
+    for (var i = 0; i < navLinks.length; i++) {
+      var link = navLinks[i];
+      var cls = link.className || '';
+      if (cls.indexOf('btn-outline') !== -1) continue;
+
+      var href = link.getAttribute('href');
+      if (!href) continue;
+
+      var url;
+      try {
+        url = new URL(href, window.location.origin);
+      } catch (_) {
+        continue;
+      }
+
+      var linkRoute = toRoute(url.pathname);
+      if (linkRoute === route) {
+        if (link.classList) link.classList.add('active');
+      } else {
+        if (link.classList) link.classList.remove('active');
+      }
+    }
+  }
+
   function rewriteLink(a) {
     var rawHref = a.getAttribute('href');
     if (!rawHref || rawHref.indexOf('http://') === 0 || rawHref.indexOf('https://') === 0 || rawHref.indexOf('mailto:') === 0 || rawHref.indexOf('tel:') === 0 || rawHref.indexOf('#') === 0) {
@@ -109,4 +135,6 @@
   for (var i = 0; i < links.length; i++) {
     rewriteLink(links[i]);
   }
+
+  syncActiveNavLinks();
 })();
