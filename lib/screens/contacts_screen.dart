@@ -525,6 +525,20 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     });
   }
 
+  void _syncSettingsToBackend() {
+    if (!_bgSocket.connected) return;
+    _bgSocket.emit('update_settings', {
+      'userName': widget.userName,
+      'accentColor': _accentColor,
+      'chatFontSize': _chatFontSize,
+      'chatBubbleStyle': _chatBubbleStyle,
+      'compactMode': _compactMode,
+      'soundEnabled': _soundEnabled,
+      'vibrationEnabled': _vibrationEnabled,
+      'myDisplayName': _myDisplayName,
+    });
+  }
+
   Future<void> _persistProfileCache() async {
     final p = await SharedPreferences.getInstance();
     await p.setString('my_display_name', _myDisplayName);
@@ -1317,6 +1331,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                             _myBio = nextBio;
                           });
                           unawaited(_persistProfileCache());
+                          _syncSettingsToBackend();
                           Navigator.pop(ctx);
                         },
                         style: ElevatedButton.styleFrom(
@@ -2061,12 +2076,29 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-          child: Center(
-            child: AnimatedSearchInput(
-              controller: _searchController,
-              onSubmitted: (_) =>
-                  _isSearching ? null : _startChat(_searchController.text.trim(), null),
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: AnimatedSearchInput(
+                  controller: _searchController,
+                  onSubmitted: (_) =>
+                      _isSearching ? null : _startChat(_searchController.text.trim(), null),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.group_add, color: Colors.white, size: 22),
+                  tooltip: t('Створити групу', 'Create group'),
+                  onPressed: _showCreateGroupDialog,
+                ),
+              ),
+            ],
           ),
         ),
         if (_isSearching)
@@ -2515,7 +2547,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               icon: Icons.volume_up_rounded, iconColor: accent,
               title: t("Звук", "Sound"),
               value: _soundEnabled, enabled: _notificationsEnabled,
-              onChanged: (v) { setState(() => _soundEnabled = v); _saveSetting('sound_enabled', v); },
+              onChanged: (v) { setState(() => _soundEnabled = v); _saveSetting('sound_enabled', v); _syncSettingsToBackend(); },
               accent: accent,
             ),
             _divider(),
@@ -2523,7 +2555,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               icon: Icons.vibration_rounded, iconColor: accent,
               title: t("Вібрація", "Vibration"),
               value: _vibrationEnabled, enabled: _notificationsEnabled,
-              onChanged: (v) { setState(() => _vibrationEnabled = v); _saveSetting('vibration_enabled', v); },
+              onChanged: (v) { setState(() => _vibrationEnabled = v); _saveSetting('vibration_enabled', v); _syncSettingsToBackend(); },
               accent: accent,
             ),
             _divider(),
@@ -2736,7 +2768,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                     children: _accentColors.entries.map((e) {
                       final isSelected = _accentColor == e.key;
                       return GestureDetector(
-                        onTap: () { setState(() => _accentColor = e.key); _saveSetting('accent_color', e.key); },
+                        onTap: () { setState(() => _accentColor = e.key); _saveSetting('accent_color', e.key); _syncSettingsToBackend(); },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           width: isSelected ? 38 : 32,
@@ -2813,7 +2845,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               title: t("Компактний режим", "Compact Mode"),
               subtitle: t("Менші відступи у чатах", "Smaller padding in chats"),
               value: _compactMode,
-              onChanged: (v) { setState(() => _compactMode = v); _saveSetting('compact_mode', v); },
+              onChanged: (v) { setState(() => _compactMode = v); _saveSetting('compact_mode', v); _syncSettingsToBackend(); },
               accent: accent,
             ),
           ]),
@@ -3203,6 +3235,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                               onTap: () {
                                 setState(() => _chatFontSize = tempSize);
                                 _saveSetting('chat_font_size', tempSize);
+                                _syncSettingsToBackend();
                                 Navigator.pop(ctx);
                               },
                               child: Container(
@@ -3313,7 +3346,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   Widget _bubbleOption(String style, String label, Color accent) {
     final isSelected = _chatBubbleStyle == style;
     return GestureDetector(
-      onTap: () { setState(() => _chatBubbleStyle = style); _saveSetting('bubble_style', style); },
+      onTap: () { setState(() => _chatBubbleStyle = style); _saveSetting('bubble_style', style); _syncSettingsToBackend(); },
       child: Column(children: [
         AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -3506,34 +3539,20 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     final totalPending = _pendingRequests.length;
     final isDesktopLayout = MediaQuery.of(context).size.width >= 980;
     final isDesktopPlatform = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
-    final appBarTitle = _currentIndex == 0
-        ? t("Чати", "Chats")
-        : (_currentIndex == 1 ? t("Друзі", "Friends") : t("Профіль", "Profile"));
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBody: true,
       resizeToAvoidBottomInset: false, // фікс кліку в PWA
       appBar: AppBar(
-        title: Text(appBarTitle),
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(color: Colors.black.withValues(alpha: 0.5)),
-          ),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        centerTitle: true,
+        title: const SizedBox(
+          width: 32,
+          height: 32,
+          child: Icon(Icons.lock, color: Colors.white, size: 32),
         ),
-        actions: _currentIndex == 0
-            ? [
-                Container(
-                  margin: const EdgeInsets.only(right: 16),
-                  child: IconButton(
-                    icon: const Icon(Icons.group_add, color: Colors.white, size: 24),
-                    tooltip: t('Створити групу', 'Create group'),
-                    onPressed: _showCreateGroupDialog,
-                  ),
-                ),
-              ]
-            : null,
       ),
       body: Shortcuts(
         shortcuts: isDesktopPlatform
