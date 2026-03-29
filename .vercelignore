@@ -1,0 +1,14 @@
+.git/
+.dart_tool/
+.idea/
+.vercel/
+build/
+node_modules/
+x3dh_client_pc/
+android/
+ios/
+linux/
+macos/
+windows/
+test/
+*.iml
