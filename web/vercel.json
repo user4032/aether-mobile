@@ -1,9 +1,25 @@
 {
   "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/uk-ua/",
+      "destination": "/uk-ua",
+      "permanent": true
+    },
+    {
+      "source": "/en-us/",
+      "destination": "/en-us",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/uk-ua",
       "destination": "/"
+    },
+    {
+      "source": "/uk-ua/:path*",
+      "destination": "/:path*"
     },
     {
       "source": "/uk-ua/download",
@@ -20,6 +36,10 @@
     {
       "source": "/en-us",
       "destination": "/en.html"
+    },
+    {
+      "source": "/en-us/:path*",
+      "destination": "/:path*"
     },
     {
       "source": "/en-us/download",
