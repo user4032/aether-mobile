@@ -175,9 +175,6 @@
 <canvas id="bg-canvas"></canvas>
 
 <nav>
-<body>
-
-<nav>
   <a href="/" class="nav-logo">
     <img src="../icons/logo-192.png" alt="Логотип"> LUMYN
   </a>
@@ -270,7 +267,9 @@
 /* ─── BACKGROUND: AURORA PLASMA ─── */
 (function(){
   var canvas = document.getElementById('bg-canvas');
+  if (!canvas) return;
   var ctx = canvas.getContext('2d');
+  if (!ctx) return;
   var W, H, t = 0;
   var mouse = { x: -999, y: -999, tx: -999, ty: -999 };
 
