@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"><meta name="theme-color" content="#000000">
+  <title>LUMYN | Schema</title><link rel="manifest" href="/manifest.json"><script defer src="/locale-routing.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>body{margin:0;background:#000;color:#fff;font-family:Inter,sans-serif}.wrap{max-width:920px;margin:0 auto;padding:28px 16px 60px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}a{color:#9ecbff;text-decoration:none}h1{font-size:42px;margin:0 0 8px}p{color:#9a9a9a;line-height:1.55}.card{border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px;margin-top:14px;background:#0a0a0a}pre{white-space:pre-wrap;color:#d7d7d7;font-size:13px;margin:0}</style>
+</head>
+<body><div class="wrap"><div class="top"><a href="/en-us/updates">← Updates</a><a href="/schema">UA</a></div><h1>Schema</h1><p>Base message and service event schema for client/backend integration.</p><div class="card"><pre>{
+  "type": "text|image|audio|ephemeral_*",
+  "senderName": "alice",
+  "receiverName": "bob|GROUP_...",
+  "ciphertext": "base64",
+  "nonce": "base64",
+  "mac": "base64",
+  "timestamp": "ISO-8601"
+}</pre></div><div class="card"><p>Reference: <a href="https://core.telegram.org/schema" target="_blank" rel="noopener noreferrer">TL schema</a></p></div></div></body>
+</html>

@@ -38,6 +38,8 @@
     .docs{display:grid;grid-template-columns:1fr;gap:10px}
     .doc{border:1px solid var(--border);border-radius:14px;padding:14px;background:rgba(255,255,255,.02)}
     .doc h4{font-size:16px;margin-bottom:5px}
+    .doc h4 a{color:#fff;text-decoration:none}
+    .doc h4 a:hover{color:#d7d7d7}
     .doc p{color:var(--muted);font-size:14px;line-height:1.45}
     .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
     .btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 18px;border-radius:999px;text-decoration:none;font-weight:700;font-size:13px;border:1px solid var(--border)}
@@ -91,10 +93,10 @@
     <section class="section">
       <h2>Docs & API roadmap</h2>
       <div class="docs">
-        <div class="doc"><h4>Protocol Notes</h4><p>X3DH + message flow notes for client/backend implementation. Status: in progress.</p></div>
-        <div class="doc"><h4>Client API Surface</h4><p>Socket.IO events, errors, auth/verification flows. Status: in progress.</p></div>
-        <div class="doc"><h4>Message Schema</h4><p>Payload format, reactions, ephemeral metadata, versioning. Status: planned.</p></div>
-        <div class="doc"><h4>Moderation & Abuse Policy</h4><p>Abuse handling and security response model. Status: planned.</p></div>
+        <div class="doc"><h4><a href="/protocol">Protocol Notes</a></h4><p>X3DH + message flow notes for client/backend implementation. Status: in progress.</p></div>
+        <div class="doc"><h4><a href="/api">Client API Surface</a></h4><p>Socket.IO events, errors, auth/verification flows. Status: in progress.</p></div>
+        <div class="doc"><h4><a href="/schema">Message Schema</a></h4><p>Payload format, reactions, ephemeral metadata, versioning. Status: planned.</p></div>
+        <div class="doc"><h4><a href="/moderation">Moderation & Abuse Policy</a></h4><p>Abuse handling and security response model. Status: planned.</p></div>
       </div>
     </section>
 

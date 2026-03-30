@@ -32,9 +32,14 @@
     var p = stripLocale(pathname).toLowerCase();
     if (p === '/' || p === '/index' || p === '/index.html' || p === '/en' || p === '/en.html') return '/';
     if (p === '/download' || p === '/download.html') return '/download';
+    if (p === '/apps' || p === '/apps.html') return '/download';
     if (p === '/faq' || p === '/faq.html') return '/faq';
     if (p === '/support' || p === '/support.html') return '/support';
     if (p === '/updates' || p === '/updates.html') return '/updates';
+    if (p === '/api' || p === '/api.html') return '/api';
+    if (p === '/protocol' || p === '/protocol.html') return '/protocol';
+    if (p === '/schema' || p === '/schema.html') return '/schema';
+    if (p === '/moderation' || p === '/moderation.html') return '/moderation';
     return '/';
   }
 
