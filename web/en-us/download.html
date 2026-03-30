@@ -1,21 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
-  <link rel="icon" href="../icons/favicon.png?v=1">
-  <link rel="apple-touch-icon" href="../icons/logo-192.png?v=6">
-  <link rel="manifest" href="../manifest.json">
-  <meta property="og:title" content="LUMYN | Downloads">
-  <meta property="og:description" content="Download LUMYN for your preferred device.">
+  <link rel="icon" href="/icons/favicon.png?v=1">
+  <link rel="apple-touch-icon" href="/icons/logo-192.png?v=6">
+  <link rel="manifest" href="/manifest.json">
+  <meta property="og:title" content="LUMYN | Додатки">
+  <meta property="og:description" content="Завантажте LUMYN для потрібного вам пристрою.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://lumyn.space/en-us/download">
+  <meta property="og:url" content="https://lumyn.space/uk-ua/download">
   <meta property="og:image" content="https://lumyn.space/icons/logo-512.png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="LUMYN | Downloads">
+  <meta name="twitter:title" content="LUMYN | Додатки">
   <meta name="twitter:image" content="https://lumyn.space/icons/logo-512.png">
-  <title>LUMYN | Downloads</title>
+  <title>LUMYN | Додатки</title>
   <script defer src="/locale-routing.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   
@@ -91,11 +91,13 @@
       transition: border-color 0.4s, transform 0.4s, box-shadow 0.4s;
       backdrop-filter: blur(16px);
     }
+    /* Animated top glow line */
     .card::before {
       content: ''; position: absolute; top: 0; left: 20%; right: 20%; height: 1px;
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
       opacity: 0; transition: opacity 0.4s;
     }
+    /* Corner accent */
     .card::after {
       content: ''; position: absolute; top: -60px; right: -60px;
       width: 160px; height: 160px; border-radius: 50%;
@@ -112,7 +114,7 @@
     .card h2 { font-size: 22px; font-weight: 800; margin-bottom: 14px; letter-spacing: -0.5px; }
     .card p { font-size: 14px; color: #777; margin-bottom: 32px; line-height: 1.7; }
 
-    /* ─── STEPS ─── */
+    /* ─── STEPS (iOS GUIDE) ─── */
     .steps-list { text-align: left; margin-bottom: 28px; }
     .step-row {
       display: flex; align-items: flex-start; gap: 14px;
@@ -143,7 +145,7 @@
 
     .status-msg { font-family: var(--font-mono); font-size: 10px; color: #555; margin-top: 14px; letter-spacing: 0.5px; text-transform: uppercase; }
 
-    /* ─── DATA FLOW BAR ─── */
+    /* ─── BOTTOM DATA FLOW BAR ─── */
     .data-flow-wrap { width: 100%; max-width: 760px; padding: 0 24px; margin-top: 40px; animation: fadeUp 0.9s ease 0.5s both; }
     .data-flow-bar {
       position: relative;
@@ -204,8 +206,15 @@
     }
 
     @media (max-width: 640px) {
-      .data-flow-bar { padding: 12px; gap: 8px; }
-      .data-flow-label { font-size: 8px; letter-spacing: 1px; padding: 6px 8px; }
+      .data-flow-bar {
+        padding: 12px;
+        gap: 8px;
+      }
+      .data-flow-label {
+        font-size: 8px;
+        letter-spacing: 1px;
+        padding: 6px 8px;
+      }
     }
 
     @keyframes pulseDot {
@@ -214,7 +223,7 @@
       100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
     }
 
-    /* ─── FOOTER ─── */
+    /* ─── APPLE FOOTER ─── */
     .apple-footer { background: #111111; color: #86868b; font-family: var(--font-main); font-size: 12px; line-height: 1.33337; font-weight: 400; padding: 0 22px; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; position: relative; z-index: 10; }
     .apple-footer-content { max-width: 980px; margin: 0 auto; padding: 20px 0; }
     .footer-breadcrumbs { display: flex; align-items: center; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
@@ -230,7 +239,7 @@
     .footer-directory-list a:hover { color: #f5f5f7; text-decoration: underline; }
     .footer-mini { padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 12px; }
     .footer-mini-legal { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-    @media (max-width: 833px) { .footer-directory { display: none; } .footer-mini-legal { flex-direction: column; align-items: flex-start; } }
+    @media (max-width: 833px) { .footer-directory { display: flex; flex-direction: column; gap: 10px; } .footer-directory-column { flex-basis: 100%; min-width: 100%; margin-bottom: 10px; } .footer-mini-legal { flex-direction: column; align-items: flex-start; } }
 
     @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
   </style>
@@ -241,39 +250,43 @@
 <div class="top-glow"></div>
 
 <nav>
-  <a href="/" class="nav-logo"><img src="../icons/logo-192.png" alt="Logo"> LUMYN</a>
-  <div class="nav-links">
-    <a href="/">Home</a>
-    <a href="/download" class="active">Downloads</a>
-    <a href="/faq">FAQ</a>
-    <a href="/support">Support</a>
-    <a href="/updates">Updates</a>
-    <a href="/api">API</a>
-    <a href="/protocol">Protocol</a>
-    <a href="/schema">Schema</a>
-    <a href="/moderation">Moderation</a>
-    <a href="/uk-ua" class="btn-outline" style="margin-left:20px;">UA</a>
-  </div>
-  <button id="mobile-menu-btn" style="display:none;background:none;border:none;color:white;font-size:26px;cursor:pointer;">☰</button>
-</nav>
+    <a href="/" class="nav-logo">
+      <img src="../icons/logo-192.png" alt="Logo">
+      LUMYN
+    </a>
+    <div class="nav-links">
+      <a href="/">Головна</a>
+      <a href="/download">Додатки</a>
+      <a href="/faq">ЧаПи</a>
+      <a href="/support">Підтримка</a>
+      <a href="/updates">Оновлення</a>
+      <a href="/api">API</a>
+      <a href="/protocol">Protocol</a>
+      <a href="/schema">Schema</a>
+      <a href="/moderation">Moderation</a>
+      <a href="/en" class="btn-outline" style="margin-left: 20px;">EN</a>
+    </div>
+    
+    <button id="mobile-menu-btn" style="display:none; background:none; border:none; color:white; font-size:26px; cursor:pointer;">☰</button>
+  </nav>
 
 <div id="mobile-dropdown" style="display:none;position:fixed;top:80px;left:0;right:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.1);padding:20px;z-index:199;flex-direction:column;gap:16px;text-align:center;">
-  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Home</a>
-  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Downloads</a>
-  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">FAQ</a>
-  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Support</a>
-  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Updates</a>
+  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Головна</a>
+  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Додатки</a>
+  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">ЧаПи</a>
+  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Підтримка</a>
+  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Оновлення</a>
   <a href="/api" style="color:white;text-decoration:none;font-size:16px;">API</a>
   <a href="/protocol" style="color:white;text-decoration:none;font-size:16px;">Protocol</a>
   <a href="/schema" style="color:white;text-decoration:none;font-size:16px;">Schema</a>
   <a href="/moderation" style="color:white;text-decoration:none;font-size:16px;">Moderation</a>
-  <a href="/uk-ua" style="color:white;text-decoration:none;font-size:16px;opacity:0.5;margin-top:8px;">UA (Ukrainian)</a>
+  <a href="/en" style="color:white;text-decoration:none;font-size:16px;opacity:0.5;margin-top:8px;">EN (English)</a>
 </div>
 
 <main>
   <header class="page-header">
-    <h1>CHOOSE<br>YOUR PLATFORM.</h1>
-    <p>LUMYN is available on smartphones and PC. Secure communication across all your devices.</p>
+    <h1>ОБЕРІТЬ<br>ПЛАТФОРМУ.</h1>
+    <p>LUMYN доступний на смартфонах і ПК. Захищене спілкування на всіх ваших пристроях.</p>
   </header>
 
   <div class="platforms">
@@ -290,15 +303,15 @@
         <div class="steps-list">
           <div class="step-row">
             <div class="step-num-badge">1</div>
-            <div class="step-text">Click <strong>Download .EXE</strong></div>
+            <div class="step-text">Натисніть <strong>Завантажити .EXE</strong></div>
           </div>
           <div class="step-row">
             <div class="step-num-badge">2</div>
-            <div class="step-text">Run the installer and confirm installation</div>
+            <div class="step-text">Запустіть інсталятор та підтвердьте встановлення</div>
           </div>
           <div class="step-row">
             <div class="step-num-badge">3</div>
-            <div class="step-text">Open LUMYN from the Desktop shortcut</div>
+            <div class="step-text">Відкрийте LUMYN з ярлика на Робочому столі</div>
           </div>
         </div>
       </div>
@@ -310,9 +323,9 @@
           rel="noopener noreferrer"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Open Latest Release
+          Відкрити останній реліз
         </a>
-        <div class="status-msg">// SELECT LumynMessengerSetup.exe FROM THE RELEASE ATTACHMENTS</div>
+        <div class="status-msg">// ОБЕРІТЬ LumynMessengerSetup.exe У ВКЛАДЕННЯХ РЕЛІЗУ</div>
       </div>
     </div>
 
@@ -320,30 +333,30 @@
     <div class="card">
       <div>
         <div class="card-icon">
-          <img src="../icons/white-apple-logo-transparent.png" alt="Apple Logo" style="height:42px;width:auto;">
+          <img src="/icons/white-apple-logo-transparent.png" alt="Apple Logo" style="height:42px;width:auto;">
         </div>
         <h2>iOS / iPadOS</h2>
         <div class="steps-list">
           <div class="step-row">
             <div class="step-num-badge">1</div>
-            <div class="step-text">Open this site in <strong>Safari</strong></div>
+            <div class="step-text">Відкрийте сайт у <strong>Safari</strong></div>
           </div>
           <div class="step-row">
             <div class="step-num-badge">2</div>
-            <div class="step-text">Tap the <strong>Share button</strong> at the bottom</div>
+            <div class="step-text">Натисніть кнопку <strong>"Поділитися"</strong> знизу екрана</div>
           </div>
           <div class="step-row">
             <div class="step-num-badge">3</div>
-            <div class="step-text">Select <strong>Add to Home Screen</strong></div>
+            <div class="step-text">Виберіть <strong>"На екран Домів"</strong></div>
           </div>
         </div>
       </div>
       <div>
         <button type="button" class="btn" id="ios-share-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-          Open in Safari
+          Відкрити в Safari
         </button>
-        <div class="status-msg">// SAFARI → SHARE → ADD TO HOME SCREEN</div>
+        <div class="status-msg">// SAFARI → ПОДІЛИТИСЬ → ДОМІВ</div>
       </div>
     </div>
 
@@ -359,24 +372,24 @@
         <div class="steps-list">
           <div class="step-row">
             <div class="step-num-badge">1</div>
-            <div class="step-text">Open this site in <strong>Google Chrome</strong></div>
+            <div class="step-text">Відкрийте сайт у <strong>Google Chrome</strong></div>
           </div>
           <div class="step-row">
             <div class="step-num-badge">2</div>
-            <div class="step-text">Tap the menu <strong>⋮</strong> in the top right</div>
+            <div class="step-text">Натисніть меню <strong>⋮</strong> у верхньому правому куті</div>
           </div>
           <div class="step-row">
             <div class="step-num-badge">3</div>
-            <div class="step-text">Select <strong>Add to Home Screen</strong></div>
+            <div class="step-text">Виберіть <strong>"Додати на головний екран"</strong></div>
           </div>
         </div>
       </div>
       <div>
         <button class="btn disabled">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Install PWA
+          Встановити PWA
         </button>
-        <div class="status-msg">// INSTALLATION VIA BROWSER</div>
+        <div class="status-msg">// ВСТАНОВЛЕННЯ ЧЕРЕЗ БРАУЗЕР</div>
       </div>
     </div>
 
@@ -384,7 +397,7 @@
 
   <div class="data-flow-wrap">
     <div class="data-flow-bar">
-      <div class="data-flow-label">SECURE COMMUNICATION</div>
+      <div class="data-flow-label">ЗАХИЩЕНЕ СПІЛКУВАННЯ</div>
       <canvas id="flow-canvas"></canvas>
       <div class="data-flow-label right">X25519 + AES-256-GCM</div>
     </div>
@@ -394,27 +407,27 @@
 <footer class="apple-footer">
   <div class="apple-footer-content">
     <div class="footer-breadcrumbs">
-      <a href="/"><img src="../icons/logo-192.png" alt="LUMYN"> LUMYN</a>
-      <span>›</span><span>Downloads</span>
+      <a href="/"><img src="/icons/logo-192.png" alt="LUMYN"> LUMYN</a>
+      <span>›</span><span>Додатки</span>
     </div>
     <div class="footer-directory">
       <div class="footer-directory-column">
         <h3 class="footer-directory-column-title">LUMYN</h3>
         <ul class="footer-directory-list">
-          <li><a href="/">Home</a></li>
-          <li><a href="/download">Downloads</a></li>
+          <li><a href="/">Головна</a></li>
+          <li><a href="/download">Додатки</a></li>
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Resources</h3>
+        <h3 class="footer-directory-column-title">Ресурси</h3>
         <ul class="footer-directory-list">
-          <li><a href="/faq">FAQ</a></li>
-          <li><a href="/support">Support</a></li>
-          <li><a href="/updates">Updates</a></li>
+          <li><a href="/faq">ЧаПи</a></li>
+          <li><a href="/support">Підтримка</a></li>
+          <li><a href="/updates">Оновлення</a></li>
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Documentation</h3>
+        <h3 class="footer-directory-column-title">Документація</h3>
         <ul class="footer-directory-list">
           <li><a href="/api">API</a></li>
           <li><a href="/protocol">Protocol</a></li>
@@ -423,7 +436,7 @@
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Project</h3>
+        <h3 class="footer-directory-column-title">Проєкт</h3>
         <ul class="footer-directory-list">
           <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li>
           <li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li>
@@ -492,6 +505,7 @@
 
   function drawFlow() {
     cx.clearRect(0, 0, cW, cH);
+    /* Background line */
     cx.beginPath(); cx.moveTo(0, cH/2); cx.lineTo(cW, cH/2);
     cx.strokeStyle = 'rgba(255,255,255,0.04)'; cx.lineWidth = 1; cx.stroke();
 
@@ -522,6 +536,29 @@ if (mobileBtn) {
     var dd = document.getElementById('mobile-dropdown');
     if (dd.style.display === 'none' || !dd.style.display) { dd.style.display = 'flex'; this.textContent = '✕'; }
     else { dd.style.display = 'none'; this.textContent = '☰'; }
+  });
+}
+
+/* ─── IOS SAFARI SHARE SHEET ─── */
+var iosShareBtn = document.getElementById('ios-share-btn');
+if (iosShareBtn) {
+  iosShareBtn.addEventListener('click', async function() {
+    var shareData = {
+      title: 'LUMYN',
+      text: 'Встановіть LUMYN на екран Домів',
+      url: window.location.origin + '/'
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        /* User may cancel the share action. */
+      }
+      return;
+    }
+
+    alert('Цей браузер не підтримує вікно Поділитися. Відкрийте сайт у Safari та натисніть Поділитися вручну.');
   });
 }
 </script>

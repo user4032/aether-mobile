@@ -1,23 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
   <meta name="author" content="LUMYN Protocol">
-  <meta name="description" content="Contact LUMYN Support">
-  <link rel="icon" href="../icons/favicon.png?v=1">
-  <link rel="apple-touch-icon" href="../icons/logo-192.png?v=6">
-  <link rel="manifest" href="../manifest.json">
-  <meta property="og:title" content="LUMYN | Support">
-  <meta property="og:description" content="Contact LUMYN Support">
+  <meta name="description" content="Зв'яжіться з підтримкою LUMYN">
+  <link rel="icon" href="/icons/favicon.png?v=1">
+  <link rel="apple-touch-icon" href="/icons/logo-192.png?v=6">
+  <link rel="manifest" href="/manifest.json">
+  <meta property="og:title" content="LUMYN | Підтримка">
+  <meta property="og:description" content="Зв'яжіться з підтримкою LUMYN.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://lumyn.space/en-us/support">
+  <meta property="og:url" content="https://lumyn.space/uk-ua/support">
   <meta property="og:image" content="https://lumyn.space/icons/logo-512.png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="LUMYN | Support">
+  <meta name="twitter:title" content="LUMYN | Підтримка">
   <meta name="twitter:image" content="https://lumyn.space/icons/logo-512.png">
-  <title>LUMYN | Support</title>
+  <title>LUMYN | Підтримка</title>
   <script defer src="/locale-routing.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   
@@ -42,11 +42,15 @@
       display: flex; flex-direction: column; min-height: 100vh;
     }
 
+    /* ─── CANVAS BG ─── */
     #bg-canvas {
       position: fixed; inset: 0; width: 100%; height: 100%;
       pointer-events: none; z-index: 0;
     }
 
+
+
+    /* ─── NAV ─── */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 200;
       padding: 0 40px; height: 80px;
@@ -64,12 +68,14 @@
     .btn-outline:hover { background: #fff; color: #000 !important; }
     @media (max-width: 768px) { .nav-links { display: none; } nav { padding: 0 20px; } #mobile-menu-btn { display: block !important; } }
 
+    /* ─── MAIN ─── */
     main {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; padding-top: 160px; padding-bottom: 100px;
       position: relative; z-index: 10;
     }
 
+    /* ─── PAGE HEADER ─── */
     .page-header { text-align: center; margin-bottom: 50px; }
     .page-badge {
       display: inline-flex; align-items: center; gap: 8px;
@@ -94,6 +100,7 @@
       animation: fadeUp 0.9s ease 0.2s both;
     }
 
+    /* ─── FORM CONTAINER ─── */
     .support-form-container {
       width: 100%; max-width: 500px; padding: 0 24px;
       animation: fadeUp 0.9s ease 0.3s both;
@@ -105,6 +112,7 @@
       backdrop-filter: blur(20px);
       position: relative; overflow: hidden;
     }
+    /* Subtle glow top border */
     .form-inner::before {
       content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
@@ -144,6 +152,7 @@
     }
     .btn-submit:active { transform: translateY(0); }
 
+    /* ─── STATUS INDICATORS ─── */
     .form-status {
       display: flex; gap: 24px; justify-content: center;
       margin-top: 24px; padding-top: 24px;
@@ -155,6 +164,9 @@
     }
     .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; opacity: 0.6; }
 
+
+
+    /* ─── APPLE FOOTER ─── */
     .apple-footer { background: #111111; color: #86868b; font-family: var(--font-main); font-size: 12px; line-height: 1.33337; font-weight: 400; padding: 0 22px; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; position: relative; z-index: 10; }
     .apple-footer-content { max-width: 980px; margin: 0 auto; padding: 20px 0; }
     .footer-breadcrumbs { display: flex; align-items: center; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
@@ -170,7 +182,7 @@
     .footer-directory-list a:hover { color: #f5f5f7; text-decoration: underline; }
     .footer-mini { padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 12px; }
     .footer-mini-legal { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-    @media (max-width: 833px) { .footer-directory { display: none; } .footer-mini-legal { flex-direction: column; align-items: flex-start; } }
+    @media (max-width: 833px) { .footer-directory { display: flex; flex-direction: column; gap: 10px; } .footer-directory-column { flex-basis: 100%; min-width: 100%; margin-bottom: 10px; } .footer-mini-legal { flex-direction: column; align-items: flex-start; } }
 
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(24px); }
@@ -183,48 +195,50 @@
 <canvas id="bg-canvas"></canvas>
 
 <nav>
-  <a href="/" class="nav-logo">
-    <img src="../icons/logo-192.png" alt="Logo"> LUMYN
-  </a>
-  <div class="nav-links">
-    <a href="/">Home</a>
-    <a href="/download">Downloads</a>
-    <a href="/faq">FAQ</a>
-    <a href="/support" class="active">Support</a>
-    <a href="/updates">Updates</a>
-    <a href="/api">API</a>
-    <a href="/protocol">Protocol</a>
-    <a href="/schema">Schema</a>
-    <a href="/moderation">Moderation</a>
-    <a href="/uk-ua" class="btn-outline" style="margin-left:20px;">UA</a>
-  </div>
-  <button id="mobile-menu-btn" style="display:none;background:none;border:none;color:white;font-size:26px;cursor:pointer;">☰</button>
-</nav>
+    <a href="/" class="nav-logo">
+      <img src="../icons/logo-192.png" alt="Logo">
+      LUMYN
+    </a>
+    <div class="nav-links">
+      <a href="/">Головна</a>
+      <a href="/download">Додатки</a>
+      <a href="/faq">ЧаПи</a>
+      <a href="/support">Підтримка</a>
+      <a href="/updates">Оновлення</a>
+      <a href="/api">API</a>
+      <a href="/protocol">Protocol</a>
+      <a href="/schema">Schema</a>
+      <a href="/moderation">Moderation</a>
+      <a href="/en" class="btn-outline" style="margin-left: 20px;">EN</a>
+    </div>
+    
+    <button id="mobile-menu-btn" style="display:none; background:none; border:none; color:white; font-size:26px; cursor:pointer;">☰</button>
+  </nav>
 
 <div id="mobile-dropdown" style="display:none;position:fixed;top:80px;left:0;right:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.1);padding:20px;z-index:199;flex-direction:column;gap:16px;text-align:center;">
-  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Home</a>
-  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Downloads</a>
-  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">FAQ</a>
-  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Support</a>
-  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Updates</a>
+  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Головна</a>
+  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Додатки</a>
+  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">ЧаПи</a>
+  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Підтримка</a>
+  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Оновлення</a>
   <a href="/api" style="color:white;text-decoration:none;font-size:16px;">API</a>
   <a href="/protocol" style="color:white;text-decoration:none;font-size:16px;">Protocol</a>
   <a href="/schema" style="color:white;text-decoration:none;font-size:16px;">Schema</a>
   <a href="/moderation" style="color:white;text-decoration:none;font-size:16px;">Moderation</a>
-  <a href="/uk-ua" style="color:white;text-decoration:none;font-size:16px;opacity:0.5;margin-top:8px;">UA (Ukrainian)</a>
+  <a href="/en" style="color:white;text-decoration:none;font-size:16px;opacity:0.5;margin-top:8px;">EN (English)</a>
 </div>
 
 <main>
   <header class="page-header">
-    <h1>GET IN TOUCH.</h1>
-    <p>Found a bug or have a feature request? Let us know.</p>
+    <h1>ЗВ'ЯЗОК.</h1>
+    <p>Знайшли баг чи маєте пропозиції? Напишіть нам.</p>
   </header>
 
   <div class="support-form-container">
     <div class="form-inner">
       <form action="https://formspree.io/f/xlgojwbv" method="POST">
         <div class="form-group">
-          <label for="name">Your Name</label>
+          <label for="name">Ваше ім'я</label>
           <input type="text" id="name" name="name" class="form-control" placeholder="John Doe" required>
         </div>
         <div class="form-group">
@@ -232,12 +246,12 @@
           <input type="email" id="email" name="_replyto" class="form-control" placeholder="john@example.com" required>
         </div>
         <div class="form-group">
-          <label for="message">Message</label>
-          <textarea id="message" name="message" class="form-control" placeholder="Describe your issue..." required></textarea>
+          <label for="message">Повідомлення</label>
+          <textarea id="message" name="message" class="form-control" placeholder="Опишіть вашу проблему..." required></textarea>
         </div>
         <input type="hidden" name="_next" value="support.html">
         <input type="hidden" name="_gotcha" style="display:none">
-        <button type="submit" class="btn-submit">Send Request</button>
+        <button type="submit" class="btn-submit">Надіслати запит</button>
       </form>
     </div>
   </div>
@@ -246,27 +260,27 @@
 <footer class="apple-footer">
   <div class="apple-footer-content">
     <div class="footer-breadcrumbs">
-      <a href="/"><img src="../icons/logo-192.png" alt="LUMYN"> LUMYN</a>
-      <span>›</span><span>Support</span>
+      <a href="/"><img src="/icons/logo-192.png" alt="LUMYN"> LUMYN</a>
+      <span>›</span><span>Підтримка</span>
     </div>
     <div class="footer-directory">
       <div class="footer-directory-column">
         <h3 class="footer-directory-column-title">LUMYN</h3>
         <ul class="footer-directory-list">
-          <li><a href="/">Home</a></li>
-          <li><a href="/download">Downloads</a></li>
+          <li><a href="/">Головна</a></li>
+          <li><a href="/download">Додатки</a></li>
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Resources</h3>
+        <h3 class="footer-directory-column-title">Ресурси</h3>
         <ul class="footer-directory-list">
-          <li><a href="/faq">FAQ</a></li>
-          <li><a href="/support">Support</a></li>
-          <li><a href="/updates">Updates</a></li>
+          <li><a href="/faq">ЧаПи</a></li>
+          <li><a href="/support">Підтримка</a></li>
+          <li><a href="/updates">Оновлення</a></li>
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Documentation</h3>
+        <h3 class="footer-directory-column-title">Документація</h3>
         <ul class="footer-directory-list">
           <li><a href="/api">API</a></li>
           <li><a href="/protocol">Protocol</a></li>
@@ -275,7 +289,7 @@
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Project</h3>
+        <h3 class="footer-directory-column-title">Проєкт</h3>
         <ul class="footer-directory-list">
           <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li>
           <li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li>
@@ -329,6 +343,7 @@
   draw();
 })();
 
+/* ─── MOBILE MENU ─── */
 var mobileBtn = document.getElementById('mobile-menu-btn');
 if (mobileBtn) {
   mobileBtn.addEventListener('click', function() {

@@ -1,2 +1,474 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta content="IE=Edge" http-equiv="X-UA-Compatible"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"><meta name="theme-color" content="#000000"><meta name="description" content="LUMYN protocol notes: key exchange, encryption, delivery model."><link rel="icon" href="/icons/favicon.png?v=1"><link rel="apple-touch-icon" href="/icons/logo-192.png?v=6"><link rel="manifest" href="/manifest.json"><title>LUMYN | Protocol</title><script defer src="/locale-routing.js"></script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}:root{--c-bg:#000;--c-surface:#0a0a0a;--c-border:rgba(255,255,255,.08);--c-border-h:rgba(255,255,255,.2);--c-txt:#fff;--c-muted:#888;--font-main:'Inter',sans-serif;--font-mono:'JetBrains Mono',monospace}body{background:var(--c-bg);color:var(--c-txt);font-family:var(--font-main);min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}#bg-canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 40px;height:80px;display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.8);backdrop-filter:blur(20px);border-bottom:1px solid var(--c-border)}.nav-logo{font-size:16px;font-weight:900;letter-spacing:4px;text-transform:uppercase;display:flex;align-items:center;gap:12px;text-decoration:none;color:#fff}.nav-logo img{width:28px;height:28px;border-radius:6px}.nav-links{display:flex;gap:24px;align-items:center}.nav-links a{color:var(--c-muted);text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase}.nav-links a:hover,.nav-links a.active{color:#fff}.btn-outline{border:1px solid var(--c-border-h);color:#fff !important;padding:8px 16px;border-radius:100px;font-size:11px !important;text-decoration:none;margin-left:16px}#mobile-menu-btn{display:none}@media(max-width:768px){.nav-links{display:none}nav{padding:0 20px}#mobile-menu-btn{display:block !important;background:none;border:none;color:#fff;font-size:26px}}main{flex:1;max-width:800px;width:100%;margin:0 auto;padding:140px 24px 90px;position:relative;z-index:10}.page-hero{text-align:center;margin-bottom:72px}.page-badge{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--c-border);border-radius:100px;padding:6px 16px;font-family:var(--font-mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}.badge-dot{width:6px;height:6px;border-radius:50%;background:#fff}h1{font-size:clamp(48px,8vw,96px);font-weight:900;letter-spacing:-3px;line-height:.95;margin-bottom:18px}.hero-p{color:var(--c-muted);font-size:17px;line-height:1.55;max-width:650px;margin:0 auto}.back-link{display:inline-flex;gap:8px;color:var(--c-muted);text-decoration:none;font-family:var(--font-mono);font-size:13px;margin-bottom:42px}.docs-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:-24px 0 34px}.docs-tabs a{border:1px solid var(--c-border);color:var(--c-muted);text-decoration:none;padding:8px 12px;border-radius:999px;font-size:11px;text-transform:uppercase;letter-spacing:1px}.docs-tabs a.active,.docs-tabs a:hover{color:#fff;border-color:var(--c-border-h)}.sec{margin-bottom:42px}.sec-label{font-family:var(--font-mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;opacity:.5;margin-bottom:12px}.sec-title{font-size:clamp(24px,4vw,34px);font-weight:900;letter-spacing:-1px;margin-bottom:14px}.sec-desc{color:var(--c-muted);font-size:15px;line-height:1.65;margin-bottom:18px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:12px;padding:20px 18px}.card h3{font-size:14px;margin-bottom:8px}.card p,.card li{color:var(--c-muted);font-size:13px;line-height:1.55}.card ul{margin:0;padding-left:18px}.apple-footer{background:#111;color:#86868b;font-size:12px;line-height:1.33337;padding:0 22px;border-top:1px solid rgba(255,255,255,.1);position:relative;z-index:10}.apple-footer-content{max-width:980px;margin:0 auto;padding:20px 0}.footer-breadcrumbs{display:flex;align-items:center;gap:8px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:20px}.footer-breadcrumbs a{color:#f5f5f7;text-decoration:none;font-size:12px;display:flex;align-items:center;gap:6px}.footer-breadcrumbs img{width:18px;height:18px;border-radius:4px;filter:invert(1);opacity:.9}.footer-directory{display:flex;flex-wrap:wrap;margin-bottom:20px}.footer-directory-column{flex:1;flex-basis:20%;min-width:150px;margin-bottom:20px}.footer-directory-column-title{color:#f5f5f7;font-size:12px;font-weight:600;margin-bottom:10px}.footer-directory-list{list-style:none;padding:0;margin:0}.footer-directory-list li{margin-bottom:8px}.footer-directory-list a{color:#86868b;text-decoration:none}.footer-directory-list a:hover{color:#f5f5f7;text-decoration:underline}.footer-mini{padding-top:16px;border-top:1px solid rgba(255,255,255,.1)}.footer-mini-legal{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}@media(max-width:833px){.footer-directory{flex-direction:column}.footer-directory-column{min-width:100%;margin-bottom:10px}.footer-mini-legal{flex-direction:column;align-items:flex-start}}</style></head><body><canvas id="bg-canvas"></canvas><nav><a href="/" class="nav-logo"><img src="/icons/logo-192.png" alt="Logo"> LUMYN</a><div class="nav-links"><a href="/">Home</a><a href="/download">Apps</a><a href="/faq">FAQ</a><a href="/support">Support</a><a href="/updates" class="active">Updates</a><a href="/api">API</a><a href="/protocol">Protocol</a><a href="/schema">Schema</a><a href="/moderation">Moderation</a><a href="/uk-ua" class="btn-outline">UA</a></div><button id="mobile-menu-btn">☰</button></nav><div id="mobile-dropdown" style="display:none;position:fixed;top:80px;left:0;right:0;background:rgba(0,0,0,.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.1);padding:20px;z-index:199;flex-direction:column;gap:16px;text-align:center;"><a href="/" style="color:#fff;text-decoration:none;font-size:16px;">Home</a><a href="/download" style="color:#fff;text-decoration:none;font-size:16px;">Apps</a><a href="/faq" style="color:#fff;text-decoration:none;font-size:16px;">FAQ</a><a href="/support" style="color:#fff;text-decoration:none;font-size:16px;">Support</a><a href="/updates" style="color:#fff;text-decoration:none;font-size:16px;">Updates</a><a href="/api" style="color:#fff;text-decoration:none;font-size:16px;">API</a><a href="/protocol" style="color:#fff;text-decoration:none;font-size:16px;">Protocol</a><a href="/schema" style="color:#fff;text-decoration:none;font-size:16px;">Schema</a><a href="/moderation" style="color:#fff;text-decoration:none;font-size:16px;">Moderation</a><a href="/uk-ua" style="color:#fff;text-decoration:none;font-size:16px;opacity:.5;margin-top:8px;">UA (Ukrainian)</a></div><main><div class="page-hero"><div class="page-badge"><div class="badge-dot"></div> Technical Docs</div><h1>PROTOCOL<br>NOTES.</h1><p class="hero-p">LUMYN crypto flow: key exchange, message encryption, and delivery lifecycle.</p></div><a href="/updates" class="back-link">← Back to updates</a><div class="docs-tabs"><a href="/api">API</a><a href="/protocol" class="active">Protocol</a><a href="/schema">Schema</a><a href="/moderation">Moderation</a></div><section class="sec"><div class="sec-label">// 01</div><div class="sec-title">Key exchange</div><div class="cards"><div class="card"><h3>X25519 keypair</h3><p>Client generates local X25519 keys on registration. Private key never leaves device.</p></div><div class="card"><h3>Public key publish</h3><p>Server stores only public keys and routes encrypted traffic.</p></div><div class="card"><h3>Session secret</h3><p>Shared secret derived via ECDH and transformed into AES-256-GCM session keys.</p></div></div></section><section class="sec"><div class="sec-label">// 02</div><div class="sec-title">Encryption model</div><div class="sec-desc">Each message has a unique nonce and authenticated tag; ciphertext remains unreadable to the transport server.</div></section><section class="sec"><div class="sec-label">// 03</div><div class="sec-title">Roadmap</div><div class="cards"><div class="card"><h3>Implemented</h3><p>E2E for direct/group text, voice, and media.</p></div><div class="card"><h3>In progress</h3><p>Multi-device secure sync.</p></div><div class="card"><h3>Planned</h3><p>Forward secrecy and public crypto audit notes.</p></div></div></section></main><footer class="apple-footer"><div class="apple-footer-content"><div class="footer-breadcrumbs"><a href="/"><img src="/icons/logo-192.png" alt="LUMYN"> LUMYN</a><span>›</span><a href="/updates">Updates</a><span>›</span><span>Protocol</span></div><div class="footer-directory"><div class="footer-directory-column"><h3 class="footer-directory-column-title">LUMYN</h3><ul class="footer-directory-list"><li><a href="/">Home</a></li><li><a href="/download">Apps</a></li></ul></div><div class="footer-directory-column"><h3 class="footer-directory-column-title">Resources</h3><ul class="footer-directory-list"><li><a href="/faq">FAQ</a></li><li><a href="/support">Support</a></li><li><a href="/updates">Updates</a></li></ul></div><div class="footer-directory-column"><h3 class="footer-directory-column-title">Documentation</h3><ul class="footer-directory-list"><li><a href="/api">API</a></li><li><a href="/protocol">Protocol</a></li><li><a href="/schema">Schema</a></li><li><a href="/moderation">Moderation</a></li></ul></div><div class="footer-directory-column"><h3 class="footer-directory-column-title">Project</h3><ul class="footer-directory-list"><li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li><li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li><li><a href="https://t.me/lumynspace" target="_blank" rel="noopener noreferrer">Telegram</a></li></ul></div></div><div class="footer-mini"><div class="footer-mini-legal"><div>Copyright © 2026 LUMYN Protocol. All rights reserved.</div><div><span style="color:#86868b;">Made in Ukraine 🇺🇦</span></div></div></div></div></footer><script>(function(){var cv=document.getElementById('bg-canvas');var ctx=cv.getContext('2d');var W,H,ps=[],t=0;function resize(){W=cv.width=window.innerWidth;H=cv.height=window.innerHeight;}window.addEventListener('resize',resize);resize();for(var i=0;i<55;i++)ps.push({x:Math.random()*1920,y:Math.random()*1080,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2,r:Math.random()*1.4+.2,a:Math.random()*.25+.04,ph:Math.random()*Math.PI*2});function draw(){ctx.clearRect(0,0,W,H);t+=.005;ps.forEach(function(p){p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,'+(p.a*(0.6+0.4*Math.sin(t+p.ph)))+')';ctx.fill();});requestAnimationFrame(draw);}draw();})();var btn=document.getElementById('mobile-menu-btn');if(btn)btn.addEventListener('click',function(){var dd=document.getElementById('mobile-dropdown');if(dd.style.display==='none'||!dd.style.display){dd.style.display='flex';this.textContent='✕';}else{dd.style.display='none';this.textContent='☰';}});</script></body></html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="LUMYN">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="LUMYN Protocol — X25519 + AES-256-GCM криптографічна архітектура">
+  <link rel="icon" href="/icons/favicon.png?v=1">
+  <link rel="apple-touch-icon" href="/icons/logo-192.png?v=6">
+  <link rel="manifest" href="/manifest.json">
+  <meta property="og:title" content="LUMYN | Protocol">
+  <meta property="og:description" content="Документація криптографічного протоколу LUMYN: X25519, AES-256-GCM, ephemeral архітектура.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://lumyn.space/uk-ua/protocol">
+  <meta property="og:image" content="https://lumyn.space/icons/logo-512.png">
+  <title>LUMYN | Protocol</title>
+  <script defer src="/locale-routing.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { overflow-y: scroll; color-scheme: dark; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) #000; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #000; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+    :root {
+      --c-bg: #000000; --c-surface: #0a0a0a;
+      --c-border: rgba(255,255,255,0.08); --c-border-h: rgba(255,255,255,0.2);
+      --c-txt: #ffffff; --c-muted: #888888;
+      --font-main: 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body { background: var(--c-bg); color: var(--c-txt); font-family: var(--font-main); overflow-x: hidden; display: flex; flex-direction: column; min-height: 100vh; scroll-behavior: smooth; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+    #bg-canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+    /* NAV */
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 200; padding: 0 40px; height: 80px; display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--c-border); }
+    .nav-logo { font-family: var(--font-main); font-size: 16px; font-weight: 900; letter-spacing: 4px; text-transform: uppercase; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff; }
+    .nav-logo img { width: 28px; height: 28px; border-radius: 6px; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a { color: var(--c-muted); text-decoration: none; font-size: 12px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; transition: color 0.2s; }
+    .nav-links a:hover, .nav-links a.active { color: #fff; }
+    .btn-outline { border: 1px solid var(--c-border-h); background: transparent; color: #fff !important; padding: 8px 16px; border-radius: 100px; font-size: 11px !important; font-weight: 600 !important; letter-spacing: 1px; text-transform: uppercase; text-decoration: none; transition: all 0.2s; cursor: pointer; margin-left: 16px; }
+    .btn-outline:hover { background: #fff; color: #000 !important; }
+    @media (max-width: 768px) { .nav-links { display: none; } nav { padding: 0 20px; } #mobile-menu-btn { display: block !important; } }
+
+    /* MAIN */
+    main { flex: 1; display: flex; flex-direction: column; align-items: center; padding-top: 140px; padding-bottom: 100px; position: relative; z-index: 10; }
+
+    /* PAGE HERO */
+    .page-hero { text-align: center; margin-bottom: 80px; padding: 0 24px; animation: fadeUp 0.9s ease both; }
+    .page-badge { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--c-border); background: rgba(255,255,255,0.03); border-radius: 100px; padding: 6px 16px; margin-bottom: 28px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #fff; }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: blinkDot 2s infinite; }
+    @keyframes blinkDot { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    .page-hero h1 { font-size: clamp(48px, 8vw, 96px); font-weight: 900; letter-spacing: -3px; text-transform: uppercase; margin-bottom: 20px; line-height: 0.95; }
+    .page-hero p { color: var(--c-muted); font-size: 17px; max-width: 600px; margin: 0 auto; line-height: 1.55; }
+
+    /* CONTENT CONTAINER */
+    .content-wrap { width: 100%; max-width: 800px; padding: 0 24px; }
+
+    /* SECTION */
+    .doc-section { margin-bottom: 60px; animation: fadeUp 0.7s ease both; }
+    .doc-section + .doc-section { animation-delay: 0.1s; }
+    .sec-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #fff; margin-bottom: 12px; opacity: 0.5; }
+    .sec-title { font-size: clamp(24px, 4vw, 36px); font-weight: 900; letter-spacing: -1px; margin-bottom: 24px; color: #fff; }
+
+    /* FLOW DIAGRAM */
+    .flow-diagram { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 16px; overflow: hidden; margin-bottom: 24px; }
+    .flow-header { padding: 12px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--c-border); display: flex; align-items: center; gap: 8px; }
+    .flow-dot { width: 10px; height: 10px; border-radius: 50%; background: #333; }
+    .flow-title { font-family: var(--font-mono); font-size: 11px; color: #888; margin-left: 8px; }
+    .flow-body { padding: 30px 24px; font-family: var(--font-mono); font-size: 13px; color: #d0d0d0; line-height: 2; }
+    .flow-step { display: flex; align-items: flex-start; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--c-border); }
+    .flow-step:last-child { border-bottom: none; }
+    .flow-num { font-size: 10px; color: #555; width: 24px; flex-shrink: 0; margin-top: 2px; letter-spacing: 1px; }
+    .flow-content { flex: 1; }
+    .flow-name { color: #fff; font-weight: 700; margin-bottom: 4px; font-size: 13px; }
+    .flow-desc { color: #666; font-size: 12px; line-height: 1.5; font-family: var(--font-main); }
+    .flow-tag { display: inline-block; background: rgba(255,255,255,0.05); border: 1px solid var(--c-border); border-radius: 4px; padding: 2px 8px; font-size: 10px; color: #aaa; letter-spacing: 1px; margin-top: 6px; }
+
+    /* INFO CARDS GRID */
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .info-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 24px 20px; transition: border-color 0.3s; }
+    .info-card:hover { border-color: var(--c-border-h); }
+    .info-card-label { font-family: var(--font-mono); font-size: 10px; color: #555; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+    .info-card-val { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 8px; letter-spacing: -0.5px; }
+    .info-card-desc { font-size: 13px; color: var(--c-muted); line-height: 1.5; }
+
+    /* CODE BLOCK */
+    .code-block { background: #000; border: 1px solid var(--c-border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+    .code-header { padding: 10px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--c-border); display: flex; align-items: center; justify-content: space-between; }
+    .code-lang { font-family: var(--font-mono); font-size: 10px; color: #555; letter-spacing: 2px; text-transform: uppercase; }
+    .code-body { padding: 24px; font-family: var(--font-mono); font-size: 13px; color: #ccc; line-height: 1.8; overflow-x: auto; }
+    .code-comment { color: #555; }
+    .code-key { color: #aaa; }
+    .code-val { color: #fff; }
+    .code-str { color: #ccc; }
+
+    /* TIMELINE */
+    .timeline { position: relative; padding-left: 28px; }
+    .timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 1px; background: var(--c-border); }
+    .tl-item { position: relative; padding-bottom: 32px; }
+    .tl-item:last-child { padding-bottom: 0; }
+    .tl-dot { position: absolute; left: -28px; top: 4px; width: 14px; height: 14px; border-radius: 50%; background: #000; border: 2px solid rgba(255,255,255,0.3); }
+    .tl-item.active .tl-dot { background: #fff; border-color: #fff; }
+    .tl-label { font-family: var(--font-mono); font-size: 10px; color: #555; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+    .tl-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .tl-desc { font-size: 14px; color: var(--c-muted); line-height: 1.6; }
+
+    /* BACK LINK */
+    .back-link { display: inline-flex; align-items: center; gap: 8px; color: var(--c-muted); text-decoration: none; font-size: 13px; font-family: var(--font-mono); letter-spacing: 1px; margin-bottom: 48px; transition: color 0.2s; }
+    .back-link:hover { color: #fff; }
+    .docs-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: -28px 0 38px; }
+    .docs-tabs a { border: 1px solid var(--c-border); color: var(--c-muted); text-decoration: none; padding: 8px 12px; border-radius: 999px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .docs-tabs a:hover, .docs-tabs a.active { color: #fff; border-color: var(--c-border-h); }
+
+    /* APPLE FOOTER */
+    .apple-footer { background: #111; color: #86868b; font-family: var(--font-main); font-size: 12px; line-height: 1.33337; font-weight: 400; padding: 0 22px; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; position: relative; z-index: 10; }
+    .apple-footer-content { max-width: 980px; margin: 0 auto; padding: 20px 0; }
+    .footer-breadcrumbs { display: flex; align-items: center; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
+    .footer-breadcrumbs a { color: #f5f5f7; text-decoration: none; font-weight: 500; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .footer-breadcrumbs img { width: 18px !important; height: 18px !important; border-radius: 4px; object-fit: contain; filter: invert(1); opacity: 0.9; }
+    .footer-breadcrumbs span { color: #86868b; font-size: 12px; }
+    .footer-directory { display: flex; flex-wrap: wrap; margin-bottom: 20px; }
+    .footer-directory-column { flex: 1; flex-basis: 20%; min-width: 150px; margin-bottom: 20px; }
+    .footer-directory-column-title { color: #f5f5f7; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+    .footer-directory-list { list-style: none; padding: 0; margin: 0; }
+    .footer-directory-list li { margin-bottom: 8px; }
+    .footer-directory-list a { color: #86868b; text-decoration: none; transition: color 0.2s; }
+    .footer-directory-list a:hover { color: #f5f5f7; text-decoration: underline; }
+    .footer-mini { padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 12px; }
+    .footer-mini-legal { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    @media (max-width: 833px) { .footer-directory { flex-direction: column; gap: 10px; } .footer-directory-column { flex-basis: 100%; min-width: 100%; margin-bottom: 10px; } .footer-mini-legal { flex-direction: column; align-items: flex-start; } }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* REVEAL */
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<nav>
+  <a href="/" class="nav-logo">
+    <img src="/icons/logo-192.png" alt="Logo"> LUMYN
+  </a>
+  <div class="nav-links">
+    <a href="/">Головна</a>
+    <a href="/download">Додатки</a>
+    <a href="/faq">ЧаПи</a>
+    <a href="/support">Підтримка</a>
+    <a href="/updates" class="active">Оновлення</a>
+    <a href="/api">API</a>
+    <a href="/protocol">Protocol</a>
+    <a href="/schema">Schema</a>
+    <a href="/moderation">Moderation</a>
+    <a href="/en" class="btn-outline" style="margin-left:20px;">EN</a>
+  </div>
+  <button id="mobile-menu-btn" style="display:none;background:none;border:none;color:white;font-size:26px;cursor:pointer;">☰</button>
+</nav>
+
+<div id="mobile-dropdown" style="display:none;position:fixed;top:80px;left:0;right:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.1);padding:20px;z-index:199;flex-direction:column;gap:16px;text-align:center;">
+  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Головна</a>
+  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Додатки</a>
+  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">ЧаПи</a>
+  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Підтримка</a>
+  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Оновлення</a>
+  <a href="/api" style="color:white;text-decoration:none;font-size:16px;">API</a>
+  <a href="/protocol" style="color:white;text-decoration:none;font-size:16px;">Protocol</a>
+  <a href="/schema" style="color:white;text-decoration:none;font-size:16px;">Schema</a>
+  <a href="/moderation" style="color:white;text-decoration:none;font-size:16px;">Moderation</a>
+  <a href="/en" style="color:white;text-decoration:none;font-size:16px;opacity:0.5;margin-top:8px;">EN (English)</a>
+</div>
+
+<main>
+  <div class="page-hero">
+    <div class="page-badge"><div class="badge-dot"></div> Технічна документація</div>
+    <h1>PROTOCOL<br>NOTES.</h1>
+    <p>Криптографічний потік LUMYN: обмін ключами, шифрування повідомлень, ephemeral архітектура та Socket.IO транспорт.</p>
+  </div>
+
+  <div class="content-wrap">
+    <a href="/updates" class="back-link">← Назад до оновлень</a>
+    <div class="docs-tabs">
+      <a href="/api">API</a>
+      <a href="/protocol" class="active">Protocol</a>
+      <a href="/schema">Schema</a>
+      <a href="/moderation">Moderation</a>
+    </div>
+
+    <!-- KEY EXCHANGE FLOW -->
+    <div class="doc-section reveal">
+      <div class="sec-label">// 01</div>
+      <div class="sec-title">Обмін ключами</div>
+      <div class="flow-diagram">
+        <div class="flow-header">
+          <div class="flow-dot"></div><div class="flow-dot"></div><div class="flow-dot"></div>
+          <div class="flow-title">lumyn/core — key-exchange.flow</div>
+        </div>
+        <div class="flow-body">
+          <div class="flow-step">
+            <div class="flow-num">01</div>
+            <div class="flow-content">
+              <div class="flow-name">Генерація ключової пари</div>
+              <div class="flow-desc">Клієнт генерує X25519 ключову пару локально при реєстрації. Приватний ключ зберігається у flutter_secure_storage і ніколи не залишає пристрій.</div>
+              <div class="flow-tag">X25519 · flutter_secure_storage</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">02</div>
+            <div class="flow-content">
+              <div class="flow-name">Публікація публічного ключа</div>
+              <div class="flow-desc">Публічний ключ реєструється на сервері Socket.IO. Сервер виступає лише як key server — не може розшифрувати жодного повідомлення.</div>
+              <div class="flow-tag">Socket.IO · Node.js</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">03</div>
+            <div class="flow-content">
+              <div class="flow-name">ECDH shared secret</div>
+              <div class="flow-desc">При відкритті чату клієнт отримує публічний ключ співрозмовника і обчислює спільний секрет через X25519 ECDH. Shared secret ніколи не передається по мережі.</div>
+              <div class="flow-tag">Elliptic Curve Diffie-Hellman</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">04</div>
+            <div class="flow-content">
+              <div class="flow-name">Деривація сесійного ключа</div>
+              <div class="flow-desc">Зі shared secret деривується сесійний ключ для AES-256-GCM шифрування через HKDF. Для кожного повідомлення генерується унікальний nonce.</div>
+              <div class="flow-tag">HKDF · AES-256-GCM · cryptography package</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MESSAGE FLOW -->
+    <div class="doc-section reveal">
+      <div class="sec-label">// 02</div>
+      <div class="sec-title">Шифрування повідомлень</div>
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="info-card-label">Алгоритм</div>
+          <div class="info-card-val">AES-256-GCM</div>
+          <div class="info-card-desc">Автентифіковане шифрування з додатковими даними. Кожне повідомлення індивідуально зашифровано.</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-label">Ключ обміну</div>
+          <div class="info-card-val">X25519</div>
+          <div class="info-card-desc">Elliptic Curve Diffie-Hellman на Curve25519. Швидкий та стійкий проти атак.</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-label">Nonce</div>
+          <div class="info-card-val">96 bit</div>
+          <div class="info-card-desc">Унікальний per-message nonce гарантує що однаковий текст завжди шифрується по-різному.</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-label">MAC</div>
+          <div class="info-card-val">GCM tag</div>
+          <div class="info-card-desc">128-бітний authentication tag верифікує цілісність і автентичність кожного повідомлення.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRANSPORT -->
+    <div class="doc-section reveal">
+      <div class="sec-label">// 03</div>
+      <div class="sec-title">Транспорт та доставка</div>
+      <div class="flow-diagram">
+        <div class="flow-header">
+          <div class="flow-dot"></div><div class="flow-dot"></div><div class="flow-dot"></div>
+          <div class="flow-title">lumyn/transport — socket-events</div>
+        </div>
+        <div class="flow-body">
+          <div class="flow-step">
+            <div class="flow-num">→</div>
+            <div class="flow-content">
+              <div class="flow-name">sendMessage</div>
+              <div class="flow-desc">Клієнт відправляє зашифрований payload. Сервер маршрутизує до отримувача або групи не бачачи вмісту.</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">→</div>
+            <div class="flow-content">
+              <div class="flow-name">sendGroupMessage</div>
+              <div class="flow-desc">Групові повідомлення підтримують груповий shared secret або per-member шифрування залежно від налаштувань.</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">→</div>
+            <div class="flow-content">
+              <div class="flow-name">sendEphemeral / sendEphemeralGroup</div>
+              <div class="flow-desc">Ефірні повідомлення позначені флагом isEphemeral. Після підтвердження доставки сервер видаляє з пам'яті. Клієнт видаляє після перегляду.</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">→</div>
+            <div class="flow-content">
+              <div class="flow-name">sendVoice / sendImage</div>
+              <div class="flow-desc">Медіа-файли шифруються окремим ключем, закодовуються в base64 і передаються як частина payload.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VOLATILE MEMORY -->
+    <div class="doc-section reveal">
+      <div class="sec-label">// 04</div>
+      <div class="sec-title">Volatile Memory Model</div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-lang">Server Architecture</div>
+        </div>
+        <div class="code-body">
+<span class="code-comment">// Сервер не має бази даних для повідомлень</span>
+<span class="code-comment">// Весь стан зберігається виключно в RAM</span>
+
+<span class="code-key">const</span> <span class="code-val">activeConnections</span> = <span class="code-str">new Map()</span>; <span class="code-comment">// socket per user</span>
+<span class="code-key">const</span> <span class="code-val">publicKeys</span> = <span class="code-str">new Map()</span>;      <span class="code-comment">// public keys only</span>
+<span class="code-key">const</span> <span class="code-val">offlineQueue</span> = <span class="code-str">new Map()</span>;    <span class="code-comment">// temp until delivery</span>
+
+<span class="code-comment">// Після доставки — повідомлення знищується</span>
+<span class="code-comment">// Після відключення — сесія очищається</span>
+<span class="code-comment">// Zero persistent storage for message content</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATUS -->
+    <div class="doc-section reveal">
+      <div class="sec-label">// Статус</div>
+      <div class="sec-title">Roadmap протоколу</div>
+      <div class="timeline">
+        <div class="tl-item active">
+          <div class="tl-dot"></div>
+          <div class="tl-label">Реалізовано</div>
+          <div class="tl-title">X25519 + AES-256-GCM E2E</div>
+          <div class="tl-desc">Повноцінне end-to-end шифрування для прямих та групових чатів, голосових і медіа повідомлень.</div>
+        </div>
+        <div class="tl-item active">
+          <div class="tl-dot"></div>
+          <div class="tl-label">Реалізовано</div>
+          <div class="tl-title">Ephemeral Messages</div>
+          <div class="tl-desc">Ефірні повідомлення для прямих чатів та груп, що зникають після перегляду на всіх пристроях.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-label">В розробці</div>
+          <div class="tl-title">Multi-device синхронізація</div>
+          <div class="tl-desc">Безпечна синхронізація сесій між пристроями без компромісу Zero-Knowledge архітектури.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-label">Заплановано</div>
+          <div class="tl-title">Forward Secrecy</div>
+          <div class="tl-desc">Ротація ключів для гарантії що компрометація поточного ключа не розкриє минулі повідомлення.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-label">Заплановано</div>
+          <div class="tl-title">Відкритий вихідний код</div>
+          <div class="tl-desc">Публічний аудит криптографічного коду клієнтської частини та бекенду.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="apple-footer">
+  <div class="apple-footer-content">
+    <div class="footer-breadcrumbs">
+      <a href="/"><img src="/icons/logo-192.png" alt="LUMYN"> LUMYN</a>
+      <span>›</span><a href="/updates">Оновлення</a>
+      <span>›</span><span>Protocol</span>
+    </div>
+    <div class="footer-directory">
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">LUMYN</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/">Головна</a></li>
+          <li><a href="/download">Додатки</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Ресурси</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/faq">ЧаПи</a></li>
+          <li><a href="/support">Підтримка</a></li>
+          <li><a href="/updates">Оновлення</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Документація</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/api">API</a></li>
+          <li><a href="/protocol">Protocol</a></li>
+          <li><a href="/schema">Schema</a></li>
+          <li><a href="/moderation">Moderation</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Проєкт</h3>
+        <ul class="footer-directory-list">
+          <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li>
+          <li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li>
+          <li><a href="https://t.me/lumynspace" target="_blank" rel="noopener noreferrer">Telegram</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-mini">
+      <div class="footer-mini-legal">
+        <div>Copyright © 2026 LUMYN Protocol. All rights reserved.</div>
+        <div><span style="color:#86868b;">Made in Ukraine 🇺🇦</span></div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* PARTICLES */
+(function(){
+  var cv = document.getElementById('bg-canvas');
+  var ctx = cv.getContext('2d');
+  var W, H, ps = [], t = 0;
+  function resize(){ W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }
+  window.addEventListener('resize', resize); resize();
+  for(var i=0;i<55;i++) ps.push({x:Math.random()*1920,y:Math.random()*1080,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2,r:Math.random()*1.4+.2,a:Math.random()*.25+.04,ph:Math.random()*Math.PI*2});
+  function draw(){
+    ctx.clearRect(0,0,W,H); t+=.005;
+    ps.forEach(function(p){
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+      if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,'+(p.a*(0.6+0.4*Math.sin(t+p.ph)))+')'; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* MOBILE MENU */
+var btn = document.getElementById('mobile-menu-btn');
+if(btn) btn.addEventListener('click',function(){
+  var dd=document.getElementById('mobile-dropdown');
+  if(dd.style.display==='none'||!dd.style.display){dd.style.display='flex';this.textContent='✕';}
+  else{dd.style.display='none';this.textContent='☰';}
+});
+
+/* SCROLL REVEAL */
+(function(){
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target);} });
+  },{threshold:0.08,rootMargin:'0px 0px -30px 0px'});
+  document.querySelectorAll('.reveal').forEach(function(el,i){
+    el.style.transitionDelay=(i*0.07)+'s'; obs.observe(el);
+  });
+})();
+</script>
+</body>
+</html>

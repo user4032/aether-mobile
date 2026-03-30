@@ -1,2 +1,422 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta content="IE=Edge" http-equiv="X-UA-Compatible"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"><meta name="theme-color" content="#000000"><meta name="description" content="LUMYN moderation policy and abuse-response model."><link rel="icon" href="/icons/favicon.png?v=1"><link rel="apple-touch-icon" href="/icons/logo-192.png?v=6"><link rel="manifest" href="/manifest.json"><title>LUMYN | Moderation</title><script defer src="/locale-routing.js"></script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}:root{--c-bg:#000;--c-surface:#0a0a0a;--c-border:rgba(255,255,255,.08);--c-border-h:rgba(255,255,255,.2);--c-txt:#fff;--c-muted:#888;--font-main:'Inter',sans-serif;--font-mono:'JetBrains Mono',monospace}body{background:var(--c-bg);color:var(--c-txt);font-family:var(--font-main);min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}#bg-canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 40px;height:80px;display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.8);backdrop-filter:blur(20px);border-bottom:1px solid var(--c-border)}.nav-logo{font-size:16px;font-weight:900;letter-spacing:4px;text-transform:uppercase;display:flex;align-items:center;gap:12px;text-decoration:none;color:#fff}.nav-logo img{width:28px;height:28px;border-radius:6px}.nav-links{display:flex;gap:24px;align-items:center}.nav-links a{color:var(--c-muted);text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase}.nav-links a:hover,.nav-links a.active{color:#fff}.btn-outline{border:1px solid var(--c-border-h);color:#fff !important;padding:8px 16px;border-radius:100px;font-size:11px !important;text-decoration:none;margin-left:16px}#mobile-menu-btn{display:none}@media(max-width:768px){.nav-links{display:none}nav{padding:0 20px}#mobile-menu-btn{display:block !important;background:none;border:none;color:#fff;font-size:26px}}main{flex:1;max-width:800px;width:100%;margin:0 auto;padding:140px 24px 90px;position:relative;z-index:10}.page-hero{text-align:center;margin-bottom:72px}.page-badge{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--c-border);border-radius:100px;padding:6px 16px;font-family:var(--font-mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}.badge-dot{width:6px;height:6px;border-radius:50%;background:#fff}h1{font-size:clamp(48px,8vw,96px);font-weight:900;letter-spacing:-3px;line-height:.95;margin-bottom:18px}.hero-p{color:var(--c-muted);font-size:17px;line-height:1.55;max-width:650px;margin:0 auto}.back-link{display:inline-flex;gap:8px;color:var(--c-muted);text-decoration:none;font-family:var(--font-mono);font-size:13px;margin-bottom:42px}.docs-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:-24px 0 34px}.docs-tabs a{border:1px solid var(--c-border);color:var(--c-muted);text-decoration:none;padding:8px 12px;border-radius:999px;font-size:11px;text-transform:uppercase;letter-spacing:1px}.docs-tabs a.active,.docs-tabs a:hover{color:#fff;border-color:var(--c-border-h)}.sec{margin-bottom:42px}.sec-label{font-family:var(--font-mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;opacity:.5;margin-bottom:12px}.sec-title{font-size:clamp(24px,4vw,34px);font-weight:900;letter-spacing:-1px;margin-bottom:14px}.sec-desc{color:var(--c-muted);font-size:15px;line-height:1.65;margin-bottom:18px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:12px;padding:20px 18px}.card h3{font-size:14px;margin-bottom:8px}.card p,.card li{color:var(--c-muted);font-size:13px;line-height:1.55}.card ul{margin:0;padding-left:18px}.apple-footer{background:#111;color:#86868b;font-size:12px;line-height:1.33337;padding:0 22px;border-top:1px solid rgba(255,255,255,.1);position:relative;z-index:10}.apple-footer-content{max-width:980px;margin:0 auto;padding:20px 0}.footer-breadcrumbs{display:flex;align-items:center;gap:8px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:20px}.footer-breadcrumbs a{color:#f5f5f7;text-decoration:none;font-size:12px;display:flex;align-items:center;gap:6px}.footer-breadcrumbs img{width:18px;height:18px;border-radius:4px;filter:invert(1);opacity:.9}.footer-directory{display:flex;flex-wrap:wrap;margin-bottom:20px}.footer-directory-column{flex:1;flex-basis:20%;min-width:150px;margin-bottom:20px}.footer-directory-column-title{color:#f5f5f7;font-size:12px;font-weight:600;margin-bottom:10px}.footer-directory-list{list-style:none;padding:0;margin:0}.footer-directory-list li{margin-bottom:8px}.footer-directory-list a{color:#86868b;text-decoration:none}.footer-directory-list a:hover{color:#f5f5f7;text-decoration:underline}.footer-mini{padding-top:16px;border-top:1px solid rgba(255,255,255,.1)}.footer-mini-legal{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}@media(max-width:833px){.footer-directory{flex-direction:column}.footer-directory-column{min-width:100%;margin-bottom:10px}.footer-mini-legal{flex-direction:column;align-items:flex-start}}</style></head><body><canvas id="bg-canvas"></canvas><nav><a href="/" class="nav-logo"><img src="/icons/logo-192.png" alt="Logo"> LUMYN</a><div class="nav-links"><a href="/">Home</a><a href="/download">Apps</a><a href="/faq">FAQ</a><a href="/support">Support</a><a href="/updates" class="active">Updates</a><a href="/api">API</a><a href="/protocol">Protocol</a><a href="/schema">Schema</a><a href="/moderation">Moderation</a><a href="/uk-ua" class="btn-outline">UA</a></div><button id="mobile-menu-btn">☰</button></nav><div id="mobile-dropdown" style="display:none;position:fixed;top:80px;left:0;right:0;background:rgba(0,0,0,.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.1);padding:20px;z-index:199;flex-direction:column;gap:16px;text-align:center;"><a href="/" style="color:#fff;text-decoration:none;font-size:16px;">Home</a><a href="/download" style="color:#fff;text-decoration:none;font-size:16px;">Apps</a><a href="/faq" style="color:#fff;text-decoration:none;font-size:16px;">FAQ</a><a href="/support" style="color:#fff;text-decoration:none;font-size:16px;">Support</a><a href="/updates" style="color:#fff;text-decoration:none;font-size:16px;">Updates</a><a href="/api" style="color:#fff;text-decoration:none;font-size:16px;">API</a><a href="/protocol" style="color:#fff;text-decoration:none;font-size:16px;">Protocol</a><a href="/schema" style="color:#fff;text-decoration:none;font-size:16px;">Schema</a><a href="/moderation" style="color:#fff;text-decoration:none;font-size:16px;">Moderation</a><a href="/uk-ua" style="color:#fff;text-decoration:none;font-size:16px;opacity:.5;margin-top:8px;">UA (Ukrainian)</a></div><main><div class="page-hero"><div class="page-badge"><div class="badge-dot"></div> Safety policy</div><h1>MODERATION<br>POLICY.</h1><p class="hero-p">How LUMYN handles abuse while preserving Zero-Knowledge architecture and user privacy.</p></div><a href="/updates" class="back-link">← Back to updates</a><div class="docs-tabs"><a href="/api">API</a><a href="/protocol">Protocol</a><a href="/schema">Schema</a><a href="/moderation" class="active">Moderation</a></div><section class="sec"><div class="sec-label">// Principles</div><div class="sec-title">Privacy-first moderation</div><div class="cards"><div class="card"><h3>No backdoors</h3><p>Private chats cannot be decrypted by server-side tools.</p></div><div class="card"><h3>Metadata minimization</h3><p>Only technical signals for abuse prevention are used.</p></div><div class="card"><h3>Appeal process</h3><p>Restricted users can submit review requests through support.</p></div></div></section><section class="sec"><div class="sec-label">// Flow</div><div class="sec-title">Abuse response steps</div><div class="cards"><div class="card"><h3>Report intake</h3><p>Support form or security channel report.</p></div><div class="card"><h3>Technical verification</h3><p>Rate-limit and anomaly checks, no message content reading.</p></div><div class="card"><h3>Decision and appeal</h3><p>Warning, throttle, key blocklist, and optional appeal window.</p></div></div></section></main><footer class="apple-footer"><div class="apple-footer-content"><div class="footer-breadcrumbs"><a href="/"><img src="/icons/logo-192.png" alt="LUMYN"> LUMYN</a><span>›</span><a href="/updates">Updates</a><span>›</span><span>Moderation</span></div><div class="footer-directory"><div class="footer-directory-column"><h3 class="footer-directory-column-title">LUMYN</h3><ul class="footer-directory-list"><li><a href="/">Home</a></li><li><a href="/download">Apps</a></li></ul></div><div class="footer-directory-column"><h3 class="footer-directory-column-title">Resources</h3><ul class="footer-directory-list"><li><a href="/faq">FAQ</a></li><li><a href="/support">Support</a></li><li><a href="/updates">Updates</a></li></ul></div><div class="footer-directory-column"><h3 class="footer-directory-column-title">Documentation</h3><ul class="footer-directory-list"><li><a href="/api">API</a></li><li><a href="/protocol">Protocol</a></li><li><a href="/schema">Schema</a></li><li><a href="/moderation">Moderation</a></li></ul></div><div class="footer-directory-column"><h3 class="footer-directory-column-title">Project</h3><ul class="footer-directory-list"><li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li><li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li><li><a href="https://t.me/lumynspace" target="_blank" rel="noopener noreferrer">Telegram</a></li></ul></div></div><div class="footer-mini"><div class="footer-mini-legal"><div>Copyright © 2026 LUMYN Protocol. All rights reserved.</div><div><span style="color:#86868b;">Made in Ukraine 🇺🇦</span></div></div></div></div></footer><script>(function(){var cv=document.getElementById('bg-canvas');var ctx=cv.getContext('2d');var W,H,ps=[],t=0;function resize(){W=cv.width=window.innerWidth;H=cv.height=window.innerHeight;}window.addEventListener('resize',resize);resize();for(var i=0;i<55;i++)ps.push({x:Math.random()*1920,y:Math.random()*1080,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2,r:Math.random()*1.4+.2,a:Math.random()*.25+.04,ph:Math.random()*Math.PI*2});function draw(){ctx.clearRect(0,0,W,H);t+=.005;ps.forEach(function(p){p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,'+(p.a*(0.6+0.4*Math.sin(t+p.ph)))+')';ctx.fill();});requestAnimationFrame(draw);}draw();})();var btn=document.getElementById('mobile-menu-btn');if(btn)btn.addEventListener('click',function(){var dd=document.getElementById('mobile-dropdown');if(dd.style.display==='none'||!dd.style.display){dd.style.display='flex';this.textContent='✕';}else{dd.style.display='none';this.textContent='☰';}});</script></body></html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="LUMYN">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="LUMYN Moderation Policy — abuse-handling та безпечне реагування для privacy-first месенджера">
+  <link rel="icon" href="/icons/favicon.png?v=1">
+  <link rel="apple-touch-icon" href="/icons/logo-192.png?v=6">
+  <link rel="manifest" href="/manifest.json">
+  <meta property="og:title" content="LUMYN | Moderation">
+  <meta property="og:description" content="Модель реагування на abuse та безпекова політика LUMYN.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://lumyn.space/uk-ua/moderation">
+  <meta property="og:image" content="https://lumyn.space/icons/logo-512.png">
+  <title>LUMYN | Moderation</title>
+  <script defer src="/locale-routing.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { overflow-y: scroll; color-scheme: dark; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) #000; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #000; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+    :root {
+      --c-bg: #000000; --c-surface: #0a0a0a;
+      --c-border: rgba(255,255,255,0.08); --c-border-h: rgba(255,255,255,0.2);
+      --c-txt: #ffffff; --c-muted: #888888;
+      --font-main: 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body { background: var(--c-bg); color: var(--c-txt); font-family: var(--font-main); overflow-x: hidden; display: flex; flex-direction: column; min-height: 100vh; scroll-behavior: smooth; user-select: none; -webkit-tap-highlight-color: transparent; }
+    #bg-canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 200; padding: 0 40px; height: 80px; display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--c-border); }
+    .nav-logo { font-family: var(--font-main); font-size: 16px; font-weight: 900; letter-spacing: 4px; text-transform: uppercase; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff; }
+    .nav-logo img { width: 28px; height: 28px; border-radius: 6px; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a { color: var(--c-muted); text-decoration: none; font-size: 12px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; transition: color 0.2s; }
+    .nav-links a:hover, .nav-links a.active { color: #fff; }
+    .btn-outline { border: 1px solid var(--c-border-h); background: transparent; color: #fff !important; padding: 8px 16px; border-radius: 100px; font-size: 11px !important; font-weight: 600 !important; letter-spacing: 1px; text-transform: uppercase; text-decoration: none; transition: all 0.2s; cursor: pointer; margin-left: 16px; }
+    .btn-outline:hover { background: #fff; color: #000 !important; }
+    @media (max-width: 768px) { .nav-links { display: none; } nav { padding: 0 20px; } #mobile-menu-btn { display: block !important; } }
+
+    main { flex: 1; display: flex; flex-direction: column; align-items: center; padding-top: 140px; padding-bottom: 100px; position: relative; z-index: 10; }
+
+    .page-hero { text-align: center; margin-bottom: 80px; padding: 0 24px; animation: fadeUp 0.9s ease both; }
+    .page-badge { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--c-border); background: rgba(255,255,255,0.03); border-radius: 100px; padding: 6px 16px; margin-bottom: 28px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #fff; }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: blinkDot 2s infinite; }
+    @keyframes blinkDot { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    .page-hero h1 { font-size: clamp(48px, 8vw, 96px); font-weight: 900; letter-spacing: -3px; text-transform: uppercase; margin-bottom: 20px; line-height: 0.95; }
+    .page-hero p { color: var(--c-muted); font-size: 17px; max-width: 600px; margin: 0 auto; line-height: 1.55; }
+
+    .content-wrap { width: 100%; max-width: 800px; padding: 0 24px; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 8px; color: var(--c-muted); text-decoration: none; font-size: 13px; font-family: var(--font-mono); letter-spacing: 1px; margin-bottom: 48px; transition: color 0.2s; }
+    .back-link:hover { color: #fff; }
+    .docs-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: -28px 0 38px; }
+    .docs-tabs a { border: 1px solid var(--c-border); color: var(--c-muted); text-decoration: none; padding: 8px 12px; border-radius: 999px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .docs-tabs a:hover, .docs-tabs a.active { color: #fff; border-color: var(--c-border-h); }
+
+    .doc-section { margin-bottom: 60px; }
+    .sec-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #fff; margin-bottom: 12px; opacity: 0.5; }
+    .sec-title { font-size: clamp(24px, 4vw, 36px); font-weight: 900; letter-spacing: -1px; margin-bottom: 20px; color: #fff; }
+    .sec-desc { font-size: 15px; color: var(--c-muted); line-height: 1.65; margin-bottom: 24px; }
+
+    /* PRINCIPLE CARDS */
+    .principle-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .principle-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 14px; padding: 28px 22px; transition: border-color 0.3s; }
+    .principle-card:hover { border-color: var(--c-border-h); }
+    .principle-ico { margin-bottom: 16px; }
+    .principle-ico svg { width: 26px; height: 26px; }
+    .principle-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 10px; }
+    .principle-desc { font-size: 13px; color: var(--c-muted); line-height: 1.6; }
+
+    /* PROCESS STEPS */
+    .process-list { display: flex; flex-direction: column; gap: 0; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 14px; overflow: hidden; margin-bottom: 24px; }
+    .process-step { display: flex; align-items: flex-start; gap: 20px; padding: 22px 24px; border-bottom: 1px solid var(--c-border); transition: background 0.2s; }
+    .process-step:last-child { border-bottom: none; }
+    .process-step:hover { background: rgba(255,255,255,0.02); }
+    .process-num { font-family: var(--font-mono); font-size: 11px; color: #444; width: 28px; flex-shrink: 0; padding-top: 2px; letter-spacing: 1px; }
+    .process-content { flex: 1; }
+    .process-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+    .process-desc { font-size: 13px; color: var(--c-muted); line-height: 1.6; }
+    .process-tag { display: inline-block; margin-top: 8px; font-family: var(--font-mono); font-size: 10px; color: #555; background: rgba(255,255,255,0.03); border: 1px solid var(--c-border); border-radius: 4px; padding: 2px 8px; letter-spacing: 1px; }
+
+    /* NOTICE */
+    .notice { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 22px 24px; display: flex; gap: 16px; align-items: flex-start; margin-bottom: 24px; }
+    .notice-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .notice-text { font-size: 14px; color: var(--c-muted); line-height: 1.6; }
+    .notice-text strong { color: #fff; }
+
+    /* CONTACT BLOCK */
+    .contact-block { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 14px; padding: 36px 32px; text-align: center; }
+    .contact-block h3 { font-size: 22px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.5px; }
+    .contact-block p { font-size: 14px; color: var(--c-muted); margin-bottom: 24px; line-height: 1.6; }
+    .contact-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary { background: #fff; color: #000; padding: 12px 28px; border-radius: 100px; font-weight: 700; font-size: 13px; text-decoration: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,255,255,0.2); }
+    .btn-ghost { background: transparent; color: #fff; border: 1px solid var(--c-border-h); padding: 12px 28px; border-radius: 100px; font-weight: 600; font-size: 13px; text-decoration: none; transition: all 0.2s; }
+    .btn-ghost:hover { background: #fff; color: #000; }
+
+    /* REVEAL */
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* APPLE FOOTER */
+    .apple-footer { background: #111; color: #86868b; font-family: var(--font-main); font-size: 12px; line-height: 1.33337; font-weight: 400; padding: 0 22px; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; position: relative; z-index: 10; }
+    .apple-footer-content { max-width: 980px; margin: 0 auto; padding: 20px 0; }
+    .footer-breadcrumbs { display: flex; align-items: center; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
+    .footer-breadcrumbs a { color: #f5f5f7; text-decoration: none; font-weight: 500; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .footer-breadcrumbs img { width: 18px !important; height: 18px !important; border-radius: 4px; object-fit: contain; filter: invert(1); opacity: 0.9; }
+    .footer-breadcrumbs span { color: #86868b; font-size: 12px; }
+    .footer-directory { display: flex; flex-wrap: wrap; margin-bottom: 20px; }
+    .footer-directory-column { flex: 1; flex-basis: 20%; min-width: 150px; margin-bottom: 20px; }
+    .footer-directory-column-title { color: #f5f5f7; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+    .footer-directory-list { list-style: none; padding: 0; margin: 0; }
+    .footer-directory-list li { margin-bottom: 8px; }
+    .footer-directory-list a { color: #86868b; text-decoration: none; transition: color 0.2s; }
+    .footer-directory-list a:hover { color: #f5f5f7; text-decoration: underline; }
+    .footer-mini { padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 12px; }
+    .footer-mini-legal { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    @media (max-width: 833px) { .footer-directory { flex-direction: column; gap: 10px; } .footer-directory-column { flex-basis: 100%; min-width: 100%; margin-bottom: 10px; } .footer-mini-legal { flex-direction: column; align-items: flex-start; } }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<nav>
+  <a href="/" class="nav-logo"><img src="/icons/logo-192.png" alt="Logo"> LUMYN</a>
+  <div class="nav-links">
+    <a href="/">Головна</a>
+    <a href="/download">Додатки</a>
+    <a href="/faq">ЧаПи</a>
+    <a href="/support">Підтримка</a>
+    <a href="/updates" class="active">Оновлення</a>
+    <a href="/api">API</a>
+    <a href="/protocol">Protocol</a>
+    <a href="/schema">Schema</a>
+    <a href="/moderation">Moderation</a>
+    <a href="/en" class="btn-outline" style="margin-left:20px;">EN</a>
+  </div>
+  <button id="mobile-menu-btn" style="display:none;background:none;border:none;color:white;font-size:26px;cursor:pointer;">☰</button>
+</nav>
+
+<div id="mobile-dropdown" style="display:none;position:fixed;top:80px;left:0;right:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.1);padding:20px;z-index:199;flex-direction:column;gap:16px;text-align:center;">
+  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Головна</a>
+  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Додатки</a>
+  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">ЧаПи</a>
+  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Підтримка</a>
+  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Оновлення</a>
+  <a href="/api" style="color:white;text-decoration:none;font-size:16px;">API</a>
+  <a href="/protocol" style="color:white;text-decoration:none;font-size:16px;">Protocol</a>
+  <a href="/schema" style="color:white;text-decoration:none;font-size:16px;">Schema</a>
+  <a href="/moderation" style="color:white;text-decoration:none;font-size:16px;">Moderation</a>
+  <a href="/en" style="color:white;text-decoration:none;font-size:16px;opacity:0.5;margin-top:8px;">EN (English)</a>
+</div>
+
+<main>
+  <div class="page-hero">
+    <div class="page-badge"><div class="badge-dot"></div> Безпекова політика</div>
+    <h1>MODERATION<br>POLICY.</h1>
+    <p>Як LUMYN реагує на зловживання при збереженні архітектури Zero-Knowledge та абсолютної приватності користувачів.</p>
+  </div>
+
+  <div class="content-wrap">
+    <a href="/updates" class="back-link">← Назад до оновлень</a>
+    <div class="docs-tabs">
+      <a href="/api">API</a>
+      <a href="/protocol">Protocol</a>
+      <a href="/schema">Schema</a>
+      <a href="/moderation" class="active">Moderation</a>
+    </div>
+
+    <!-- CORE PHILOSOPHY -->
+    <div class="doc-section reveal">
+      <div class="sec-label">// Підхід</div>
+      <div class="sec-title">Privacy-first модерація</div>
+      <div class="sec-desc">LUMYN ніколи не читає ваші повідомлення — це технічно неможливо завдяки E2E шифруванню. Але це не означає відсутності відповідальності. Наш підхід до безпеки будується на технічних обмеженнях, а не на стеженні.</div>
+      <div class="notice">
+        <div class="notice-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="notice-text"><strong>Zero-Knowledge гарантія.</strong> Сервер LUMYN ніколи не зберігає контент повідомлень та не має технічної можливості їх розшифрувати. Приватні ключі зберігаються виключно на пристроях користувачів.</div>
+      </div>
+      <div class="principle-grid">
+        <div class="principle-card">
+          <div class="principle-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="principle-title">Немає бекдорів</div>
+          <div class="principle-desc">Не існує жодного технічного способу передати вміст приватних чатів третім особам, включаючи правоохоронні органи.</div>
+        </div>
+        <div class="principle-card">
+          <div class="principle-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="principle-title">Мінімальні метадані</div>
+          <div class="principle-desc">Сервер не зберігає хто кому і коли писав. Лише тимчасова черга для доставки, яка очищається одразу після успішного отримання.</div>
+        </div>
+        <div class="principle-card">
+          <div class="principle-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div class="principle-title">Без номера телефону</div>
+          <div class="principle-desc">Ідентифікація через криптографічний ключ, а не SIM-карту. Анонімна реєстрація без прив'язки до реальної особи.</div>
+        </div>
+        <div class="principle-card">
+          <div class="principle-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div class="principle-title">Rate limiting</div>
+          <div class="principle-desc">Технічні обмеження на рівні сервера запобігають масовому спаму та DDoS атакам без доступу до вмісту повідомлень.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABUSE PROCESS -->
+    <div class="doc-section reveal">
+      <div class="sec-label">// Процес</div>
+      <div class="sec-title">Abuse Response Flow</div>
+      <div class="sec-desc">Оскільки ми не можемо читати повідомлення, наша відповідь на abuse будується виключно на технічних сигналах та скаргах користувачів.</div>
+      <div class="process-list">
+        <div class="process-step">
+          <div class="process-num">01</div>
+          <div class="process-content">
+            <div class="process-title">Отримання скарги</div>
+            <div class="process-desc">Користувач надсилає abuse-report через форму підтримки. Скарга фіксується з пріоритетом на основі типу: spam, harassment, або security incident.</div>
+            <div class="process-tag">support form · email</div>
+          </div>
+        </div>
+        <div class="process-step">
+          <div class="process-num">02</div>
+          <div class="process-content">
+            <div class="process-title">Технічна верифікація</div>
+            <div class="process-desc">Перевірка технічних сигналів: rate limit violations, аномальна активність акаунту, підозрілі патерни підключень. Без аналізу вмісту повідомлень.</div>
+            <div class="process-tag">server logs · rate metrics</div>
+          </div>
+        </div>
+        <div class="process-step">
+          <div class="process-num">03</div>
+          <div class="process-content">
+            <div class="process-title">Прийняття рішення</div>
+            <div class="process-desc">На основі технічних даних: попередження, тимчасове обмеження швидкості, або блокування публічного ключа. Рішення приймається вручну розробником.</div>
+            <div class="process-tag">manual review</div>
+          </div>
+        </div>
+        <div class="process-step">
+          <div class="process-num">04</div>
+          <div class="process-content">
+            <div class="process-title">Апеляція</div>
+            <div class="process-desc">Кожен заблокований акаунт має право на апеляцію через форму підтримки. Розгляд в межах 48 годин з детальним поясненням рішення.</div>
+            <div class="process-tag">48h SLA</div>
+          </div>
+        </div>
+        <div class="process-step">
+          <div class="process-num">05</div>
+          <div class="process-content">
+            <div class="process-title">Security Incident Response</div>
+            <div class="process-desc">Критичні інциденти (вразливості в протоколі, компрометація сервера) обробляються за окремим процесом з пріоритетом 24/7. Сповіщення публікуються в Telegram-каналі та оновленнях.</div>
+            <div class="process-tag">critical priority · public disclosure</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TECHNICAL LIMITS -->
+    <div class="doc-section reveal">
+      <div class="sec-label">// Технічний периметр</div>
+      <div class="sec-title">Anti-spam захист</div>
+      <div class="sec-desc">Технічні обмеження на рівні Socket.IO сервера, що не потребують доступу до вмісту повідомлень.</div>
+      <div class="process-list">
+        <div class="process-step">
+          <div class="process-num">→</div>
+          <div class="process-content">
+            <div class="process-title">Rate Limiting</div>
+            <div class="process-desc">Обмеження кількості повідомлень на секунду per user. Перевищення ліміту призводить до тимчасового throttling без блокування акаунту.</div>
+          </div>
+        </div>
+        <div class="process-step">
+          <div class="process-num">→</div>
+          <div class="process-content">
+            <div class="process-title">Connection throttling</div>
+            <div class="process-desc">Обмеження на частоту reconnect спроб. Захищає від flood атак на рівні підключень.</div>
+          </div>
+        </div>
+        <div class="process-step">
+          <div class="process-num">→</div>
+          <div class="process-content">
+            <div class="process-title">Public key blocklist</div>
+            <div class="process-desc">Зловживаючі акаунти блокуються за публічним ключем. Оскільки ключ не пов'язаний з особою, це не порушує анонімність інших користувачів.</div>
+          </div>
+        </div>
+        <div class="process-step">
+          <div class="process-num">→</div>
+          <div class="process-content">
+            <div class="process-title">FCM push обмеження</div>
+            <div class="process-desc">Push-сповіщення через Firebase мають окремі rate limits для запобігання notification spam.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTACT -->
+    <div class="doc-section reveal">
+      <div class="contact-block">
+        <h3>Повідомити про зловживання</h3>
+        <p>Якщо ви зіткнулися з порушенням або знайшли вразливість — напишіть нам. Security-репорти обробляються у пріоритетному порядку.</p>
+        <div class="contact-buttons">
+          <a href="/support" class="btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            Написати в підтримку
+          </a>
+          <a href="https://t.me/lumynspace" target="_blank" rel="noopener noreferrer" class="btn-ghost">Telegram канал</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="apple-footer">
+  <div class="apple-footer-content">
+    <div class="footer-breadcrumbs">
+      <a href="/"><img src="/icons/logo-192.png" alt="LUMYN"> LUMYN</a>
+      <span>›</span><a href="/updates">Оновлення</a>
+      <span>›</span><span>Moderation</span>
+    </div>
+    <div class="footer-directory">
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">LUMYN</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/">Головна</a></li>
+          <li><a href="/download">Додатки</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Ресурси</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/faq">ЧаПи</a></li>
+          <li><a href="/support">Підтримка</a></li>
+          <li><a href="/updates">Оновлення</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Документація</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/api">API</a></li>
+          <li><a href="/protocol">Protocol</a></li>
+          <li><a href="/schema">Schema</a></li>
+          <li><a href="/moderation">Moderation</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Проєкт</h3>
+        <ul class="footer-directory-list">
+          <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li>
+          <li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li>
+          <li><a href="https://t.me/lumynspace" target="_blank" rel="noopener noreferrer">Telegram</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-mini">
+      <div class="footer-mini-legal">
+        <div>Copyright © 2026 LUMYN Protocol. All rights reserved.</div>
+        <div><span style="color:#86868b;">Made in Ukraine 🇺🇦</span></div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var cv = document.getElementById('bg-canvas');
+  var ctx = cv.getContext('2d');
+  var W, H, ps = [], t = 0;
+  function resize(){ W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }
+  window.addEventListener('resize', resize); resize();
+  for(var i=0;i<55;i++) ps.push({x:Math.random()*1920,y:Math.random()*1080,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2,r:Math.random()*1.4+.2,a:Math.random()*.25+.04,ph:Math.random()*Math.PI*2});
+  function draw(){
+    ctx.clearRect(0,0,W,H); t+=.005;
+    ps.forEach(function(p){
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+      if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,'+(p.a*(0.6+0.4*Math.sin(t+p.ph)))+')'; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+var btn = document.getElementById('mobile-menu-btn');
+if(btn) btn.addEventListener('click',function(){
+  var dd=document.getElementById('mobile-dropdown');
+  if(dd.style.display==='none'||!dd.style.display){dd.style.display='flex';this.textContent='✕';}
+  else{dd.style.display='none';this.textContent='☰';}
+});
+
+(function(){
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target);} });
+  },{threshold:0.08,rootMargin:'0px 0px -30px 0px'});
+  document.querySelectorAll('.reveal').forEach(function(el,i){
+    el.style.transitionDelay=(i*0.07)+'s'; obs.observe(el);
+  });
+})();
+</script>
+</body>
+</html>
