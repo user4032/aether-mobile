@@ -4,9 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_web_config.dart';
 import 'screens/main_gate.dart';
-
+import 'services/socket_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SocketService.connect(); // Підключаємо сокет
   if (!kIsWeb) {
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
