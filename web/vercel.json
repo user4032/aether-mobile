@@ -1,8 +1,8 @@
 {
   "version": 2,
   "framework": null,
-  "installCommand": "git clone https://github.com/flutter/flutter.git --depth 1 -b stable ../flutter ; ../flutter/bin/flutter --disable-analytics ; ../flutter/bin/flutter pub get",
-  "buildCommand": "../flutter/bin/flutter build web --release",
+  "installCommand": "set -e; rm -rf ../flutter; git clone https://github.com/flutter/flutter.git --depth 1 -b stable ../flutter; ../flutter/bin/flutter --disable-analytics; ../flutter/bin/flutter pub get",
+  "buildCommand": "rm -rf build/web && ../flutter/bin/flutter build web --release",
   "outputDirectory": "build/web",
   "cleanUrls": true,
   "trailingSlash": false,
