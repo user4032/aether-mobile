@@ -169,7 +169,7 @@
     .footer-directory-list a:hover { color: #f5f5f7; text-decoration: underline; }
     .footer-mini { padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 12px; }
     .footer-mini-legal { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-    @media (max-width: 833px) { .footer-directory { display: none; } .footer-mini-legal { flex-direction: column; align-items: flex-start; } }
+    @media (max-width: 833px) { .footer-directory { display: flex; flex-direction: column; gap: 10px; } .footer-directory-column { flex-basis: 100%; min-width: 100%; margin-bottom: 10px; } .footer-mini-legal { flex-direction: column; align-items: flex-start; } }
 
     @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
   </style>
