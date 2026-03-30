@@ -6,7 +6,7 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="LUMYN">
   <meta name="mobile-web-app-capable" content="yes">
   
@@ -60,10 +60,14 @@
       --c-muted:    #888888;
       --font-main:  'Inter', sans-serif;
       --font-mono:  'JetBrains Mono', monospace;
+      --app-vh: 100vh;
+      --app-safe-top: env(safe-area-inset-top, 0px);
+      --app-safe-bottom: env(safe-area-inset-bottom, 0px);
     }
 
     body {
       width: 100%; height: 100%;
+      min-height: 100dvh;
       background: var(--c-bg);
       color: var(--c-txt);
       font-family: var(--font-main);
@@ -72,6 +76,37 @@
       -webkit-touch-callout: none;
       user-select: none;
       scroll-behavior: smooth;
+    }
+
+    html.pwa-standalone,
+    html.pwa-standalone body {
+      width: 100%;
+      height: var(--app-vh);
+      min-height: -webkit-fill-available;
+      overflow: hidden !important;
+      overscroll-behavior: none;
+    }
+
+    html.pwa-standalone #landing {
+      display: none !important;
+    }
+
+    html.pwa-standalone flutter-view,
+    html.pwa-standalone flt-glass-pane,
+    html.pwa-standalone flt-scene-host,
+    html.pwa-standalone #flutter-host {
+      position: fixed !important;
+      inset: var(--app-safe-top) 0 var(--app-safe-bottom) 0 !important;
+      width: 100vw !important;
+      height: calc(var(--app-vh) - var(--app-safe-top) - var(--app-safe-bottom)) !important;
+      max-height: calc(var(--app-vh) - var(--app-safe-top) - var(--app-safe-bottom)) !important;
+    }
+
+    @supports (-webkit-touch-callout: none) {
+      html.pwa-standalone,
+      html.pwa-standalone body {
+        min-height: -webkit-fill-available;
+      }
     }
 
     /* ─── FLUTTER LOADING ─── */
@@ -104,7 +139,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ─── LANDING ─── */
-    #landing { display: none; }
+    #landing { display: none; min-height: 100dvh; }
     .canvas-bg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
 /* ─── APPLE STYLE FOOTER ─── */
     .apple-footer { background: #111111; color: #86868b; font-family: 'Inter', sans-serif; font-size: 12px; line-height: 1.33337; font-weight: 400; padding: 0 22px; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; position: relative; z-index: 10;}
@@ -369,6 +404,23 @@
       background: #fff; color: #000; border-radius: 50px; padding: 12px 24px;
       font-size: 13px; font-weight: 600; display: none; align-items: center; gap: 8px;
       box-shadow: 0 10px 30px rgba(255,255,255,0.2);
+    }
+
+    html.ios-browser body {
+      padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    }
+
+    html.ios-browser #landing {
+      padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    }
+
+    html.ios-browser .apple-footer {
+      padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    }
+
+    html.ios-browser #ios-hint {
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      max-width: min(92vw, 360px);
     }
 
     @keyframes fadeUp {
@@ -643,7 +695,7 @@ function forceFlutterLoad() {
   document.getElementById('landing').style.display = 'none';
   document.getElementById('flutter-loading').style.display = 'flex';
   var sc = document.createElement('script');
-  sc.src = 'flutter_bootstrap.js'; sc.async = true;
+  sc.src = 'flutter_bootstrap.js?v=20260330'; sc.async = true;
   document.body.appendChild(sc);
 }
 /* ══════════════════════════════════════════════
@@ -663,7 +715,19 @@ document.getElementById('mobile-menu-btn').addEventListener('click', function() 
   var standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
   var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
+  function syncViewportHeightVar() {
+    var h = (window.visualViewport && window.visualViewport.height) ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty('--app-vh', h + 'px');
+  }
+
   if (standalone) {
+    document.documentElement.classList.add('pwa-standalone');
+    document.documentElement.classList.remove('ios-browser');
+    syncViewportHeightVar();
+    window.addEventListener('resize', syncViewportHeightVar, { passive: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', syncViewportHeightVar, { passive: true });
+    }
     document.getElementById('flutter-loading').style.display = 'flex';
     document.addEventListener('touchend', function(e){
       var now = Date.now();
@@ -678,9 +742,15 @@ document.getElementById('mobile-menu-btn').addEventListener('click', function() 
       if (s) { s.classList.add('hidden'); setTimeout(function(){ s.remove(); }, 800); }
     });
     var sc = document.createElement('script');
-    sc.src = 'flutter_bootstrap.js'; sc.async = true;
+    sc.src = 'flutter_bootstrap.js?v=20260330'; sc.async = true;
     document.body.appendChild(sc);
   } else {
+    document.documentElement.classList.remove('pwa-standalone');
+    if (isIOS) {
+      document.documentElement.classList.add('ios-browser');
+    } else {
+      document.documentElement.classList.remove('ios-browser');
+    }
     document.getElementById('landing').style.display = 'block';
     if (isIOS) {
       setTimeout(function(){ document.getElementById('ios-hint').style.display = 'flex'; }, 2000);
