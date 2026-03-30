@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-title" content="LUMYN">
   <meta name="mobile-web-app-capable" content="yes">
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
   <meta name="description" content="LUMYN — Secure messaging protocol">
   
@@ -78,6 +78,7 @@
       scroll-behavior: smooth;
     }
 
+    /* Standalone PWA must fully occupy the phone viewport. */
     html.pwa-standalone,
     html.pwa-standalone body {
       width: 100%;
@@ -139,7 +140,10 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ─── LANDING ─── */
-    #landing { display: none; min-height: 100dvh; }
+    #landing {
+      display: none;
+      min-height: 100dvh;
+    }
     .canvas-bg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
 /* ─── APPLE STYLE FOOTER ─── */
     .apple-footer { background: #111111; color: #86868b; font-family: 'Inter', sans-serif; font-size: 12px; line-height: 1.33337; font-weight: 400; padding: 0 22px; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; position: relative; z-index: 10;}
@@ -407,6 +411,7 @@
       box-shadow: 0 10px 30px rgba(255,255,255,0.2);
     }
 
+    /* iPhone Safari (non-standalone): keep footer above browser chrome + install hint */
     html.ios-browser body {
       padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
     }
@@ -451,6 +456,10 @@
       <a href="/faq">ЧаПи</a>
       <a href="/support">Підтримка</a>
       <a href="/updates">Оновлення</a>
+      <a href="/api">API</a>
+      <a href="/protocol">Protocol</a>
+      <a href="/schema">Schema</a>
+      <a href="/moderation">Moderation</a>
       <a href="/en" class="btn-outline" style="margin-left: 20px;">EN</a>
     </div>
     
@@ -463,6 +472,10 @@
       <a href="/faq" style="color:white; text-decoration:none; font-size:16px;">ЧаПи</a>
       <a href="/support" style="color:white; text-decoration:none; font-size:16px;">Підтримка</a>
       <a href="/updates" style="color:white; text-decoration:none; font-size:16px;">Оновлення</a>
+      <a href="/api" style="color:white; text-decoration:none; font-size:16px;">API</a>
+      <a href="/protocol" style="color:white; text-decoration:none; font-size:16px;">Protocol</a>
+      <a href="/schema" style="color:white; text-decoration:none; font-size:16px;">Schema</a>
+      <a href="/moderation" style="color:white; text-decoration:none; font-size:16px;">Moderation</a>
       <a href="/en" style="color:white; text-decoration:none; font-size:16px; opacity:0.5; margin-top:8px;">EN (English)</a>
   </div>
 
@@ -709,7 +722,7 @@ function forceFlutterLoad() {
   document.getElementById('landing').style.display = 'none';
   document.getElementById('flutter-loading').style.display = 'flex';
   var sc = document.createElement('script');
-  sc.src = 'flutter_bootstrap.js?v=20260330'; sc.async = true;
+  sc.src = 'flutter_bootstrap.js'; sc.async = true;
   document.body.appendChild(sc);
 }
 /* ══════════════════════════════════════════════
