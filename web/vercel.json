@@ -13,9 +13,8 @@
   ],
 
   "rewrites": [
-    
     { "source": "/uk-ua",          "destination": "/uk-ua.html" },
-    { "source": "/en-us",          "destination": "/en.html" },
+    { "source": "/en-us",          "destination": "/en-us.html" },
 
     { "source": "/uk-ua/download", "destination": "/download.html" },
     { "source": "/en-us/download", "destination": "/en-us/download.html" },
@@ -24,22 +23,32 @@
     { "source": "/en-us/faq",      "destination": "/en-us/faq.html" },
 
     { "source": "/uk-ua/updates",  "destination": "/updates.html" },
-    { "source": "/en-us/updates",  "destination": "/updates.html" },
+    { "source": "/en-us/updates",  "destination": "/en-us/updates.html" },
 
     { "source": "/uk-ua/api",      "destination": "/api.html" },
-    { "source": "/en-us/api",      "destination": "/api.html" },
+    { "source": "/en-us/api",      "destination": "/en-us/api.html" },
 
     { "source": "/uk-ua/protocol", "destination": "/protocol.html" },
-    { "source": "/en-us/protocol", "destination": "/protocol.html" },
+    { "source": "/en-us/protocol", "destination": "/en-us/protocol.html" },
 
     { "source": "/uk-ua/schema",   "destination": "/schema.html" },
-    { "source": "/en-us/schema",   "destination": "/schema.html" },
+    { "source": "/en-us/schema",   "destination": "/en-us/schema.html" },
 
     { "source": "/uk-ua/moderation","destination": "/moderation.html" },
-    { "source": "/en-us/moderation","destination": "/moderation.html" },
+    { "source": "/en-us/moderation","destination": "/en-us/moderation.html" },
 
     { "source": "/uk-ua/support",  "destination": "/support.html" },
     { "source": "/en-us/support",  "destination": "/en-us/support.html" },
+
+    { "source": "/download",       "destination": "/download.html" },
+    { "source": "/faq",            "destination": "/faq.html" },
+    { "source": "/support",        "destination": "/support.html" },
+    { "source": "/updates",        "destination": "/updates.html" },
+    { "source": "/api",            "destination": "/api.html" },
+    { "source": "/protocol",       "destination": "/protocol.html" },
+    { "source": "/schema",         "destination": "/schema.html" },
+    { "source": "/moderation",     "destination": "/moderation.html" },
+    { "source": "/en",             "destination": "/en.html" },
 
     { "source": "/(.*)",           "destination": "/index.html" }
   ]
