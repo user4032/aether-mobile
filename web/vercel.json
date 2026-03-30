@@ -23,6 +23,21 @@
     { "source": "/uk-ua/faq",      "destination": "/faq.html" },
     { "source": "/en-us/faq",      "destination": "/en-us/faq.html" },
 
+    { "source": "/uk-ua/updates",  "destination": "/updates.html" },
+    { "source": "/en-us/updates",  "destination": "/updates.html" },
+
+    { "source": "/uk-ua/api",      "destination": "/api.html" },
+    { "source": "/en-us/api",      "destination": "/api.html" },
+
+    { "source": "/uk-ua/protocol", "destination": "/protocol.html" },
+    { "source": "/en-us/protocol", "destination": "/protocol.html" },
+
+    { "source": "/uk-ua/schema",   "destination": "/schema.html" },
+    { "source": "/en-us/schema",   "destination": "/schema.html" },
+
+    { "source": "/uk-ua/moderation","destination": "/moderation.html" },
+    { "source": "/en-us/moderation","destination": "/moderation.html" },
+
     { "source": "/uk-ua/support",  "destination": "/support.html" },
     { "source": "/en-us/support",  "destination": "/en-us/support.html" },
 
