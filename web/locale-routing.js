@@ -34,6 +34,7 @@
     if (p === '/download' || p === '/download.html') return '/download';
     if (p === '/faq' || p === '/faq.html') return '/faq';
     if (p === '/support' || p === '/support.html') return '/support';
+    if (p === '/updates' || p === '/updates.html') return '/updates';
     return '/';
   }
 

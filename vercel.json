@@ -13,13 +13,16 @@
     { "source": "/download", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
     { "source": "/faq", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
     { "source": "/support", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
+    { "source": "/updates", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
     { "source": "/en", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
     { "source": "/uk-ua/download", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
     { "source": "/uk-ua/faq", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
     { "source": "/uk-ua/support", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
+    { "source": "/uk-ua/updates", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
     { "source": "/en-us/download", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
     { "source": "/en-us/faq", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
-    { "source": "/en-us/support", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] }
+    { "source": "/en-us/support", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
+    { "source": "/en-us/updates", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] }
   ],
   "redirects": [
     { "source": "/uk-ua/", "destination": "/uk-ua", "permanent": true },
@@ -30,13 +33,16 @@
     { "source": "/uk-ua/download", "destination": "/download.html" },
     { "source": "/uk-ua/faq",      "destination": "/faq.html" },
     { "source": "/uk-ua/support",  "destination": "/support.html" },
+    { "source": "/uk-ua/updates",  "destination": "/updates.html" },
     { "source": "/en-us",          "destination": "/en-us.html" },
     { "source": "/en-us/download", "destination": "/en-us/download.html" },
     { "source": "/en-us/faq",      "destination": "/en-us/faq.html" },
     { "source": "/en-us/support",  "destination": "/en-us/support.html" },
+    { "source": "/en-us/updates",  "destination": "/en-us/updates.html" },
     { "source": "/download", "destination": "/download.html" },
     { "source": "/faq",      "destination": "/faq.html" },
     { "source": "/support",  "destination": "/support.html" },
+    { "source": "/updates",  "destination": "/updates.html" },
     { "source": "/en",       "destination": "/en.html" },
     { "source": "/(.*)",     "destination": "/index.html" }
   ]

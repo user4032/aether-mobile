@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="LUMYN — Оновлення месенджера">
+  <link rel="icon" href="/icons/favicon.png?v=1">
+  <link rel="apple-touch-icon" href="/icons/logo-192.png?v=6">
+  <link rel="manifest" href="/manifest.json">
+  <title>LUMYN | Оновлення</title>
+  <script defer src="/locale-routing.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#000;--surface:#0b0b0b;--border:rgba(255,255,255,.1);--muted:#8c8c8c;--text:#fff;--mono:'JetBrains Mono',monospace}
+    body{background:var(--bg);color:var(--text);font-family:Inter,sans-serif;min-height:100dvh;overflow-x:hidden}
+    nav{position:sticky;top:0;z-index:20;height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:rgba(0,0,0,.82);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:4px;text-decoration:none;color:#fff;font-size:15px}
+    .brand img{width:24px;height:24px;border-radius:6px}
+    .links{display:flex;gap:16px}
+    .links a{text-decoration:none;color:var(--muted);font-size:12px;letter-spacing:1px;text-transform:uppercase}
+    .links a.active,.links a:hover{color:#fff}
+    main{max-width:980px;margin:0 auto;padding:34px 16px 70px}
+    .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:#bbb;margin-bottom:12px}
+    h1{font-size:clamp(34px,7vw,68px);line-height:.96;letter-spacing:-1.5px;margin-bottom:12px}
+    .lead{color:var(--muted);font-size:16px;max-width:680px;line-height:1.55}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:28px}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px}
+    .meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .ver{font-family:var(--mono);font-size:11px;color:#cfcfcf;letter-spacing:1px}
+    .tag{font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:#d0d0d0}
+    .card h3{font-size:21px;margin-bottom:8px}
+    .card p{color:var(--muted);line-height:1.5}
+    .list{margin-top:10px;padding-left:16px;color:#cfcfcf;font-size:14px;line-height:1.6}
+    .section{margin-top:34px}
+    .section h2{font-size:24px;margin-bottom:12px}
+    .docs{display:grid;grid-template-columns:1fr;gap:10px}
+    .doc{border:1px solid var(--border);border-radius:14px;padding:14px;background:rgba(255,255,255,.02)}
+    .doc h4{font-size:16px;margin-bottom:5px}
+    .doc p{color:var(--muted);font-size:14px;line-height:1.45}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 18px;border-radius:999px;text-decoration:none;font-weight:700;font-size:13px;border:1px solid var(--border)}
+    .btn.primary{background:#fff;color:#000;border-color:#fff}
+    .btn.ghost{color:#fff;background:transparent}
+    @media (max-width:900px){.links{display:none}}
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="brand" href="/"><img src="/icons/logo-192.png" alt="logo">LUMYN</a>
+    <div class="links">
+      <a href="/">Головна</a>
+      <a href="/download">Додатки</a>
+      <a href="/faq">ЧаПи</a>
+      <a href="/support">Підтримка</a>
+      <a class="active" href="/updates">Оновлення</a>
+    </div>
+  </nav>
+
+  <main>
+    <div class="eyebrow">LUMYN // RELEASE NOTES</div>
+    <h1>Актуальні оновлення месенджера</h1>
+    <p class="lead">Прозорий changelog і roadmap у стилі технічних нотаток: що вже вийшло, що в роботі, і які протокольні/API блоки будемо відкривати далі.</p>
+
+    <div class="grid">
+      <article class="card">
+        <div class="meta"><span class="ver">v1.6.0 · Mar 2026</span><span class="tag">NEW</span></div>
+        <h3>Group Info + керування групами</h3>
+        <p>Додано повноцінний Group Info екран, редагування учасників, опису та назви групи, а також direct entry з меню у чаті.</p>
+        <ul class="list">
+          <li>Окремі секції: avatar, shared media, members list</li>
+          <li>Стабільніший group id routing</li>
+          <li>Краще оновлення заголовка групи після save</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <div class="meta"><span class="ver">v1.5.3 · Mar 2026</span><span class="tag">FIX</span></div>
+        <h3>iOS PWA viewport стабілізація</h3>
+        <p>Пофіксено обрізання екрану та некоректні safe-area сценарії на iPhone для standalone/browser режимів.</p>
+      </article>
+
+      <article class="card">
+        <div class="meta"><span class="ver">v1.5.2 · Mar 2026</span><span class="tag">FIX</span></div>
+        <h3>Системне розблокування без циклів</h3>
+        <p>Виправлено race condition у lock screen: після автентифікації не відбувається повторний auto-lock.</p>
+      </article>
+    </div>
+
+    <section class="section">
+      <h2>Документація і API Roadmap</h2>
+      <div class="docs">
+        <div class="doc"><h4>Protocol Notes</h4><p>X3DH + message flow пояснення для клієнтів і бекенду. Статус: in progress.</p></div>
+        <div class="doc"><h4>Client API Surface</h4><p>Події Socket.IO, коди помилок, auth/verification сценарії. Статус: in progress.</p></div>
+        <div class="doc"><h4>Message Schema</h4><p>Формат payload, реакції, ephemeral метадані, версіонування. Статус: planned.</p></div>
+        <div class="doc"><h4>Moderation & Abuse Policy</h4><p>Політика abuse-handling і security response model. Статус: planned.</p></div>
+      </div>
+    </section>
+
+    <div class="row">
+      <a class="btn primary" href="/download">Завантажити LUMYN</a>
+      <a class="btn ghost" href="/faq">Відкрити ЧаПи</a>
+    </div>
+  </main>
+</body>
+</html>
