@@ -105,6 +105,15 @@
 
   function syncActiveNavLinks() {
     var navLinks = document.querySelectorAll('nav a[href], #mobile-dropdown a[href]');
+
+    if (route === '/') {
+      for (var j = 0; j < navLinks.length; j++) {
+        var rootLink = navLinks[j];
+        if (rootLink.classList) rootLink.classList.remove('active');
+      }
+      return;
+    }
+
     for (var i = 0; i < navLinks.length; i++) {
       var link = navLinks[i];
       var cls = link.className || '';
