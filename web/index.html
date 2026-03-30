@@ -408,15 +408,16 @@
 
     /* iPhone Safari (non-standalone): keep footer above browser chrome + install hint */
     html.ios-browser #landing {
-      padding-bottom: calc(170px + env(safe-area-inset-bottom, 0px));
+      padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
     }
 
     html.ios-browser .apple-footer {
-      padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
     }
 
     html.ios-browser #ios-hint {
-      bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      max-width: min(92vw, 360px);
     }
 
     @keyframes fadeUp {
