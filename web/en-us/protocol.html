@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -9,12 +9,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
-  <meta name="description" content="LUMYN Protocol — X25519 + AES-256-GCM криптографічна архітектура">
+  <meta name="description" content="LUMYN Protocol — X25519 + AES-256-GCM cryptographic architecture">
   <link rel="icon" href="/icons/favicon.png?v=1">
   <link rel="apple-touch-icon" href="/icons/logo-192.png?v=6">
   <link rel="manifest" href="/manifest.json">
   <meta property="og:title" content="LUMYN | Protocol">
-  <meta property="og:description" content="Документація криптографічного протоколу LUMYN: X25519, AES-256-GCM, ephemeral архітектура.">
+  <meta property="og:description" content="LUMYN cryptographic protocol documentation: X25519, AES-256-GCM, ephemeral architecture.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://lumyn.space/uk-ua/protocol">
   <meta property="og:image" content="https://lumyn.space/icons/logo-512.png">
@@ -157,11 +157,11 @@
     <img src="/icons/logo-192.png" alt="Logo"> LUMYN
   </a>
   <div class="nav-links">
-    <a href="/">Головна</a>
-    <a href="/download">Додатки</a>
-    <a href="/faq">ЧаПи</a>
-    <a href="/support">Підтримка</a>
-    <a href="/updates" class="active">Оновлення</a>
+    <a href="/">Home</a>
+    <a href="/download">Apps</a>
+    <a href="/faq">FAQ</a>
+    <a href="/support">Support</a>
+    <a href="/updates" class="active">Updates</a>
     <a href="/api">API</a>
     <a href="/protocol">Protocol</a>
     <a href="/schema">Schema</a>
@@ -172,11 +172,11 @@
 </nav>
 
 <div id="mobile-dropdown" style="display:none;position:fixed;top:80px;left:0;right:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.1);padding:20px;z-index:199;flex-direction:column;gap:16px;text-align:center;">
-  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Головна</a>
-  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Додатки</a>
-  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">ЧаПи</a>
-  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Підтримка</a>
-  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Оновлення</a>
+  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Home</a>
+  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Apps</a>
+  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">FAQ</a>
+  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Support</a>
+  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Updates</a>
   <a href="/api" style="color:white;text-decoration:none;font-size:16px;">API</a>
   <a href="/protocol" style="color:white;text-decoration:none;font-size:16px;">Protocol</a>
   <a href="/schema" style="color:white;text-decoration:none;font-size:16px;">Schema</a>
@@ -186,13 +186,13 @@
 
 <main>
   <div class="page-hero">
-    <div class="page-badge"><div class="badge-dot"></div> Технічна документація</div>
+    <div class="page-badge"><div class="badge-dot"></div> Technical Documentation</div>
     <h1>PROTOCOL<br>NOTES.</h1>
-    <p>Криптографічний потік LUMYN: обмін ключами, шифрування повідомлень, ephemeral архітектура та Socket.IO транспорт.</p>
+    <p>LUMYN's cryptographic flow: key exchange, message encryption, ephemeral architecture and Socket.IO transport.</p>
   </div>
 
   <div class="content-wrap">
-    <a href="/updates" class="back-link">← Назад до оновлень</a>
+    <a href="/updates" class="back-link">← Back to updates</a>
     <div class="docs-tabs">
       <a href="/api">API</a>
       <a href="/protocol" class="active">Protocol</a>
@@ -203,7 +203,7 @@
     <!-- KEY EXCHANGE FLOW -->
     <div class="doc-section reveal">
       <div class="sec-label">// 01</div>
-      <div class="sec-title">Обмін ключами</div>
+      <div class="sec-title">Key Exchange</div>
       <div class="flow-diagram">
         <div class="flow-header">
           <div class="flow-dot"></div><div class="flow-dot"></div><div class="flow-dot"></div>
@@ -213,16 +213,16 @@
           <div class="flow-step">
             <div class="flow-num">01</div>
             <div class="flow-content">
-              <div class="flow-name">Генерація ключової пари</div>
-              <div class="flow-desc">Клієнт генерує X25519 ключову пару локально при реєстрації. Приватний ключ зберігається у flutter_secure_storage і ніколи не залишає пристрій.</div>
+              <div class="flow-name">Key pair generation</div>
+              <div class="flow-desc">Client generates X25519 key pair locally during registration. Private key is stored in flutter_secure_storage and never leaves the device.</div>
               <div class="flow-tag">X25519 · flutter_secure_storage</div>
             </div>
           </div>
           <div class="flow-step">
             <div class="flow-num">02</div>
             <div class="flow-content">
-              <div class="flow-name">Публікація публічного ключа</div>
-              <div class="flow-desc">Публічний ключ реєструється на сервері Socket.IO. Сервер виступає лише як key server — не може розшифрувати жодного повідомлення.</div>
+              <div class="flow-name">Public key publication</div>
+              <div class="flow-desc">Public key is registered on Socket.IO server. Server acts only as key server — cannot decrypt any message.</div>
               <div class="flow-tag">Socket.IO · Node.js</div>
             </div>
           </div>
@@ -230,15 +230,15 @@
             <div class="flow-num">03</div>
             <div class="flow-content">
               <div class="flow-name">ECDH shared secret</div>
-              <div class="flow-desc">При відкритті чату клієнт отримує публічний ключ співрозмовника і обчислює спільний секрет через X25519 ECDH. Shared secret ніколи не передається по мережі.</div>
+              <div class="flow-desc">When opening chat, client receives counterparty's public key and computes shared secret via X25519 ECDH. Shared secret is never transmitted over network.</div>
               <div class="flow-tag">Elliptic Curve Diffie-Hellman</div>
             </div>
           </div>
           <div class="flow-step">
             <div class="flow-num">04</div>
             <div class="flow-content">
-              <div class="flow-name">Деривація сесійного ключа</div>
-              <div class="flow-desc">Зі shared secret деривується сесійний ключ для AES-256-GCM шифрування через HKDF. Для кожного повідомлення генерується унікальний nonce.</div>
+              <div class="flow-name">Session key derivation</div>
+              <div class="flow-desc">From shared secret, session key for AES-256-GCM encryption is derived via HKDF. Unique nonce is generated for each message.</div>
               <div class="flow-tag">HKDF · AES-256-GCM · cryptography package</div>
             </div>
           </div>
@@ -249,27 +249,27 @@
     <!-- MESSAGE FLOW -->
     <div class="doc-section reveal">
       <div class="sec-label">// 02</div>
-      <div class="sec-title">Шифрування повідомлень</div>
+      <div class="sec-title">Message Encryption</div>
       <div class="info-grid">
         <div class="info-card">
-          <div class="info-card-label">Алгоритм</div>
+          <div class="info-card-label">Algorithm</div>
           <div class="info-card-val">AES-256-GCM</div>
-          <div class="info-card-desc">Автентифіковане шифрування з додатковими даними. Кожне повідомлення індивідуально зашифровано.</div>
+          <div class="info-card-desc">Authenticated encryption with additional data. Each message is individually encrypted.</div>
         </div>
         <div class="info-card">
-          <div class="info-card-label">Ключ обміну</div>
+          <div class="info-card-label">Key Exchange</div>
           <div class="info-card-val">X25519</div>
-          <div class="info-card-desc">Elliptic Curve Diffie-Hellman на Curve25519. Швидкий та стійкий проти атак.</div>
+          <div class="info-card-desc">Elliptic Curve Diffie-Hellman on Curve25519. Fast and resistant to attacks.</div></div>
         </div>
         <div class="info-card">
           <div class="info-card-label">Nonce</div>
           <div class="info-card-val">96 bit</div>
-          <div class="info-card-desc">Унікальний per-message nonce гарантує що однаковий текст завжди шифрується по-різному.</div>
+          <div class="info-card-desc">Unique per-message nonce ensures same plaintext always encrypts differently.</div></div>
         </div>
         <div class="info-card">
           <div class="info-card-label">MAC</div>
           <div class="info-card-val">GCM tag</div>
-          <div class="info-card-desc">128-бітний authentication tag верифікує цілісність і автентичність кожного повідомлення.</div>
+          <div class="info-card-desc">128-bit authentication tag verifies integrity and authenticity of each message.</div></div>
         </div>
       </div>
     </div>
@@ -277,7 +277,7 @@
     <!-- TRANSPORT -->
     <div class="doc-section reveal">
       <div class="sec-label">// 03</div>
-      <div class="sec-title">Транспорт та доставка</div>
+      <div class="sec-title">Transport and Delivery</div>
       <div class="flow-diagram">
         <div class="flow-header">
           <div class="flow-dot"></div><div class="flow-dot"></div><div class="flow-dot"></div>
@@ -288,28 +288,28 @@
             <div class="flow-num">→</div>
             <div class="flow-content">
               <div class="flow-name">sendMessage</div>
-              <div class="flow-desc">Клієнт відправляє зашифрований payload. Сервер маршрутизує до отримувача або групи не бачачи вмісту.</div>
+              <div class="flow-desc">Client sends encrypted payload. Server routes to recipient or group without seeing content.</div></div>
             </div>
           </div>
           <div class="flow-step">
             <div class="flow-num">→</div>
             <div class="flow-content">
               <div class="flow-name">sendGroupMessage</div>
-              <div class="flow-desc">Групові повідомлення підтримують груповий shared secret або per-member шифрування залежно від налаштувань.</div>
+              <div class="flow-desc">Group messages support group shared secret or per-member encryption depending on settings.</div></div>
             </div>
           </div>
           <div class="flow-step">
             <div class="flow-num">→</div>
             <div class="flow-content">
               <div class="flow-name">sendEphemeral / sendEphemeralGroup</div>
-              <div class="flow-desc">Ефірні повідомлення позначені флагом isEphemeral. Після підтвердження доставки сервер видаляє з пам'яті. Клієнт видаляє після перегляду.</div>
+              <div class="flow-desc">Ephemeral messages marked with isEphemeral flag. Deleted from memory after delivery confirmation. Client deletes after viewing.</div></div>
             </div>
           </div>
           <div class="flow-step">
             <div class="flow-num">→</div>
             <div class="flow-content">
               <div class="flow-name">sendVoice / sendImage</div>
-              <div class="flow-desc">Медіа-файли шифруються окремим ключем, закодовуються в base64 і передаються як частина payload.</div>
+              <div class="flow-desc">Media files are encrypted with separate key, encoded in base64 and transmitted as part of payload.</div>
             </div>
           </div>
         </div>
@@ -325,15 +325,15 @@
           <div class="code-lang">Server Architecture</div>
         </div>
         <div class="code-body">
-<span class="code-comment">// Сервер не має бази даних для повідомлень</span>
-<span class="code-comment">// Весь стан зберігається виключно в RAM</span>
+<span class="code-comment">// Server has no database for messages</span>
+<span class="code-comment">// All state stored exclusively in RAM</span>
 
 <span class="code-key">const</span> <span class="code-val">activeConnections</span> = <span class="code-str">new Map()</span>; <span class="code-comment">// socket per user</span>
 <span class="code-key">const</span> <span class="code-val">publicKeys</span> = <span class="code-str">new Map()</span>;      <span class="code-comment">// public keys only</span>
 <span class="code-key">const</span> <span class="code-val">offlineQueue</span> = <span class="code-str">new Map()</span>;    <span class="code-comment">// temp until delivery</span>
 
-<span class="code-comment">// Після доставки — повідомлення знищується</span>
-<span class="code-comment">// Після відключення — сесія очищається</span>
+<span class="code-comment">// After delivery — message is destroyed</span>
+<span class="code-comment">// After disconnect — session is cleared</span>
 <span class="code-comment">// Zero persistent storage for message content</span>
         </div>
       </div>
@@ -341,38 +341,38 @@
 
     <!-- STATUS -->
     <div class="doc-section reveal">
-      <div class="sec-label">// Статус</div>
-      <div class="sec-title">Roadmap протоколу</div>
+      <div class="sec-label">// Status</div>
+      <div class="sec-title">Protocol Roadmap</div>
       <div class="timeline">
         <div class="tl-item active">
           <div class="tl-dot"></div>
-          <div class="tl-label">Реалізовано</div>
+          <div class="tl-label">Implemented</div>
           <div class="tl-title">X25519 + AES-256-GCM E2E</div>
-          <div class="tl-desc">Повноцінне end-to-end шифрування для прямих та групових чатів, голосових і медіа повідомлень.</div>
+          <div class="tl-desc">Full end-to-end encryption for direct and group chats, voice and media messages.</div></div>
         </div>
         <div class="tl-item active">
           <div class="tl-dot"></div>
-          <div class="tl-label">Реалізовано</div>
+          <div class="tl-label">Implemented</div>
           <div class="tl-title">Ephemeral Messages</div>
-          <div class="tl-desc">Ефірні повідомлення для прямих чатів та груп, що зникають після перегляду на всіх пристроях.</div>
+          <div class="tl-desc">Ephemeral messages for direct chats and groups that disappear after viewing on all devices.</div>
         </div>
         <div class="tl-item">
           <div class="tl-dot"></div>
-          <div class="tl-label">В розробці</div>
-          <div class="tl-title">Multi-device синхронізація</div>
-          <div class="tl-desc">Безпечна синхронізація сесій між пристроями без компромісу Zero-Knowledge архітектури.</div>
+          <div class="tl-label">In Progress</div>
+          <div class="tl-title">Multi-device Synchronization</div>
+          <div class="tl-desc">Secure session sync across devices without compromising Zero-Knowledge architecture.</div></div>
         </div>
         <div class="tl-item">
           <div class="tl-dot"></div>
-          <div class="tl-label">Заплановано</div>
+          <div class="tl-label">Planned</div>
           <div class="tl-title">Forward Secrecy</div>
-          <div class="tl-desc">Ротація ключів для гарантії що компрометація поточного ключа не розкриє минулі повідомлення.</div>
+          <div class="tl-desc">Key rotation to ensure current key compromise doesn't reveal past messages.</div></div>
         </div>
         <div class="tl-item">
           <div class="tl-dot"></div>
-          <div class="tl-label">Заплановано</div>
-          <div class="tl-title">Відкритий вихідний код</div>
-          <div class="tl-desc">Публічний аудит криптографічного коду клієнтської частини та бекенду.</div>
+          <div class="tl-label">Planned</div>
+          <div class="tl-title">Open Source</div>
+          <div class="tl-desc">Public audit of cryptographic code for client and backend.</div></div>
         </div>
       </div>
     </div>
@@ -383,27 +383,27 @@
   <div class="apple-footer-content">
     <div class="footer-breadcrumbs">
       <a href="/"><img src="/icons/logo-192.png" alt="LUMYN"> LUMYN</a>
-      <span>›</span><a href="/updates">Оновлення</a>
+      <span>›</span><a href="/updates">Updates</a>
       <span>›</span><span>Protocol</span>
     </div>
     <div class="footer-directory">
       <div class="footer-directory-column">
         <h3 class="footer-directory-column-title">LUMYN</h3>
         <ul class="footer-directory-list">
-          <li><a href="/">Головна</a></li>
-          <li><a href="/download">Додатки</a></li>
+          <li><a href="/">Home</a></li>
+          <li><a href="/download">Apps</a></li>
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Ресурси</h3>
+        <h3 class="footer-directory-column-title">Resources</h3>
         <ul class="footer-directory-list">
-          <li><a href="/faq">ЧаПи</a></li>
-          <li><a href="/support">Підтримка</a></li>
-          <li><a href="/updates">Оновлення</a></li>
+          <li><a href="/faq">FAQ</a></li>
+          <li><a href="/support">Support</a></li>
+          <li><a href="/updates">Updates</a></li>
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Документація</h3>
+        <h3 class="footer-directory-column-title">Documentation</h3>
         <ul class="footer-directory-list">
           <li><a href="/api">API</a></li>
           <li><a href="/protocol">Protocol</a></li>
@@ -412,7 +412,7 @@
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Проєкт</h3>
+        <h3 class="footer-directory-column-title">Project</h3>
         <ul class="footer-directory-list">
           <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li>
           <li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li>

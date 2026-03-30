@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="/icons/logo-192.png?v=6">
   <link rel="manifest" href="/manifest.json">
   <meta property="og:title" content="LUMYN | Schema">
-  <meta property="og:description" content="Формат повідомлень і Socket.IO API для клієнта та бекенду LUMYN.">
+  <meta property="og:description" content="Message format and Socket.IO API for LUMYN client and backend.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://lumyn.space/uk-ua/schema">
   <meta property="og:image" content="https://lumyn.space/icons/logo-512.png">
@@ -136,11 +136,11 @@
 <nav>
   <a href="/" class="nav-logo"><img src="/icons/logo-192.png" alt="Logo"> LUMYN</a>
   <div class="nav-links">
-    <a href="/">Головна</a>
-    <a href="/download">Додатки</a>
-    <a href="/faq">ЧаПи</a>
-    <a href="/support">Підтримка</a>
-    <a href="/updates" class="active">Оновлення</a>
+    <a href="/">Home</a>
+    <a href="/download">Apps</a>
+    <a href="/faq">FAQ</a>
+    <a href="/support">Support</a>
+    <a href="/updates" class="active">Updates</a>
     <a href="/api">API</a>
     <a href="/protocol">Protocol</a>
     <a href="/schema">Schema</a>
@@ -151,11 +151,11 @@
 </nav>
 
 <div id="mobile-dropdown" style="display:none;position:fixed;top:80px;left:0;right:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.1);padding:20px;z-index:199;flex-direction:column;gap:16px;text-align:center;">
-  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Головна</a>
-  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Додатки</a>
-  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">ЧаПи</a>
-  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Підтримка</a>
-  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Оновлення</a>
+  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Home</a>
+  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Apps</a>
+  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">FAQ</a>
+  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Support</a>
+  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Updates</a>
   <a href="/api" style="color:white;text-decoration:none;font-size:16px;">API</a>
   <a href="/protocol" style="color:white;text-decoration:none;font-size:16px;">Protocol</a>
   <a href="/schema" style="color:white;text-decoration:none;font-size:16px;">Schema</a>
@@ -167,11 +167,11 @@
   <div class="page-hero">
     <div class="page-badge"><div class="badge-dot"></div> API Reference</div>
     <h1>MESSAGE<br>SCHEMA.</h1>
-    <p>Формат payload повідомлень, типи подій Socket.IO та структура даних для клієнта і бекенду LUMYN.</p>
+    <p>Payload format for messages, Socket.IO message types and data structure for LUMYN client and backend.</p>
   </div>
 
   <div class="content-wrap">
-    <a href="/updates" class="back-link">← Назад до оновлень</a>
+    <a href="/updates" class="back-link">← Back to updates</a>
     <div class="docs-tabs">
       <a href="/api">API</a>
       <a href="/protocol">Protocol</a>
@@ -183,22 +183,22 @@
     <div class="doc-section reveal">
       <div class="sec-label">// 01</div>
       <div class="sec-title">Base Message Payload</div>
-      <div class="sec-desc">Базова структура зашифрованого повідомлення. Всі поля, крім ciphertext, передаються у відкритому вигляді для маршрутизації. Ciphertext — зашифрований AES-256-GCM контент.</div>
+      <div class="sec-desc">Base structure of encrypted message. All fields except ciphertext are transmitted openly for routing. Ciphertext — AES-256-GCM encrypted content.</div>
       <div class="code-block">
         <div class="code-header">
           <div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div>
           <div class="code-lang">JSON · Message Envelope</div>
         </div>
         <div class="code-body">{
-  <span class="ck">"type"</span>:         <span class="cs">"text"</span>,           <span class="cc">// тип повідомлення</span>
-  <span class="ck">"senderName"</span>:   <span class="cs">"alice"</span>,          <span class="cc">// ідентифікатор відправника</span>
+    <span class="ck">"type"</span>:         <span class="cs">"text"</span>,           <span class="cc">// message type</span>
+    <span class="ck">"senderName"</span>:   <span class="cs">"alice"</span>,          <span class="cc">// sender identifier</span>
   <span class="ck">"receiverName"</span>: <span class="cs">"bob"</span>,            <span class="cc">// або "GROUP_uuid" для груп</span>
-  <span class="ck">"ciphertext"</span>:   <span class="cs">"base64..."</span>,      <span class="cc">// AES-256-GCM зашифрований контент</span>
-  <span class="ck">"nonce"</span>:        <span class="cs">"base64..."</span>,      <span class="cc">// 96-bit унікальний nonce</span>
+    <span class="ck">"ciphertext"</span>:   <span class="cs">"base64..."</span>,      <span class="cc">// AES-256-GCM encrypted content</span>
+    <span class="ck">"nonce"</span>:        <span class="cs">"base64..."</span>,      <span class="cc">// 96-bit unique nonce</span>
   <span class="ck">"mac"</span>:          <span class="cs">"base64..."</span>,      <span class="cc">// 128-bit GCM authentication tag</span>
   <span class="ck">"timestamp"</span>:    <span class="cs">"2026-03-30T..."</span>, <span class="cc">// ISO-8601</span>
-  <span class="ck">"messageId"</span>:    <span class="cs">"uuid-v4"</span>,        <span class="cc">// UUID v4 для дедуплікації</span>
-  <span class="ck">"isEphemeral"</span>:  <span class="cs">false</span>             <span class="cc">// true = ефірне повідомлення</span>
+    <span class="ck">"messageId"</span>:    <span class="cs">"uuid-v4"</span>,        <span class="cc">// UUID v4 for deduplication</span>
+    <span class="ck">"isEphemeral"</span>:  <span class="cs">false</span>             <span class="cc">// true = ephemeral message</span>
 }</div>
       </div>
     </div>
@@ -206,32 +206,32 @@
     <!-- MESSAGE TYPES -->
     <div class="doc-section reveal">
       <div class="sec-label">// 02</div>
-      <div class="sec-title">Типи повідомлень</div>
-      <div class="sec-desc">Поле <code style="font-family:var(--font-mono);font-size:13px;color:#ccc;">type</code> визначає як клієнт декодує та відображає вміст ciphertext після розшифрування.</div>
+      <div class="sec-title">Message Types</div>
+      <div class="sec-desc">The <code style="font-family:var(--font-mono);font-size:13px;color:#ccc;">type</code> field determines how the client decodes and displays ciphertext content after decryption.</div>
       <div class="type-grid">
         <div class="type-card">
           <div class="type-name">text</div>
-          <div class="type-desc">Звичайне текстове повідомлення. Ciphertext містить UTF-8 рядок.</div>
+          <div class="type-desc">Plain text message. Ciphertext contains UTF-8 string.</div></div>
         </div>
         <div class="type-card">
           <div class="type-name">image</div>
-          <div class="type-desc">Зображення. Ciphertext — зашифрований base64 JPEG/PNG файл.</div>
+          <div class="type-desc">Image. Ciphertext — encrypted base64 JPEG/PNG file.</div></div>
         </div>
         <div class="type-card">
           <div class="type-name">voice</div>
-          <div class="type-desc">Голосове повідомлення. Ciphertext — зашифрований аудіофайл.</div>
+          <div class="type-desc">Voice message. Ciphertext — encrypted audio file.</div></div>
         </div>
         <div class="type-card">
           <div class="type-name">ephemeral_text</div>
-          <div class="type-desc">Ефірний текст. Видаляється після прочитання на всіх пристроях.</div>
+          <div class="type-desc">Ephemeral text. Deleted after reading on all devices.</div></div>
         </div>
         <div class="type-card">
           <div class="type-name">ephemeral_image</div>
-          <div class="type-desc">Ефірне зображення. Автоматично знищується після перегляду.</div>
+          <div class="type-desc">Ephemeral image. Automatically destroyed after viewing.</div></div>
         </div>
         <div class="type-card">
           <div class="type-name">reaction</div>
-          <div class="type-desc">Emoji реакція на повідомлення. Містить messageId та emoji символ.</div>
+          <div class="type-desc">Emoji reaction to message. Contains messageId and emoji symbol.</div></div>
         </div>
         <div class="type-card">
           <div class="type-name">system</div>
@@ -239,7 +239,7 @@
         </div>
         <div class="type-card">
           <div class="type-name">deleted</div>
-          <div class="type-desc">Маркер видаленого повідомлення. Замінює вміст на стороні клієнта.</div>
+          <div class="type-desc">Deleted message marker. Replaces content on client side.</div></div>
         </div>
       </div>
     </div>
@@ -248,7 +248,7 @@
     <div class="doc-section reveal">
       <div class="sec-label">// 03</div>
       <div class="sec-title">Socket.IO Events</div>
-      <div class="sec-desc">Транспортний рівень LUMYN базується на Socket.IO. Нижче наведені ключові події клієнт↔сервер.</div>
+      <div class="sec-desc">LUMYN's transport layer is based on Socket.IO. Below are key client↔server events.</div></div>
       <div class="table-wrap">
         <table class="event-table">
           <thead>
@@ -262,67 +262,67 @@
             <tr>
               <td><div class="event-name">register</div></td>
               <td><span class="event-dir emit">emit →</span></td>
-              <td><div class="event-desc">Реєстрація клієнта: передає username та публічний ключ X25519.</div></td>
+              <td><div class="event-desc">Client registration: transmits username and X25519 public key.</div></td>
             </tr>
             <tr>
               <td><div class="event-name">sendMessage</div></td>
               <td><span class="event-dir emit">emit →</span></td>
-              <td><div class="event-desc">Надсилання зашифрованого повідомлення одному отримувачу.</div></td>
+              <td><div class="event-desc">Sending encrypted message to single recipient.</div></td>
             </tr>
             <tr>
               <td><div class="event-name">sendGroupMessage</div></td>
               <td><span class="event-dir emit">emit →</span></td>
-              <td><div class="event-desc">Надсилання повідомлення до групи по groupId.</div></td>
+              <td><div class="event-desc">Sending message to group by groupId.</div></td>
             </tr>
             <tr>
               <td><div class="event-name">sendEphemeral</div></td>
               <td><span class="event-dir emit">emit →</span></td>
-              <td><div class="event-desc">Ефірне повідомлення для прямого чату. Видаляється після доставки.</div></td>
+              <td><div class="event-desc">Ephemeral message for direct chat. Deleted after delivery.</div></td>
             </tr>
             <tr>
               <td><div class="event-name">sendEphemeralGroup</div></td>
               <td><span class="event-dir emit">emit →</span></td>
-              <td><div class="event-desc">Ефірне повідомлення для групи.</div></td>
+              <td><div class="event-desc">Ephemeral message for group.</div></td>
             </tr>
             <tr>
               <td><div class="event-name">sendVoice</div></td>
               <td><span class="event-dir emit">emit →</span></td>
-              <td><div class="event-desc">Передача зашифрованого голосового повідомлення.</div></td>
+              <td><div class="event-desc">Transmitting encrypted voice message.</div></td>
             </tr>
             <tr>
               <td><div class="event-name">sendImage</div></td>
               <td><span class="event-dir emit">emit →</span></td>
-              <td><div class="event-desc">Передача зашифрованого зображення.</div></td>
+              <td><div class="event-desc">Transmitting encrypted image.</div></td>
             </tr>
             <tr>
               <td><div class="event-name">receiveMessage</div></td>
               <td><span class="event-dir on">← on</span></td>
-              <td><div class="event-desc">Клієнт отримує нове зашифроване повідомлення від сервера.</div></td>
+              <td><div class="event-desc">Client receives new encrypted message from server.</div></td>
             </tr>
             <tr>
               <td><div class="event-name">getPublicKey</div></td>
               <td><span class="event-dir emit">emit →</span></td>
-              <td><div class="event-desc">Запит публічного ключа іншого користувача для ECDH обміну.</div></td>
+              <td><div class="event-desc">Request another user's public key for ECDH exchange.</div></td>
             </tr>
             <tr>
               <td><div class="event-name">typing</div></td>
               <td><span class="event-dir emit">emit →</span></td>
-              <td><div class="event-desc">Індикатор набору тексту. Передає sender, receiver, isTyping.</div></td>
+              <td><div class="event-desc">Typing indicator. Transmits sender, receiver, isTyping.</div></td>
             </tr>
             <tr>
               <td><div class="event-name">deleteMessage</div></td>
               <td><span class="event-dir emit">emit →</span></td>
-              <td><div class="event-desc">Видалення повідомлення по messageId. Сервер розсилає всім учасникам.</div></td>
+              <td><div class="event-desc">Delete message by messageId. Server broadcasts to all participants.</div></td>
             </tr>
             <tr>
               <td><div class="event-name">createGroup</div></td>
               <td><span class="event-dir emit">emit →</span></td>
-              <td><div class="event-desc">Створення групи з назвою та списком учасників.</div></td>
+              <td><div class="event-desc">Create group with name and member list.</div></td>
             </tr>
             <tr>
               <td><div class="event-name">fcmToken</div></td>
               <td><span class="event-dir emit">emit →</span></td>
-              <td><div class="event-desc">Реєстрація FCM токена для push-повідомлень через Firebase.</div></td>
+              <td><div class="event-desc">Register FCM token for push notifications via Firebase.</div></td>
             </tr>
           </tbody>
         </table>
@@ -339,7 +339,7 @@
           <div class="code-lang">JSON · Group Object</div>
         </div>
         <div class="code-body">{
-  <span class="ck">"groupId"</span>:      <span class="cs">"GROUP_uuid-v4"</span>,  <span class="cc">// унікальний префікс GROUP_</span>
+    <span class="ck">"groupId"</span>:      <span class="cs">"GROUP_uuid-v4"</span>,  <span class="cc">// unique GROUP_ prefix</span>
   <span class="ck">"groupName"</span>:    <span class="cs">"Team Alpha"</span>,
   <span class="ck">"members"</span>:      <span class="cs">["alice", "bob", "carol"]</span>,
   <span class="ck">"createdBy"</span>:    <span class="cs">"alice"</span>,
@@ -355,27 +355,27 @@
   <div class="apple-footer-content">
     <div class="footer-breadcrumbs">
       <a href="/"><img src="/icons/logo-192.png" alt="LUMYN"> LUMYN</a>
-      <span>›</span><a href="/updates">Оновлення</a>
+      <span>›</span><a href="/updates">Updates</a>
       <span>›</span><span>Schema</span>
     </div>
     <div class="footer-directory">
       <div class="footer-directory-column">
         <h3 class="footer-directory-column-title">LUMYN</h3>
         <ul class="footer-directory-list">
-          <li><a href="/">Головна</a></li>
-          <li><a href="/download">Додатки</a></li>
+          <li><a href="/">Home</a></li>
+          <li><a href="/download">Apps</a></li>
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Ресурси</h3>
+        <h3 class="footer-directory-column-title">Resources</h3>
         <ul class="footer-directory-list">
-          <li><a href="/faq">ЧаПи</a></li>
-          <li><a href="/support">Підтримка</a></li>
-          <li><a href="/updates">Оновлення</a></li>
+          <li><a href="/faq">FAQ</a></li>
+          <li><a href="/support">Support</a></li>
+          <li><a href="/updates">Updates</a></li>
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Документація</h3>
+        <h3 class="footer-directory-column-title">Documentation</h3>
         <ul class="footer-directory-list">
           <li><a href="/api">API</a></li>
           <li><a href="/protocol">Protocol</a></li>
@@ -384,7 +384,7 @@
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Проєкт</h3>
+        <h3 class="footer-directory-column-title">Project</h3>
         <ul class="footer-directory-list">
           <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li>
           <li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li>

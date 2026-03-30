@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -9,14 +9,14 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
-  <meta name="description" content="LUMYN API документація: auth, чати, групи, події Socket.IO">
+  <meta name="description" content="LUMYN API documentation: auth, chats, groups, Socket.IO events">
   <link rel="icon" href="/icons/favicon.png?v=1">
   <link rel="apple-touch-icon" href="/icons/logo-192.png?v=6">
   <link rel="manifest" href="/manifest.json">
   <meta property="og:title" content="LUMYN | API">
-  <meta property="og:description" content="Публічний API-шар LUMYN для клієнтів та інтеграцій.">
+  <meta property="og:description" content="LUMYN's public API layer for clients and integrations.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://lumyn.space/uk-ua/api">
+  <meta property="og:url" content="https://lumyn.space/en-us/api">
   <meta property="og:image" content="https://lumyn.space/icons/logo-512.png">
   <title>LUMYN | API</title>
   <script defer src="/locale-routing.js"></script>
@@ -107,13 +107,13 @@
 <canvas id="bg-canvas"></canvas>
 
 <nav>
-  <a href="/" class="nav-logo"><img src="/icons/logo-192.png" alt="Logo"> LUMYN</a>
+  <a href="/"><img src="/icons/logo-192.png" alt="Logo"> LUMYN</a>
   <div class="nav-links">
-    <a href="/">Головна</a>
-    <a href="/download">Додатки</a>
-    <a href="/faq">ЧаПи</a>
-    <a href="/support">Підтримка</a>
-    <a href="/updates" class="active">Оновлення</a>
+    <a href="/">Home</a>
+    <a href="/download">Apps</a>
+    <a href="/faq">FAQ</a>
+    <a href="/support">Support</a>
+    <a href="/updates" class="active">Updates</a>
     <a href="/api">API</a>
     <a href="/protocol">Protocol</a>
     <a href="/schema">Schema</a>
@@ -124,11 +124,11 @@
 </nav>
 
 <div id="mobile-dropdown" style="display:none;position:fixed;top:80px;left:0;right:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.1);padding:20px;z-index:199;flex-direction:column;gap:16px;text-align:center;">
-  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Головна</a>
-  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Додатки</a>
-  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">ЧаПи</a>
-  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Підтримка</a>
-  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Оновлення</a>
+  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Home</a>
+  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Apps</a>
+  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">FAQ</a>
+  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Support</a>
+  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Updates</a>
   <a href="/api" style="color:white;text-decoration:none;font-size:16px;">API</a>
   <a href="/protocol" style="color:white;text-decoration:none;font-size:16px;">Protocol</a>
   <a href="/schema" style="color:white;text-decoration:none;font-size:16px;">Schema</a>
@@ -140,11 +140,11 @@
   <div class="page-hero">
     <div class="page-badge"><div class="badge-dot"></div> API Reference</div>
     <h1>CLIENT<br>API.</h1>
-    <p>Події Socket.IO, auth-flow та контракти для direct/group чатів у LUMYN. Сторінка для швидкої інтеграції клієнтів.</p>
+    <p>Socket.IO events, auth-flow and contracts for direct/group chats in LUMYN. Quick client integration guide.</p>
   </div>
 
   <div class="content-wrap">
-    <a href="/updates" class="back-link">← Назад до оновлень</a>
+    <a href="/updates" class="back-link">← Back to Updates</a>
     <div class="docs-tabs">
       <a href="/api" class="active">API</a>
       <a href="/protocol">Protocol</a>
@@ -154,7 +154,7 @@
 
     <div class="doc-section">
       <div class="sec-label">// Core</div>
-      <div class="sec-title">Основні домени API</div>
+      <div class="sec-title">Core API Domains</div>
       <div class="cards">
         <div class="card"><h3>Auth</h3><ul><li>register</li><li>login</li><li>verify_email_code</li></ul></div>
         <div class="card"><h3>Chats</h3><ul><li>get_recent_chats</li><li>get_direct_history</li><li>typing</li></ul></div>
@@ -164,15 +164,15 @@
 
     <div class="doc-section">
       <div class="sec-label">// Events</div>
-      <div class="sec-title">Найчастіші Socket.IO події</div>
+      <div class="sec-title">Most Common Socket.IO Events</div>
       <div class="table-wrap">
         <table class="event-table">
-          <thead><tr><th>Подія</th><th>Напрям</th><th>Призначення</th></tr></thead>
+          <thead><tr><th>Event</th><th>Direction</th><th>Purpose</th></tr></thead>
           <tbody>
-            <tr><td>sendMessage</td><td>emit</td><td>Відправка зашифрованого direct-повідомлення.</td></tr>
-            <tr><td>sendGroupMessage</td><td>emit</td><td>Відправка зашифрованого group-повідомлення.</td></tr>
-            <tr><td>receiveMessage</td><td>on</td><td>Отримання нового повідомлення на клієнті.</td></tr>
-            <tr><td>update_chat_settings</td><td>emit</td><td>Оновлення mute/pin/ephemeral налаштувань чату.</td></tr>
+            <tr><td>sendMessage</td><td>emit</td><td>Sending an encrypted direct message.</td></tr>
+            <tr><td>sendGroupMessage</td><td>emit</td><td>Sending an encrypted group message.</td></tr>
+            <tr><td>receiveMessage</td><td>on</td><td>Receiving a new message on the client.</td></tr>
+            <tr><td>update_chat_settings</td><td>emit</td><td>Updating mute/pin/ephemeral chat settings.</td></tr>
           </tbody>
         </table>
       </div>
@@ -180,8 +180,8 @@
 
     <div class="doc-section">
       <div class="sec-label">// Notes</div>
-      <div class="sec-title">Рекомендації для інтеграції</div>
-      <div class="sec-desc">Використовуй idempotent retry для emit-подій, versioning для payload-формату, та обробляй зворотні сумісності у клієнті при розгортанні нових полів.</div>
+      <div class="sec-title">Integration Recommendations</div>
+      <div class="sec-desc">Use idempotent retry for emit events, versioning for payload format, and handle backward compatibility in the client when deploying new fields.</div>
     </div>
   </div>
 </main>
@@ -197,20 +197,20 @@
       <div class="footer-directory-column">
         <h3 class="footer-directory-column-title">LUMYN</h3>
         <ul class="footer-directory-list">
-          <li><a href="/">Головна</a></li>
-          <li><a href="/download">Додатки</a></li>
+          <li><a href="/">Home</a></li>
+          <li><a href="/download">Apps</a></li>
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Ресурси</h3>
+        <h3 class="footer-directory-column-title">Resources</h3>
         <ul class="footer-directory-list">
-          <li><a href="/faq">ЧаПи</a></li>
-          <li><a href="/support">Підтримка</a></li>
-          <li><a href="/updates">Оновлення</a></li>
+          <li><a href="/faq">FAQ</a></li>
+          <li><a href="/support">Support</a></li>
+          <li><a href="/updates">Updates</a></li>
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Документація</h3>
+        <h3 class="footer-directory-column-title">Documentation</h3>
         <ul class="footer-directory-list">
           <li><a href="/api">API</a></li>
           <li><a href="/protocol">Protocol</a></li>
@@ -219,7 +219,7 @@
         </ul>
       </div>
       <div class="footer-directory-column">
-        <h3 class="footer-directory-column-title">Проєкт</h3>
+        <h3 class="footer-directory-column-title">Project</h3>
         <ul class="footer-directory-list">
           <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li>
           <li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li>
