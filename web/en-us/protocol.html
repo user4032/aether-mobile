@@ -259,17 +259,17 @@
         <div class="info-card">
           <div class="info-card-label">Key Exchange</div>
           <div class="info-card-val">X25519</div>
-          <div class="info-card-desc">Elliptic Curve Diffie-Hellman on Curve25519. Fast and resistant to attacks.</div></div>
+          <div class="info-card-desc">Elliptic Curve Diffie-Hellman on Curve25519. Fast and resistant to attacks.</div>
         </div>
         <div class="info-card">
           <div class="info-card-label">Nonce</div>
           <div class="info-card-val">96 bit</div>
-          <div class="info-card-desc">Unique per-message nonce ensures same plaintext always encrypts differently.</div></div>
+          <div class="info-card-desc">Unique per-message nonce ensures same plaintext always encrypts differently.</div>
         </div>
         <div class="info-card">
           <div class="info-card-label">MAC</div>
           <div class="info-card-val">GCM tag</div>
-          <div class="info-card-desc">128-bit authentication tag verifies integrity and authenticity of each message.</div></div>
+          <div class="info-card-desc">128-bit authentication tag verifies integrity and authenticity of each message.</div>
         </div>
       </div>
     </div>
@@ -288,21 +288,21 @@
             <div class="flow-num">→</div>
             <div class="flow-content">
               <div class="flow-name">sendMessage</div>
-              <div class="flow-desc">Client sends encrypted payload. Server routes to recipient or group without seeing content.</div></div>
+              <div class="flow-desc">Client sends encrypted payload. Server routes to recipient or group without seeing content.</div>
             </div>
           </div>
           <div class="flow-step">
             <div class="flow-num">→</div>
             <div class="flow-content">
               <div class="flow-name">sendGroupMessage</div>
-              <div class="flow-desc">Group messages support group shared secret or per-member encryption depending on settings.</div></div>
+              <div class="flow-desc">Group messages support group shared secret or per-member encryption depending on settings.</div>
             </div>
           </div>
           <div class="flow-step">
             <div class="flow-num">→</div>
             <div class="flow-content">
               <div class="flow-name">sendEphemeral / sendEphemeralGroup</div>
-              <div class="flow-desc">Ephemeral messages marked with isEphemeral flag. Deleted from memory after delivery confirmation. Client deletes after viewing.</div></div>
+              <div class="flow-desc">Ephemeral messages marked with isEphemeral flag. Deleted from memory after delivery confirmation. Client deletes after viewing.</div>
             </div>
           </div>
           <div class="flow-step">
@@ -348,7 +348,7 @@
           <div class="tl-dot"></div>
           <div class="tl-label">Implemented</div>
           <div class="tl-title">X25519 + AES-256-GCM E2E</div>
-          <div class="tl-desc">Full end-to-end encryption for direct and group chats, voice and media messages.</div></div>
+          <div class="tl-desc">Full end-to-end encryption for direct and group chats, voice and media messages.</div>
         </div>
         <div class="tl-item active">
           <div class="tl-dot"></div>
@@ -360,19 +360,19 @@
           <div class="tl-dot"></div>
           <div class="tl-label">In Progress</div>
           <div class="tl-title">Multi-device Synchronization</div>
-          <div class="tl-desc">Secure session sync across devices without compromising Zero-Knowledge architecture.</div></div>
+          <div class="tl-desc">Secure session sync across devices without compromising Zero-Knowledge architecture.</div>
         </div>
         <div class="tl-item">
           <div class="tl-dot"></div>
           <div class="tl-label">Planned</div>
           <div class="tl-title">Forward Secrecy</div>
-          <div class="tl-desc">Key rotation to ensure current key compromise doesn't reveal past messages.</div></div>
+          <div class="tl-desc">Key rotation to ensure current key compromise doesn't reveal past messages.</div>
         </div>
         <div class="tl-item">
           <div class="tl-dot"></div>
           <div class="tl-label">Planned</div>
           <div class="tl-title">Open Source</div>
-          <div class="tl-desc">Public audit of cryptographic code for client and backend.</div></div>
+          <div class="tl-desc">Public audit of cryptographic code for client and backend.</div>
         </div>
       </div>
     </div>
