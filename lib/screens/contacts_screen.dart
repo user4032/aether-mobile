@@ -3164,9 +3164,11 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                   ]),
                 )
               : Focus(
-                  autofocus: isDesktopPlatform && _currentIndex == 0,
+                  autofocus: (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) && _currentIndex == 0,
                   onKeyEvent: (node, event) {
-                    if (!isDesktopPlatform || event is! KeyDownEvent) return KeyEventResult.ignored;
+                    if (!(!kIsWeb && (Platform.isLinux || Platform.isMacOS)) || event is! KeyDownEvent) {
+                      return KeyEventResult.ignored;
+                    }
                     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
                       _moveDesktopChatSelection(1);
                       return KeyEventResult.handled;
@@ -5482,7 +5484,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     final totalUnread = _recentChats.fold(0, (sum, chat) => sum + ((chat['unreadCount'] ?? 0) as int));
     final totalPending = _pendingRequests.length;
     final isDesktopLayout = MediaQuery.of(context).size.width >= 980;
-    final isDesktopPlatform = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+    final isDesktopShortcutPlatform = !kIsWeb && (Platform.isLinux || Platform.isMacOS);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -5499,7 +5501,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         ),
       ),
       body: Shortcuts(
-        shortcuts: isDesktopPlatform
+        shortcuts: isDesktopShortcutPlatform
             ? const <ShortcutActivator, Intent>{
                 SingleActivator(LogicalKeyboardKey.digit1, control: true): _SwitchTabIntent(0),
                 SingleActivator(LogicalKeyboardKey.digit2, control: true): _SwitchTabIntent(1),

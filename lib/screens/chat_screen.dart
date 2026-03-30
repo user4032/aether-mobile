@@ -2311,7 +2311,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
   Widget build(BuildContext context) {
     final isGroupChat = _currentPartnerKey.startsWith('GROUP_');
     final isSelf = widget.partnerName == widget.userName;
-    final isDesktopPlatform = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+    final isDesktopShortcutPlatform = Platform.isLinux || Platform.isMacOS;
     final partnerNameLabel = (widget.partnerDisplayName != null && widget.partnerDisplayName!.trim().isNotEmpty)
         ? widget.partnerDisplayName!.trim()
         : widget.partnerName;
@@ -2420,7 +2420,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
             ],
       ),
       body: Shortcuts(
-        shortcuts: isDesktopPlatform
+        shortcuts: isDesktopShortcutPlatform
             ? const <ShortcutActivator, Intent>{
                 SingleActivator(LogicalKeyboardKey.keyF, control: true): _ToggleSearchIntent(),
                 SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
@@ -2775,8 +2775,7 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                 decoration: BoxDecoration(color: _isAetherMode ? accent.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(20), border: Border.all(color: _isAetherMode ? accent : Colors.white.withValues(alpha: 0.1))),
                 child: Focus(
                   onKeyEvent: (node, event) {
-                    final isDesktopPlatform = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-                    if (!isDesktopPlatform) return KeyEventResult.ignored;
+                    if (!(Platform.isLinux || Platform.isMacOS)) return KeyEventResult.ignored;
                     if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
                       if (HardwareKeyboard.instance.isShiftPressed) {
                         return KeyEventResult.ignored;
