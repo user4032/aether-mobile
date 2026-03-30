@@ -7,6 +7,11 @@ import 'screens/main_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (!kIsWeb) {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+  }
   if (kIsWeb && WebFirebaseConfig.isConfigured) {
     await Firebase.initializeApp(options: WebFirebaseConfig.options);
   }
