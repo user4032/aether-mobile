@@ -8,6 +8,7 @@
     "gcm_sender_id": "103953800507",
     "description": "Aether Core Protocol",
     "orientation": "portrait-primary",
+    "display_override": ["standalone", "minimal-ui"],
     "prefer_related_applications": false,
     "icons": [
        {
