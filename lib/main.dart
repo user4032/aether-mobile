@@ -4,16 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_web_config.dart';
 import 'screens/main_gate.dart';
-import 'services/socket_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SocketService.connect();
-  if (!kIsWeb) {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
-  }
   if (kIsWeb && WebFirebaseConfig.isConfigured) {
     await Firebase.initializeApp(options: WebFirebaseConfig.options);
   }
@@ -31,12 +24,6 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Lumyn',
-      builder: (context, child) {
-        return TooltipVisibility(
-          visible: false,
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.black, 
         fontFamily: 'Inter', 

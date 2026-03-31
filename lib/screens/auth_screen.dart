@@ -105,34 +105,9 @@ class _AuthScreenState extends State<AuthScreen> {
     final pass = _passController.text.trim();
     if (name.isEmpty || pass.isEmpty) return;
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
-      'transports': ['websocket', 'polling'],
-      'upgrade': true,
-      'timeout': 20000,
-      'forceNew': true,
-    });
-    
-    // Timeout для з'єднання (30 секунд)
-    Timer? connectionTimeout;
-    bool isConnected = false;
-    
-    void cleanupSocket() {
-      connectionTimeout?.cancel();
-      if (!isConnected) s.dispose();
-    }
-    
-    connectionTimeout = Timer(const Duration(seconds: 30), () {
-      if (!isConnected && mounted) {
-        s.dispose();
-        setState(() => isLoading = false);
-        _showSnack(t('Помилка подключення', 'Connection timeout'), isError: true);
-      }
-    });
-    
+    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
+    s.connect();
     s.onConnect((_) {
-      isConnected = true;
-      connectionTimeout?.cancel();
-      
       s.emitWithAck('login_device_request', {
         'userName': name,
         'password': pass,
@@ -148,27 +123,27 @@ class _AuthScreenState extends State<AuthScreen> {
         }
 
         if (response['requiresApproval'] == true) {
-          s.emitWithAck('login', {
-            'userName': name,
-            'password': pass,
-            'publicKey': widget.publicKey,
-            'deviceId': widget.deviceId,
-            'deviceName': _deviceName(),
-          }, ack: (dynamic legacyRaw) async {
-            final legacyResponse = Map<String, dynamic>.from(legacyRaw as Map);
-            if (legacyResponse['success'] == true) {
-              s.dispose();
-              await _applyLinkedKeysAndFinish(name, legacyResponse);
-              return;
-            }
+              s.emitWithAck('login', {
+                'userName': name,
+                'password': pass,
+                'publicKey': widget.publicKey,
+                'deviceId': widget.deviceId,
+                'deviceName': _deviceName(),
+              }, ack: (dynamic legacyRaw) async {
+                final legacyResponse = Map<String, dynamic>.from(legacyRaw as Map);
+                if (legacyResponse['success'] == true) {
+                  s.dispose();
+                  await _applyLinkedKeysAndFinish(name, legacyResponse);
+                  return;
+                }
 
-            if (mounted) {
-              _showSnack(
-                '${t('Підтвердіть новий пристрій у вже авторизованому акаунті', 'Approve this device from your existing logged-in device')} (${response['code'] ?? '----'})',
-              );
-            }
-            unawaited(_waitForDeviceApproval(s, (response['requestId'] ?? '').toString(), name));
-          });
+                if (mounted) {
+                  _showSnack(
+                    '${t('Підтвердіть новий пристрій у вже авторизованому акаунті', 'Approve this device from your existing logged-in device')} (${response['code'] ?? '----'})',
+                  );
+                }
+                unawaited(_waitForDeviceApproval(s, (response['requestId'] ?? '').toString(), name));
+              });
           return;
         }
 
@@ -177,16 +152,6 @@ class _AuthScreenState extends State<AuthScreen> {
         _showSnack((response['message'] ?? t('Помилка', 'Error')).toString(), isError: true);
       });
     });
-    
-    s.onConnectError((error) {
-      cleanupSocket();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _showSnack(t('Помилка подключення', 'Connection error'), isError: true);
-      }
-    });
-    
-    s.connect();
   }
 
   void _sendCode() async {
@@ -199,33 +164,9 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
-      'transports': ['websocket', 'polling'],
-      'upgrade': true,
-      'timeout': 20000,
-      'forceNew': true,
-    });
-    
-    Timer? connectionTimeout;
-    bool isConnected = false;
-    
-    void cleanupSocket() {
-      connectionTimeout?.cancel();
-      if (!isConnected) s.dispose();
-    }
-    
-    connectionTimeout = Timer(const Duration(seconds: 30), () {
-      if (!isConnected && mounted) {
-        s.dispose();
-        setState(() => isLoading = false);
-        _showSnack(t('Помилка подключення', 'Connection timeout'), isError: true);
-      }
-    });
-    
+    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
+    s.connect();
     s.onConnect((_) {
-      isConnected = true;
-      connectionTimeout?.cancel();
-      
       s.emitWithAck('send_verification_email', {
         'userName': name,
         'email': email,
@@ -244,28 +185,13 @@ class _AuthScreenState extends State<AuthScreen> {
         }
       });
     });
-    
-    s.onConnectError((error) {
-      cleanupSocket();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _showSnack(t('Помилка подключення', 'Connection error'), isError: true);
-      }
-    });
-    
-    s.connect();
   }
 
   void _verifyCode() async {
     final code = _codeController.text.trim();
     if (code.length != 6) return;
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
-      'transports': ['websocket', 'polling'],
-      'upgrade': true,
-      'timeout': 20000,
-      'forceNew': true,
-    });
+    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
     s.connect();
     s.onConnect((_) {
       s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {
@@ -367,9 +293,9 @@ class _AuthScreenState extends State<AuthScreen> {
                             child: child,
                           ),
                         ),
-                        child: _step == 3 ? _buildRestoreStep() 
-                             : (_step == 2 ? _buildCodeStep() 
-                             : (_step == 1 ? _buildRegisterStep() 
+                        child: _step == 3 ? _buildRestoreStep()
+                             : (_step == 2 ? _buildCodeStep()
+                             : (_step == 1 ? _buildRegisterStep()
                              : _buildLoginStep())),
                       ),
                     ),
@@ -387,6 +313,7 @@ class _AuthScreenState extends State<AuthScreen> {
     return Column(
       key: const ValueKey('login'),
       mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 60),
@@ -426,10 +353,9 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildRegisterStep() {
     return Column(
       key: const ValueKey('register'),
-      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 60),
         Text(t("Створити акаунт.", "Create account."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
         const Text("LUMYN Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
@@ -462,7 +388,6 @@ class _AuthScreenState extends State<AuthScreen> {
           onTap: () => setState(() => _step = 0),
           child: Text(t("Вже є акаунт? Увійти", "Already have an account? Sign In"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
         ),
-        const SizedBox(height: 60),
       ],
     );
   }
@@ -470,10 +395,9 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildCodeStep() {
     return Column(
       key: const ValueKey('code'),
-      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 40),
         const Icon(Icons.email_outlined, color: Colors.white70, size: 48),
         const SizedBox(height: 24),
         Text(t("Перевір пошту.", "Check your email."), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
@@ -516,7 +440,6 @@ class _AuthScreenState extends State<AuthScreen> {
           onPressed: () => setState(() { _step = 1; _codeController.clear(); }),
           child: Text(t("← Назад", "← Back"), style: const TextStyle(color: Colors.white70)),
         ),
-        const SizedBox(height: 40),
       ],
     );
   }

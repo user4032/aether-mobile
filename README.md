@@ -1,31 +1,34 @@
-# x3dh_client
+# x3dh_client_pc
 
-A new Flutter project.
+Separate desktop client project (Windows/Linux/macOS) for installer distribution.
 
-## Getting Started
+## Purpose
 
-This project is a starting point for a Flutter application.
+- `x3dh_client` stays your web/PWA-oriented client.
+- `x3dh_client_pc` is the dedicated desktop app folder for installer builds.
 
-A few resources to get you started if this is your first Flutter project:
+## Run Desktop App
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+cd x3dh_client_pc
+flutter pub get
+flutter run -d windows
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Build Windows Installer
 
-## Deploy on Vercel
+Prerequisites:
 
-This repository is configured for Vercel in the root `vercel.json` file.
+- Flutter SDK in PATH
+- Inno Setup 6 installed
 
-### Notes
+Command:
 
-- Vercel deploys only the Flutter Web client (`x3dh_client`).
-- The Socket.IO backend (`index.js`) should be deployed separately (for example Render/Railway/VM).
+```powershell
+cd x3dh_client_pc
+powershell -ExecutionPolicy Bypass -File .\scripts\build_windows_installer.ps1
+```
 
-### Required Vercel environment variables (if email verification is used on backend)
+Output installer:
 
-- `EMAIL_USER`
-- `EMAIL_PASS`
+- `x3dh_client_pc/build/installer/LumynMessengerSetup.exe`

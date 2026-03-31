@@ -3,12 +3,12 @@ import 'package:firebase_core/firebase_core.dart';
 class WebFirebaseConfig {
   static const String apiKey = String.fromEnvironment(
     'FIREBASE_WEB_API_KEY',
-    defaultValue: '', // ⚠️ Set via environment variable only
+    defaultValue: 'AIzaSyDSJmhaU3G22eeP1AfIu5pLGVE_9I3GUzM',
   );
 
   static const String appId = String.fromEnvironment(
     'FIREBASE_WEB_APP_ID',
-    defaultValue: '', // ⚠️ Set via environment variable only
+    defaultValue: '',
   );
 
   static const String messagingSenderId = String.fromEnvironment(
