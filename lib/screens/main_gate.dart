@@ -28,12 +28,14 @@ class _MainGateState extends State<MainGate> {
     String? id = prefs.getString('device_id');
     String? pub = prefs.getString('public_key');
     String? priv = await _storage.read(key: 'private_key');
-    if (id == null || pub == null || priv == null) {
+    if (id == null) {
       id = const Uuid().v4();
+      await prefs.setString('device_id', id);
+    }
+    if (pub == null || priv == null) {
       final keyPair = await X25519().newKeyPair();
       final pubKeyBytes = await keyPair.extractPublicKey();
       final privKeyBytes = await keyPair.extractPrivateKeyBytes();
-      await prefs.setString('device_id', id);
       await prefs.setString('public_key', base64Encode(pubKeyBytes.bytes));
       await _storage.write(key: 'private_key', value: base64Encode(privKeyBytes));
       pub = base64Encode(pubKeyBytes.bytes);

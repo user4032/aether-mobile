@@ -2231,44 +2231,49 @@ void _showForwardDialog(Map<String, dynamic> msg) {
     );
   }
 
-  Widget _buildMessageText(String text, Color baseColor) {
-    bool isEmojiOnly(String value) {
-      final trimmed = value.trim();
-      if (trimmed.isEmpty) return false;
+  int _emojiSymbolCount(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return 0;
 
-      // Explicitly reject regular text alphabets so Cyrillic/Latin words
-      // never get promoted to "large emoji" style.
-      if (RegExp(r'[A-Za-z0-9А-Яа-яІіЇїЄєҐґ]').hasMatch(trimmed)) {
-        return false;
-      }
-
-      bool isEmojiRune(int rune) {
-        if (rune >= 0x1F300 && rune <= 0x1FAFF) return true;
-        if (rune >= 0x2600 && rune <= 0x26FF) return true;
-        if (rune >= 0x2700 && rune <= 0x27BF) return true;
-        return false;
-      }
-
-      int emojiUnits = 0;
-      for (final rune in trimmed.runes) {
-        // Ignore spaces and emoji composition markers.
-        if (rune == 0x20 || rune == 0x0A || rune == 0x09) continue;
-        if (rune == 0xFE0F || rune == 0x200D) continue;
-        if (rune >= 0x1F3FB && rune <= 0x1F3FF) continue; // Skin tones
-
-        if (!isEmojiRune(rune)) return false;
-        emojiUnits++;
-      }
-
-      return emojiUnits > 0 && emojiUnits <= 6;
+    if (RegExp(r'[A-Za-z0-9А-Яа-яІіЇїЄєҐґ]').hasMatch(trimmed)) {
+      return 0;
     }
 
-    final emojiOnly = _emojiLargeRenderEnabled && isEmojiOnly(text);
-    final fontSize = emojiOnly ? (_chatFontSize + 18) : _chatFontSize;
+    bool isEmojiRune(int rune) {
+      if (rune >= 0x1F300 && rune <= 0x1FAFF) return true;
+      if (rune >= 0x2600 && rune <= 0x26FF) return true;
+      if (rune >= 0x2700 && rune <= 0x27BF) return true;
+      return false;
+    }
+
+    int count = 0;
+    for (final rune in trimmed.runes) {
+      if (rune == 0x20 || rune == 0x0A || rune == 0x09) continue;
+      if (rune == 0xFE0F || rune == 0x200D) continue;
+      if (rune >= 0x1F3FB && rune <= 0x1F3FF) continue;
+
+      if (!isEmojiRune(rune)) return 0;
+      count++;
+    }
+    return count;
+  }
+
+  double _emojiFontSizeForCount(int count) {
+    if (count <= 0) return _chatFontSize;
+    if (count == 1) return (_chatFontSize + 30).clamp(42.0, 72.0).toDouble();
+    if (count == 2) return (_chatFontSize + 22).clamp(36.0, 60.0).toDouble();
+    if (count <= 5) return (_chatFontSize + 12).clamp(28.0, 44.0).toDouble();
+    return _chatFontSize;
+  }
+
+  Widget _buildMessageText(String text, Color baseColor) {
+    final emojiCount = _emojiSymbolCount(text);
+    final emojiOnly = _emojiLargeRenderEnabled && emojiCount > 0;
+    final fontSize = emojiOnly ? _emojiFontSizeForCount(emojiCount) : _chatFontSize;
     final textStyle = TextStyle(color: baseColor, fontSize: fontSize, height: emojiOnly ? 1.15 : null);
 
     Widget wrapAnimated(Widget child) {
-      if (!emojiOnly || !_animatedEmojiEnabled) return child;
+      if (!emojiOnly || !_animatedEmojiEnabled || emojiCount > 3) return child;
       return TweenAnimationBuilder<double>(
         tween: Tween<double>(begin: 0.97, end: 1.03),
         duration: const Duration(milliseconds: 1200),
@@ -2496,18 +2501,24 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                             final msgKey = '${m['timestamp']}_${m['senderName']}';
                             final msgReactions = Map<String, List<String>>.from(_reactions[msgKey] ?? {});
                             final isSearchMatch = _isSearchMode && _searchMatchIndices.isNotEmpty && _searchMatchIndices[_currentSearchIdx] == i;
+                            final textValue = (m['text'] ?? '').toString();
+                            final isEmojiOnlyTextMessage = !isImage && !isAudio && !hasReply && _emojiSymbolCount(textValue) > 0;
                             final bubbleColor = isSearchMatch
                               ? const Color(0xFF6B5B00)
-                              : (isMsgEphemeral
-                                ? const Color(0xFF4A1073)
-                                : (isMe ? const Color(0xFF111111) : accent.withValues(alpha: 0.92)));
+                              : (isEmojiOnlyTextMessage
+                                ? Colors.transparent
+                                : (isMsgEphemeral
+                                  ? const Color(0xFF4A1073)
+                                  : (isMe ? const Color(0xFF111111) : accent.withValues(alpha: 0.92))));
                             final bubbleBorderColor = isSearchMatch
                               ? const Color(0xFFFFD700).withValues(alpha: 0.55)
-                              : (isMsgEphemeral
-                                ? accent.withValues(alpha: 0.55)
-                                : (isMe
-                                  ? Colors.white.withValues(alpha: 0.18)
-                                  : onAccent.withValues(alpha: 0.26)));
+                              : (isEmojiOnlyTextMessage
+                                ? Colors.transparent
+                                : (isMsgEphemeral
+                                  ? accent.withValues(alpha: 0.55)
+                                  : (isMe
+                                    ? Colors.white.withValues(alpha: 0.18)
+                                    : onAccent.withValues(alpha: 0.26))));
                             final messageTextColor = isMsgEphemeral
                               ? const Color(0xFFE5B3FF)
                               : (isMe ? Colors.white : onAccent);
@@ -2520,16 +2531,16 @@ void _showForwardDialog(Map<String, dynamic> msg) {
                                 margin: EdgeInsets.only(bottom: bubbleBottomMargin),
                                 constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
                                 padding: EdgeInsets.only(
-                                  left: isImage || isAudio ? 4 : bubbleHorizontalPadding,
-                                  right: isImage || isAudio ? 4 : bubbleHorizontalPadding,
-                                  top: isImage ? 4 : bubbleVerticalPadding,
-                                  bottom: isImage ? 4 : bubbleVerticalPadding,
+                                  left: isImage || isAudio ? 4 : (isEmojiOnlyTextMessage ? 2 : bubbleHorizontalPadding),
+                                  right: isImage || isAudio ? 4 : (isEmojiOnlyTextMessage ? 2 : bubbleHorizontalPadding),
+                                  top: isImage ? 4 : (isEmojiOnlyTextMessage ? 2 : bubbleVerticalPadding),
+                                  bottom: isImage ? 4 : (isEmojiOnlyTextMessage ? 2 : bubbleVerticalPadding),
                                 ),
                                 decoration: BoxDecoration(
                                   color: bubbleColor,
                                   border: Border.all(color: bubbleBorderColor, width: 0.9),
                                   borderRadius: _scaledBubbleRadius(isMe, bubbleRadiusScale),
-                                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 2, offset: const Offset(0, 1))],
+                                  boxShadow: isEmojiOnlyTextMessage ? const [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 2, offset: const Offset(0, 1))],
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start, 

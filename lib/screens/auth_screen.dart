@@ -148,12 +148,27 @@ class _AuthScreenState extends State<AuthScreen> {
         }
 
         if (response['requiresApproval'] == true) {
-          if (mounted) {
-            _showSnack(
-              '${t('Підтвердіть новий пристрій у вже авторизованому акаунті', 'Approve this device from your existing logged-in device')} (${response['code'] ?? '----'})',
-            );
-          }
-          unawaited(_waitForDeviceApproval(s, (response['requestId'] ?? '').toString(), name));
+          s.emitWithAck('login', {
+            'userName': name,
+            'password': pass,
+            'publicKey': widget.publicKey,
+            'deviceId': widget.deviceId,
+            'deviceName': _deviceName(),
+          }, ack: (dynamic legacyRaw) async {
+            final legacyResponse = Map<String, dynamic>.from(legacyRaw as Map);
+            if (legacyResponse['success'] == true) {
+              s.dispose();
+              await _applyLinkedKeysAndFinish(name, legacyResponse);
+              return;
+            }
+
+            if (mounted) {
+              _showSnack(
+                '${t('Підтвердіть новий пристрій у вже авторизованому акаунті', 'Approve this device from your existing logged-in device')} (${response['code'] ?? '----'})',
+              );
+            }
+            unawaited(_waitForDeviceApproval(s, (response['requestId'] ?? '').toString(), name));
+          });
           return;
         }
 
@@ -334,24 +349,34 @@ class _AuthScreenState extends State<AuthScreen> {
       backgroundColor: Colors.black,
       body: LiquidBackground(
         child: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 350),
-                transitionBuilder: (child, anim) => FadeTransition(
-                  opacity: anim,
-                  child: SlideTransition(
-                    position: Tween(begin: const Offset(0.05, 0), end: Offset.zero).animate(anim),
-                    child: child,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 30),
+                    child: Center(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 350),
+                        transitionBuilder: (child, anim) => FadeTransition(
+                          opacity: anim,
+                          child: SlideTransition(
+                            position: Tween(begin: const Offset(0.05, 0), end: Offset.zero).animate(anim),
+                            child: child,
+                          ),
+                        ),
+                        child: _step == 3 ? _buildRestoreStep() 
+                             : (_step == 2 ? _buildCodeStep() 
+                             : (_step == 1 ? _buildRegisterStep() 
+                             : _buildLoginStep())),
+                      ),
+                    ),
                   ),
                 ),
-                child: _step == 3 ? _buildRestoreStep() 
-                     : (_step == 2 ? _buildCodeStep() 
-                     : (_step == 1 ? _buildRegisterStep() 
-                     : _buildLoginStep())),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),

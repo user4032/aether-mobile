@@ -1,26 +1,30 @@
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:flutter/foundation.dart'; // Додаємо для перевірки kIsWeb
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class SocketService {
-  // Робимо змінну статичною, щоб мати доступ до сокета звідусіль
-  static IO.Socket? socket;
+  static io.Socket? socket;
 
   static void connect() {
-    // Увага: для локального тесту на емуляторі Android часто треба 'http://10.0.2.2:3000'
-    // Для вебу (PWA) або локального тесту в браузері залишай 'http://localhost:3000'
-    // Коли будеш деплоїти, зміниш на свій Render URL: 'https://aether-backend-hrmq.onrender.com'
-    String url = 'http://localhost:3000';
+    // РОЗУМНИЙ ВИБІР URL:
+    // Якщо це браузер (PWA) -> йдемо через локальний проксі, щоб уникнути CORS
+    // Якщо це Windows/Android/iOS -> йдемо НАПРЯМУ на Render
+    String url = kIsWeb 
+        ? 'http://localhost:3000' 
+        : 'https://aether-backend-hrmq.onrender.com';
 
-    socket = IO.io(url, <String, dynamic>{
-      'transports': ['websocket', 'polling'], // Обов'язково для вебу
+    socket = io.io(url, <String, dynamic>{
+      // Для нативних додатків краще працює чистий websocket, 
+      // а для вебу залишаємо обидва варіанти
+      'transports': kIsWeb ? ['websocket', 'polling'] : ['websocket'], 
       'autoConnect': true,
     });
 
     socket!.onConnect((_) {
-      print('✅ Підключено до Aether');
+      debugPrint('✅ Підключено до Aether ($url)');
     });
 
-    socket!.onConnectError((err) => print('❌ Помилка підключення: $err'));
+    socket!.onConnectError((err) => debugPrint('❌ Помилка підключення: $err'));
     
-    socket!.onDisconnect((_) => print('⚠️ Відключено від сервера'));
+    socket!.onDisconnect((_) => debugPrint('⚠️ Відключено від сервера'));
   }
 }
