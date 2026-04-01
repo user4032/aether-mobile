@@ -38,6 +38,25 @@ class _AuthScreenState extends State<AuthScreen> {
   
   String? _pendingEmail;
 
+  io.Socket _createAuthSocket() {
+    return io.io('https://aether-backend-hrmq.onrender.com', {
+      'transports': ['websocket', 'polling'],
+      'forceNew': true,
+      'autoConnect': false,
+      'reconnection': false,
+      'timeout': 10000,
+    });
+  }
+
+  void _attachSocketFailureHandlers(io.Socket socket, void Function(String message) onFail) {
+    socket.onConnectError((err) {
+      onFail(t('Не вдалося підключитися до сервера', 'Failed to connect to server'));
+    });
+    socket.onError((err) {
+      onFail(t('Помилка мережі під час підключення', 'Network error during connection'));
+    });
+  }
+
   String _deviceName() {
     final platform = Platform.isAndroid
         ? 'Android'
@@ -77,7 +96,10 @@ class _AuthScreenState extends State<AuthScreen> {
         completer.complete(Map<String, dynamic>.from(data as Map));
       });
 
-      final status = await completer.future;
+      final status = await completer.future.timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => {'success': false, 'status': 'pending'},
+      );
       if (status['success'] == true && status['status'] == 'approved') {
         await _applyLinkedKeysAndFinish(userName, status);
         socket.dispose();
@@ -105,7 +127,21 @@ class _AuthScreenState extends State<AuthScreen> {
     final pass = _passController.text.trim();
     if (name.isEmpty || pass.isEmpty) return;
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
+    io.Socket s = _createAuthSocket();
+    var finished = false;
+    void failAuth(String message) {
+      if (finished) return;
+      finished = true;
+      s.dispose();
+      if (mounted) setState(() => isLoading = false);
+      _showSnack(message, isError: true);
+    }
+    _attachSocketFailureHandlers(s, failAuth);
+    Timer(const Duration(seconds: 15), () {
+      if (!finished && !s.connected) {
+        failAuth(t('Сервер не відповідає. Спробуйте ще раз', 'Server is not responding. Please try again'));
+      }
+    });
     s.connect();
     s.onConnect((_) {
       s.emitWithAck('login_device_request', {
@@ -115,8 +151,10 @@ class _AuthScreenState extends State<AuthScreen> {
         'deviceId': widget.deviceId,
         'deviceName': _deviceName(),
       }, ack: (dynamic responseRaw) async {
+        if (finished) return;
         final response = Map<String, dynamic>.from(responseRaw as Map);
         if (response['success'] == true) {
+          finished = true;
           s.dispose();
           await _applyLinkedKeysAndFinish(name, response);
           return;
@@ -130,8 +168,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 'deviceId': widget.deviceId,
                 'deviceName': _deviceName(),
               }, ack: (dynamic legacyRaw) async {
+                if (finished) return;
                 final legacyResponse = Map<String, dynamic>.from(legacyRaw as Map);
                 if (legacyResponse['success'] == true) {
+                  finished = true;
                   s.dispose();
                   await _applyLinkedKeysAndFinish(name, legacyResponse);
                   return;
@@ -147,9 +187,7 @@ class _AuthScreenState extends State<AuthScreen> {
           return;
         }
 
-        s.dispose();
-        if (mounted) setState(() => isLoading = false);
-        _showSnack((response['message'] ?? t('Помилка', 'Error')).toString(), isError: true);
+        failAuth((response['message'] ?? t('Помилка', 'Error')).toString());
       });
     });
   }
@@ -164,7 +202,21 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
+    io.Socket s = _createAuthSocket();
+    var finished = false;
+    void failAuth(String message) {
+      if (finished) return;
+      finished = true;
+      s.dispose();
+      if (mounted) setState(() => isLoading = false);
+      _showSnack(message, isError: true);
+    }
+    _attachSocketFailureHandlers(s, failAuth);
+    Timer(const Duration(seconds: 15), () {
+      if (!finished && !s.connected) {
+        failAuth(t('Сервер не відповідає. Спробуйте ще раз', 'Server is not responding. Please try again'));
+      }
+    });
     s.connect();
     s.onConnect((_) {
       s.emitWithAck('send_verification_email', {
@@ -175,6 +227,8 @@ class _AuthScreenState extends State<AuthScreen> {
         'deviceId': widget.deviceId,
         'deviceName': _deviceName(),
       }, ack: (dynamic response) {
+        if (finished) return;
+        finished = true;
         s.dispose();
         if (mounted) setState(() => isLoading = false);
         if (response['success'] == true) {
@@ -191,10 +245,26 @@ class _AuthScreenState extends State<AuthScreen> {
     final code = _codeController.text.trim();
     if (code.length != 6) return;
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
+    io.Socket s = _createAuthSocket();
+    var finished = false;
+    void failAuth(String message) {
+      if (finished) return;
+      finished = true;
+      s.dispose();
+      if (mounted) setState(() => isLoading = false);
+      _showSnack(message, isError: true);
+    }
+    _attachSocketFailureHandlers(s, failAuth);
+    Timer(const Duration(seconds: 15), () {
+      if (!finished && !s.connected) {
+        failAuth(t('Сервер не відповідає. Спробуйте ще раз', 'Server is not responding. Please try again'));
+      }
+    });
     s.connect();
     s.onConnect((_) {
       s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {
+        if (finished) return;
+        finished = true;
         s.dispose();
         if (mounted) setState(() => isLoading = false);
         if (response['success'] == true) {
