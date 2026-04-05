@@ -4,11 +4,11 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
+import '../config/server_config.dart';
 import '../utils/globals.dart';
 import '../widgets/ui_core.dart';
 import 'main_gate.dart';
@@ -25,11 +25,12 @@ class _AuthScreenState extends State<AuthScreen> {
   // 0=login, 1=register_form, 2=verify_code, 3=restore_backup
   int _step = 0;
   bool isLoading = false;
+  bool _isHealthChecking = false;
   bool _showLoginPassword = false;
   bool _showRegisterPassword = false;
   bool _showRestorePassword = false;
 
-  String get _serverUrl => 'https://aether-backend-hrmq.onrender.com';
+  String get _serverUrl => serverUrl;
 
   final _nameController = TextEditingController();
   final _passController = TextEditingController();
@@ -99,15 +100,13 @@ class _AuthScreenState extends State<AuthScreen> {
     if (name.isEmpty || pass.isEmpty) return;
     setState(() => isLoading = true);
     
-    io.Socket s = io.io(_serverUrl, {
-      'transports': ['websocket'],
-      'forceNew': true,
-      'reconnection': false,
-      'reconnectionDelay': 0,
-    });
+    io.Socket s = io.io(
+      _serverUrl,
+      socketOptions(forceNew: true, reconnection: false),
+    );
     
     // Set connection timeout
-    final timeout = Future.delayed(const Duration(seconds: 30), () {
+    final timeout = Timer(const Duration(seconds: 30), () {
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Помилка підключення до сервера', 'Connection timeout'), isError: true);
@@ -116,6 +115,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     s.onConnect((_) {
+      timeout.cancel();
       s.emitWithAck('login_device_request', {
         'userName': name, 'password': pass, 'publicKey': widget.publicKey,
         'deviceId': widget.deviceId, 'deviceName': _deviceName(),
@@ -141,6 +141,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     s.onError((dynamic error) {
+      timeout.cancel();
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Сервер недоступний. Спробуйте пізніше', 'Server unavailable. Try again later'), isError: true);
@@ -149,6 +150,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     s.onConnectError((dynamic error) {
+      timeout.cancel();
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Помилка підключення', 'Connection error'), isError: true);
@@ -170,15 +172,13 @@ class _AuthScreenState extends State<AuthScreen> {
     }
     setState(() => isLoading = true);
     
-    io.Socket s = io.io(_serverUrl, {
-      'transports': ['websocket'],
-      'forceNew': true,
-      'reconnection': false,
-      'reconnectionDelay': 0,
-    });
+    io.Socket s = io.io(
+      _serverUrl,
+      socketOptions(forceNew: true, reconnection: false),
+    );
     
     // Set connection timeout
-    final timeout = Future.delayed(const Duration(seconds: 30), () {
+    final timeout = Timer(const Duration(seconds: 30), () {
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Помилка підключення до сервера', 'Connection timeout'), isError: true);
@@ -191,7 +191,7 @@ class _AuthScreenState extends State<AuthScreen> {
         'userName': name, 'email': email, 'password': pass,
         'publicKey': widget.publicKey, 'deviceId': widget.deviceId, 'deviceName': _deviceName(),
       }, ack: (dynamic response) {
-        timeout.ignore();
+        timeout.cancel();
         s.dispose();
         if (mounted) {
           setState(() => isLoading = false);
@@ -206,7 +206,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     s.onError((dynamic error) {
-      timeout.ignore();
+      timeout.cancel();
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Сервер недоступний. Спробуйте пізніше', 'Server unavailable. Try again later'), isError: true);
@@ -215,7 +215,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     s.onConnectError((dynamic error) {
-      timeout.ignore();
+      timeout.cancel();
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Помилка підключення', 'Connection error'), isError: true);
@@ -231,15 +231,13 @@ class _AuthScreenState extends State<AuthScreen> {
     if (code.length != 6) return;
     setState(() => isLoading = true);
     
-    io.Socket s = io.io(_serverUrl, {
-      'transports': ['websocket'],
-      'forceNew': true,
-      'reconnection': false,
-      'reconnectionDelay': 0,
-    });
+    io.Socket s = io.io(
+      _serverUrl,
+      socketOptions(forceNew: true, reconnection: false),
+    );
     
     // Set connection timeout
-    final timeout = Future.delayed(const Duration(seconds: 30), () {
+    final timeout = Timer(const Duration(seconds: 30), () {
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Помилка підключення до сервера', 'Connection timeout'), isError: true);
@@ -249,7 +247,7 @@ class _AuthScreenState extends State<AuthScreen> {
     
     s.onConnect((_) {
       s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {
-        timeout.ignore();
+        timeout.cancel();
         s.dispose();
         if (mounted) setState(() => isLoading = false);
         if (response['success'] == true) {
@@ -263,7 +261,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     s.onError((dynamic error) {
-      timeout.ignore();
+      timeout.cancel();
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Сервер недоступний. Спробуйте пізніше', 'Server unavailable. Try again later'), isError: true);
@@ -272,7 +270,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     s.onConnectError((dynamic error) {
-      timeout.ignore();
+      timeout.cancel();
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Помилка підключення', 'Connection error'), isError: true);
@@ -281,6 +279,50 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     s.connect();
+  }
+
+  Future<void> _checkServerHealth() async {
+    if (_isHealthChecking || isLoading) return;
+    setState(() => _isHealthChecking = true);
+
+    final completer = Completer<bool>();
+    final io.Socket s = io.io(
+      _serverUrl,
+      socketOptions(forceNew: true, reconnection: false),
+    );
+
+    final timeout = Timer(const Duration(seconds: 8), () {
+      if (!completer.isCompleted) completer.complete(false);
+      s.dispose();
+    });
+
+    s.onConnect((_) {
+      if (!completer.isCompleted) completer.complete(true);
+      s.dispose();
+    });
+
+    s.onConnectError((_) {
+      if (!completer.isCompleted) completer.complete(false);
+      s.dispose();
+    });
+
+    s.onError((_) {
+      if (!completer.isCompleted) completer.complete(false);
+      s.dispose();
+    });
+
+    s.connect();
+    final ok = await completer.future;
+    timeout.cancel();
+
+    if (!mounted) return;
+    setState(() => _isHealthChecking = false);
+    _showSnack(
+      ok
+          ? t('Сервер доступний', 'Server is reachable')
+          : t('Не вдалося підключитись до сервера', 'Could not connect to server'),
+      isError: !ok,
+    );
   }
 
   void _restoreAccount() async {
@@ -531,6 +573,22 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 24),
         ShineButton(text: t('Увійти', 'Sign in'), isLoading: isLoading, onPressed: _login),
+        const SizedBox(height: 10),
+        TextButton.icon(
+          onPressed: _isHealthChecking ? null : _checkServerHealth,
+          icon: _isHealthChecking
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.wifi_tethering, size: 16),
+          label: Text(t('Перевірити сервер', 'Check server')),
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFF888888),
+            textStyle: const TextStyle(fontSize: 12, fontFamily: 'Inter'),
+          ),
+        ),
         const SizedBox(height: 16),
         const _DsDivider(),
         const SizedBox(height: 16),
@@ -792,6 +850,22 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 32),
         ShineButton(text: t("Увійти", "Sign In"), isLoading: isLoading, onPressed: _login),
+        const SizedBox(height: 10),
+        TextButton.icon(
+          onPressed: _isHealthChecking ? null : _checkServerHealth,
+          icon: _isHealthChecking
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.wifi_tethering, size: 16),
+          label: Text(t('Перевірити сервер', 'Check server')),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.white70,
+            textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ),
         const SizedBox(height: 24),
         GestureDetector(
           onTap: () => setState(() => _step = 1),

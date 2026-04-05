@@ -14,6 +14,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../config/server_config.dart';
 import '../utils/globals.dart';
 import '../firebase_web_config.dart';
 import '../widgets/ui_core.dart';
@@ -203,10 +204,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     WidgetsBinding.instance.addObserver(this);
     _loadSettings();
 
-    _bgSocket = io.io('https://aether-backend-hrmq.onrender.com', {
-      'transports': ['websocket'],
-      'forceNew': true,
-    });
+    _bgSocket = io.io(serverUrl, socketOptions());
     _bgSocket.connect();
     _bgSocket.onConnect((_) {
       _emitSetActive();

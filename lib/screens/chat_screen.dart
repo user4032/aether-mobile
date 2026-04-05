@@ -15,6 +15,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import '../config/server_config.dart';
 import '../utils/globals.dart';
 import '../widgets/ui_core.dart';
 
@@ -485,7 +486,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _connect() {
-    socket = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
+    socket = io.io(serverUrl, socketOptions());
     _socketInitialized = true;
     socket.connect();
     socket.onConnect((_) {

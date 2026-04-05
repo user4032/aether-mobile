@@ -1,30 +1,21 @@
-import 'package:flutter/foundation.dart'; // Додаємо для перевірки kIsWeb
 import 'package:socket_io_client/socket_io_client.dart' as io;
+import '../config/server_config.dart';
 
 class SocketService {
   static io.Socket? socket;
 
   static void connect() {
-    // РОЗУМНИЙ ВИБІР URL:
-    // Якщо це браузер (PWA) -> йдемо через локальний проксі, щоб уникнути CORS
-    // Якщо це Windows/Android/iOS -> йдемо НАПРЯМУ на Render
-    String url = kIsWeb 
-        ? 'http://localhost:3000' 
-        : 'https://aether-backend-hrmq.onrender.com';
-
-    socket = io.io(url, <String, dynamic>{
-      // Для нативних додатків краще працює чистий websocket, 
-      // а для вебу залишаємо обидва варіанти
-      'transports': kIsWeb ? ['websocket', 'polling'] : ['websocket'], 
+    socket = io.io(serverUrl, <String, dynamic>{
+      ...socketOptions(),
       'autoConnect': true,
     });
 
     socket!.onConnect((_) {
-      debugPrint('✅ Підключено до Aether ($url)');
+      debugPrint('Connected to Aether ($serverUrl)');
     });
 
-    socket!.onConnectError((err) => debugPrint('❌ Помилка підключення: $err'));
-    
-    socket!.onDisconnect((_) => debugPrint('⚠️ Відключено від сервера'));
+    socket!.onConnectError((err) => debugPrint('Connection error: $err'));
+    socket!.onDisconnect((_) => debugPrint('Disconnected from server'));
   }
 }
+
