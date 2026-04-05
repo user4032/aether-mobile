@@ -81,7 +81,7 @@ class _AuthScreenState extends State<AuthScreen> {
         socket.dispose();
         if (mounted) {
           setState(() => isLoading = false);
-          _showSnack((status['message'] ?? t('Запит на підключення відхилено', 'Device link request was rejected')).toString(), isError: true);
+          _showSnack((status['message'] ?? t('Р—Р°РїРёС‚ РЅР° РїС–РґРєР»СЋС‡РµРЅРЅСЏ РІС–РґС…РёР»РµРЅРѕ', 'Device link request was rejected')).toString(), isError: true);
         }
         return;
       }
@@ -90,7 +90,7 @@ class _AuthScreenState extends State<AuthScreen> {
     socket.dispose();
     if (mounted) {
       setState(() => isLoading = false);
-      _showSnack(t('Час очікування підтвердження минув', 'Approval timed out'), isError: true);
+      _showSnack(t('Р§Р°СЃ РѕС‡С–РєСѓРІР°РЅРЅСЏ РїС–РґС‚РІРµСЂРґР¶РµРЅРЅСЏ РјРёРЅСѓРІ', 'Approval timed out'), isError: true);
     }
   }
 
@@ -99,99 +99,148 @@ class _AuthScreenState extends State<AuthScreen> {
     final pass = _passController.text.trim();
     if (name.isEmpty || pass.isEmpty) return;
     setState(() => isLoading = true);
-    
-    io.Socket s = io.io(
+
+    final io.Socket s = io.io(
       _serverUrl,
       socketOptions(forceNew: true, reconnection: false),
     );
-    
-    // Set connection timeout
-    final timeout = Timer(const Duration(seconds: 30), () {
+
+    final connectTimeout = Timer(const Duration(seconds: 60), () {
       if (mounted) {
         setState(() => isLoading = false);
-        _showSnack(t('Помилка підключення до сервера', 'Connection timeout'), isError: true);
+        _showSnack(t('Connection timeout', 'Connection timeout'), isError: true);
       }
       s.dispose();
     });
-    
+
+    Timer? ackTimeout;
+
     s.onConnect((_) {
-      timeout.cancel();
+      connectTimeout.cancel();
+      ackTimeout = Timer(const Duration(seconds: 45), () {
+        if (mounted) {
+          setState(() => isLoading = false);
+          _showSnack(t('Server did not respond', 'Server did not respond'), isError: true);
+        }
+        s.dispose();
+      });
+
       s.emitWithAck('login_device_request', {
-        'userName': name, 'password': pass, 'publicKey': widget.publicKey,
-        'deviceId': widget.deviceId, 'deviceName': _deviceName(),
+        'userName': name,
+        'password': pass,
+        'publicKey': widget.publicKey,
+        'deviceId': widget.deviceId,
+        'deviceName': _deviceName(),
       }, ack: (dynamic responseRaw) async {
+        ackTimeout?.cancel();
         final response = Map<String, dynamic>.from(responseRaw as Map);
-        if (response['success'] == true) { s.dispose(); await _applyLinkedKeysAndFinish(name, response); return; }
+        if (response['success'] == true) {
+          s.dispose();
+          await _applyLinkedKeysAndFinish(name, response);
+          return;
+        }
+
         if (response['requiresApproval'] == true) {
+          ackTimeout = Timer(const Duration(seconds: 20), () {
+            if (mounted) setState(() => isLoading = false);
+          });
+
           s.emitWithAck('login', {
-            'userName': name, 'password': pass, 'publicKey': widget.publicKey,
-            'deviceId': widget.deviceId, 'deviceName': _deviceName(),
+            'userName': name,
+            'password': pass,
+            'publicKey': widget.publicKey,
+            'deviceId': widget.deviceId,
+            'deviceName': _deviceName(),
           }, ack: (dynamic legacyRaw) async {
+            ackTimeout?.cancel();
             final legacyResponse = Map<String, dynamic>.from(legacyRaw as Map);
-            if (legacyResponse['success'] == true) { s.dispose(); await _applyLinkedKeysAndFinish(name, legacyResponse); return; }
-            if (mounted) _showSnack('${t('Підтвердіть новий пристрій у вже авторизованому акаунті', 'Approve this device from your existing logged-in device')} (${response['code'] ?? '----'})');
+            if (legacyResponse['success'] == true) {
+              s.dispose();
+              await _applyLinkedKeysAndFinish(name, legacyResponse);
+              return;
+            }
+            if (mounted) {
+              setState(() => isLoading = false);
+              _showSnack('${t('Approve this device from your existing logged-in device', 'Approve this device from your existing logged-in device')} (${response['code'] ?? '----'})');
+            }
             unawaited(_waitForDeviceApproval(s, (response['requestId'] ?? '').toString(), name));
           });
           return;
         }
+
         s.dispose();
         if (mounted) setState(() => isLoading = false);
-        _showSnack((response['message'] ?? t('Помилка', 'Error')).toString(), isError: true);
+        _showSnack((response['message'] ?? t('Error', 'Error')).toString(), isError: true);
       });
     });
-    
+
     s.onError((dynamic error) {
-      timeout.cancel();
+      connectTimeout.cancel();
+      ackTimeout?.cancel();
       if (mounted) {
         setState(() => isLoading = false);
-        _showSnack(t('Сервер недоступний. Спробуйте пізніше', 'Server unavailable. Try again later'), isError: true);
+        _showSnack(t('Server unavailable. Try again later', 'Server unavailable. Try again later'), isError: true);
       }
       s.dispose();
     });
-    
+
     s.onConnectError((dynamic error) {
-      timeout.cancel();
+      connectTimeout.cancel();
+      ackTimeout?.cancel();
       if (mounted) {
         setState(() => isLoading = false);
-        _showSnack(t('Помилка підключення', 'Connection error'), isError: true);
+        _showSnack(t('Connection error', 'Connection error'), isError: true);
       }
       s.dispose();
     });
-    
+
     s.connect();
   }
-
   void _sendCode() async {
     final name = _nameController.text.trim();
     final pass = _passController.text.trim();
     final email = _emailController.text.trim();
     if (name.isEmpty || pass.isEmpty || email.isEmpty) return;
     if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
-      _showSnack(t('Невірний формат email', 'Invalid email format'), isError: true);
+      _showSnack(t('Invalid email format', 'Invalid email format'), isError: true);
       return;
     }
     setState(() => isLoading = true);
-    
-    io.Socket s = io.io(
+
+    final io.Socket s = io.io(
       _serverUrl,
       socketOptions(forceNew: true, reconnection: false),
     );
-    
-    // Set connection timeout
-    final timeout = Timer(const Duration(seconds: 30), () {
+
+    final connectTimeout = Timer(const Duration(seconds: 60), () {
       if (mounted) {
         setState(() => isLoading = false);
-        _showSnack(t('Помилка підключення до сервера', 'Connection timeout'), isError: true);
+        _showSnack(t('Connection timeout', 'Connection timeout'), isError: true);
       }
       s.dispose();
     });
-    
+
+    Timer? ackTimeout;
+
     s.onConnect((_) {
+      connectTimeout.cancel();
+      ackTimeout = Timer(const Duration(seconds: 45), () {
+        if (mounted) {
+          setState(() => isLoading = false);
+          _showSnack(t('Server did not respond', 'Server did not respond'), isError: true);
+        }
+        s.dispose();
+      });
+
       s.emitWithAck('send_verification_email', {
-        'userName': name, 'email': email, 'password': pass,
-        'publicKey': widget.publicKey, 'deviceId': widget.deviceId, 'deviceName': _deviceName(),
+        'userName': name,
+        'email': email,
+        'password': pass,
+        'publicKey': widget.publicKey,
+        'deviceId': widget.deviceId,
+        'deviceName': _deviceName(),
       }, ack: (dynamic response) {
-        timeout.cancel();
+        ackTimeout?.cancel();
         s.dispose();
         if (mounted) {
           setState(() => isLoading = false);
@@ -199,55 +248,66 @@ class _AuthScreenState extends State<AuthScreen> {
             _pendingEmail = email;
             setState(() => _step = 2);
           } else {
-            _showSnack(response['message'] ?? t('Помилка', 'Error'), isError: true);
+            _showSnack(response['message'] ?? t('Error', 'Error'), isError: true);
           }
         }
       });
     });
-    
+
     s.onError((dynamic error) {
-      timeout.cancel();
+      connectTimeout.cancel();
+      ackTimeout?.cancel();
       if (mounted) {
         setState(() => isLoading = false);
-        _showSnack(t('Сервер недоступний. Спробуйте пізніше', 'Server unavailable. Try again later'), isError: true);
+        _showSnack(t('Server unavailable. Try again later', 'Server unavailable. Try again later'), isError: true);
       }
       s.dispose();
     });
-    
+
     s.onConnectError((dynamic error) {
-      timeout.cancel();
+      connectTimeout.cancel();
+      ackTimeout?.cancel();
       if (mounted) {
         setState(() => isLoading = false);
-        _showSnack(t('Помилка підключення', 'Connection error'), isError: true);
+        _showSnack(t('Connection error', 'Connection error'), isError: true);
       }
       s.dispose();
     });
-    
+
     s.connect();
   }
-
   void _verifyCode() async {
     final code = _codeController.text.trim();
     if (code.length != 6) return;
     setState(() => isLoading = true);
-    
-    io.Socket s = io.io(
+
+    final io.Socket s = io.io(
       _serverUrl,
       socketOptions(forceNew: true, reconnection: false),
     );
-    
-    // Set connection timeout
-    final timeout = Timer(const Duration(seconds: 30), () {
+
+    final connectTimeout = Timer(const Duration(seconds: 60), () {
       if (mounted) {
         setState(() => isLoading = false);
-        _showSnack(t('Помилка підключення до сервера', 'Connection timeout'), isError: true);
+        _showSnack(t('Connection timeout', 'Connection timeout'), isError: true);
       }
       s.dispose();
     });
-    
+
+    Timer? ackTimeout;
+
     s.onConnect((_) {
+      connectTimeout.cancel();
+      ackTimeout = Timer(const Duration(seconds: 45), () {
+        if (mounted) {
+          setState(() => isLoading = false);
+          _showSnack(t('Server did not respond', 'Server did not respond'), isError: true);
+        }
+        s.dispose();
+      });
+
       s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {
-        timeout.cancel();
+        ackTimeout?.cancel();
         s.dispose();
         if (mounted) setState(() => isLoading = false);
         if (response['success'] == true) {
@@ -255,32 +315,33 @@ class _AuthScreenState extends State<AuthScreen> {
           await (await SharedPreferences.getInstance()).setString('user_name', name);
           widget.onSuccess(name);
         } else {
-          _showSnack(response['message'] ?? t('Невірний код', 'Invalid code'), isError: true);
+          _showSnack(response['message'] ?? t('Invalid code', 'Invalid code'), isError: true);
         }
       });
     });
-    
+
     s.onError((dynamic error) {
-      timeout.cancel();
+      connectTimeout.cancel();
+      ackTimeout?.cancel();
       if (mounted) {
         setState(() => isLoading = false);
-        _showSnack(t('Сервер недоступний. Спробуйте пізніше', 'Server unavailable. Try again later'), isError: true);
+        _showSnack(t('Server unavailable. Try again later', 'Server unavailable. Try again later'), isError: true);
       }
       s.dispose();
     });
-    
+
     s.onConnectError((dynamic error) {
-      timeout.cancel();
+      connectTimeout.cancel();
+      ackTimeout?.cancel();
       if (mounted) {
         setState(() => isLoading = false);
-        _showSnack(t('Помилка підключення', 'Connection error'), isError: true);
+        _showSnack(t('Connection error', 'Connection error'), isError: true);
       }
       s.dispose();
     });
-    
+
     s.connect();
   }
-
   Future<void> _checkServerHealth() async {
     if (_isHealthChecking || isLoading) return;
     setState(() => _isHealthChecking = true);
@@ -319,8 +380,8 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _isHealthChecking = false);
     _showSnack(
       ok
-          ? t('Сервер доступний', 'Server is reachable')
-          : t('Не вдалося підключитись до сервера', 'Could not connect to server'),
+          ? t('РЎРµСЂРІРµСЂ РґРѕСЃС‚СѓРїРЅРёР№', 'Server is reachable')
+          : t('РќРµ РІРґР°Р»РѕСЃСЏ РїС–РґРєР»СЋС‡РёС‚РёСЃСЊ РґРѕ СЃРµСЂРІРµСЂР°', 'Could not connect to server'),
       isError: !ok,
     );
   }
@@ -348,14 +409,14 @@ class _AuthScreenState extends State<AuthScreen> {
       await prefs.setString('public_key', payload['pub']);
       await prefs.setString('user_name', payload['name']);
       if (!mounted) return;
-      _showSnack(t("Успішно відновлено!", "Restored successfully!"));
+      _showSnack(t("РЈСЃРїС–С€РЅРѕ РІС–РґРЅРѕРІР»РµРЅРѕ!", "Restored successfully!"));
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const MainGate()), (route) => false);
       });
     } catch (e) {
       if (mounted) {
         setState(() => isLoading = false);
-        _showSnack(t("Невірний токен або пароль", "Invalid token or password"), isError: true);
+        _showSnack(t("РќРµРІС–СЂРЅРёР№ С‚РѕРєРµРЅ Р°Р±Рѕ РїР°СЂРѕР»СЊ", "Invalid token or password"), isError: true);
       }
     }
   }
@@ -396,11 +457,11 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // ─── DESKTOP LAYOUT ──────────────────────────────────────
+  // в”Ђв”Ђв”Ђ DESKTOP LAYOUT в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
   Widget _buildDesktopLayout() {
     return Row(
       children: [
-        // Left panel — branding
+        // Left panel вЂ” branding
         Container(
           width: 380,
           decoration: const BoxDecoration(
@@ -449,7 +510,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          t('"Повністю зашифровано.\nПовністю приватно."', '"Fully encrypted.\nFully private."'),
+                          t('"РџРѕРІРЅС–СЃС‚СЋ Р·Р°С€РёС„СЂРѕРІР°РЅРѕ.\nРџРѕРІРЅС–СЃС‚СЋ РїСЂРёРІР°С‚РЅРѕ."', '"Fully encrypted.\nFully private."'),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 22,
@@ -472,7 +533,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              t('End-to-end шифрування', 'End-to-end encrypted'),
+                              t('End-to-end С€РёС„СЂСѓРІР°РЅРЅСЏ', 'End-to-end encrypted'),
                               style: const TextStyle(
                                 color: Color(0xFF666666),
                                 fontSize: 12,
@@ -486,7 +547,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     const SizedBox(height: 40),
                     // Footer
                     Text(
-                      'LUMYN Protocol · ${DateTime.now().year}',
+                      'LUMYN Protocol В· ${DateTime.now().year}',
                       style: const TextStyle(
                         color: Color(0xFF333333),
                         fontSize: 11,
@@ -501,7 +562,7 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ),
 
-        // Right panel — form
+        // Right panel вЂ” form
         Expanded(
           child: Center(
             child: SizedBox(
@@ -548,11 +609,11 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          t('Введіть ваш нікнейм та пароль', 'Enter your username and password'),
+          t('Р’РІРµРґС–С‚СЊ РІР°С€ РЅС–РєРЅРµР№Рј С‚Р° РїР°СЂРѕР»СЊ', 'Enter your username and password'),
           style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter'),
         ),
         const SizedBox(height: 28),
-        _dsLabel(t('Нікнейм', 'Username')),
+        _dsLabel(t('РќС–РєРЅРµР№Рј', 'Username')),
         const SizedBox(height: 6),
         GlassInput(
           controller: _nameController,
@@ -560,11 +621,11 @@ class _AuthScreenState extends State<AuthScreen> {
           inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))],
         ),
         const SizedBox(height: 16),
-        _dsLabel(t('Пароль', 'Password')),
+        _dsLabel(t('РџР°СЂРѕР»СЊ', 'Password')),
         const SizedBox(height: 6),
         GlassInput(
           controller: _passController,
-          hintText: '••••••••',
+          hintText: 'вЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂў',
           obscureText: !_showLoginPassword,
           suffixIcon: IconButton(
             onPressed: () => setState(() => _showLoginPassword = !_showLoginPassword),
@@ -572,7 +633,7 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        ShineButton(text: t('Увійти', 'Sign in'), isLoading: isLoading, onPressed: _login),
+        ShineButton(text: t('РЈРІС–Р№С‚Рё', 'Sign in'), isLoading: isLoading, onPressed: _login),
         const SizedBox(height: 10),
         TextButton.icon(
           onPressed: _isHealthChecking ? null : _checkServerHealth,
@@ -583,7 +644,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.wifi_tethering, size: 16),
-          label: Text(t('Перевірити сервер', 'Check server')),
+          label: Text(t('РџРµСЂРµРІС–СЂРёС‚Рё СЃРµСЂРІРµСЂ', 'Check server')),
           style: TextButton.styleFrom(
             foregroundColor: const Color(0xFF888888),
             textStyle: const TextStyle(fontSize: 12, fontFamily: 'Inter'),
@@ -597,7 +658,7 @@ class _AuthScreenState extends State<AuthScreen> {
             GestureDetector(
               onTap: () => setState(() => _step = 1),
               child: Text(
-                t("Немає акаунту? Зареєструватись", "No account? Register"),
+                t("РќРµРјР°С” Р°РєР°СѓРЅС‚Сѓ? Р—Р°СЂРµС”СЃС‚СЂСѓРІР°С‚РёСЃСЊ", "No account? Register"),
                 style: const TextStyle(color: Color(0xFF888888), fontSize: 13, fontFamily: 'Inter'),
               ),
             ),
@@ -605,7 +666,7 @@ class _AuthScreenState extends State<AuthScreen> {
             GestureDetector(
               onTap: () => setState(() => _step = 3),
               child: Text(
-                t("Відновити", "Restore"),
+                t("Р’С–РґРЅРѕРІРёС‚Рё", "Restore"),
                 style: const TextStyle(color: Color(0xFF888888), fontSize: 13, fontFamily: 'Inter'),
               ),
             ),
@@ -627,11 +688,11 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          t('Заповніть форму для реєстрації', 'Fill the form to get started'),
+          t('Р—Р°РїРѕРІРЅС–С‚СЊ С„РѕСЂРјСѓ РґР»СЏ СЂРµС”СЃС‚СЂР°С†С–С—', 'Fill the form to get started'),
           style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter'),
         ),
         const SizedBox(height: 28),
-        _dsLabel(t('Нікнейм', 'Username')),
+        _dsLabel(t('РќС–РєРЅРµР№Рј', 'Username')),
         const SizedBox(height: 6),
         GlassInput(controller: _nameController, hintText: 'username', inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
         const SizedBox(height: 14),
@@ -639,11 +700,11 @@ class _AuthScreenState extends State<AuthScreen> {
         const SizedBox(height: 6),
         GlassInput(controller: _emailController, hintText: 'you@example.com', keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 14),
-        _dsLabel(t('Пароль', 'Password')),
+        _dsLabel(t('РџР°СЂРѕР»СЊ', 'Password')),
         const SizedBox(height: 6),
         GlassInput(
           controller: _passController,
-          hintText: '••••••••',
+          hintText: 'вЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂў',
           obscureText: !_showRegisterPassword,
           suffixIcon: IconButton(
             onPressed: () => setState(() => _showRegisterPassword = !_showRegisterPassword),
@@ -652,17 +713,17 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          t('Код підтвердження буде відправлено на вказаний email', 'A verification code will be sent to your email'),
+          t('РљРѕРґ РїС–РґС‚РІРµСЂРґР¶РµРЅРЅСЏ Р±СѓРґРµ РІС–РґРїСЂР°РІР»РµРЅРѕ РЅР° РІРєР°Р·Р°РЅРёР№ email', 'A verification code will be sent to your email'),
           style: const TextStyle(color: Color(0xFF444444), fontSize: 11, fontFamily: 'Inter'),
         ),
         const SizedBox(height: 24),
-        ShineButton(text: t('Отримати код', 'Get code'), isLoading: isLoading, onPressed: _sendCode),
+        ShineButton(text: t('РћС‚СЂРёРјР°С‚Рё РєРѕРґ', 'Get code'), isLoading: isLoading, onPressed: _sendCode),
         const SizedBox(height: 16),
         const _DsDivider(),
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () => setState(() => _step = 0),
-          child: Text(t('Вже є акаунт? Увійти', 'Already have an account? Sign in'), style: const TextStyle(color: Color(0xFF888888), fontSize: 13, fontFamily: 'Inter')),
+          child: Text(t('Р’Р¶Рµ С” Р°РєР°СѓРЅС‚? РЈРІС–Р№С‚Рё', 'Already have an account? Sign in'), style: const TextStyle(color: Color(0xFF888888), fontSize: 13, fontFamily: 'Inter')),
         ),
       ],
     );
@@ -691,13 +752,13 @@ class _AuthScreenState extends State<AuthScreen> {
           text: TextSpan(
             style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter'),
             children: [
-              TextSpan(text: t('Код відправлено на ', 'Code sent to ')),
+              TextSpan(text: t('РљРѕРґ РІС–РґРїСЂР°РІР»РµРЅРѕ РЅР° ', 'Code sent to ')),
               TextSpan(text: _pendingEmail ?? '', style: const TextStyle(color: Colors.white)),
             ],
           ),
         ),
         const SizedBox(height: 28),
-        _dsLabel(t('6-значний код', '6-digit code')),
+        _dsLabel(t('6-Р·РЅР°С‡РЅРёР№ РєРѕРґ', '6-digit code')),
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
@@ -722,11 +783,11 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        ShineButton(text: t('Підтвердити', 'Verify'), isLoading: isLoading, onPressed: _verifyCode),
+        ShineButton(text: t('РџС–РґС‚РІРµСЂРґРёС‚Рё', 'Verify'), isLoading: isLoading, onPressed: _verifyCode),
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () => setState(() { _step = 1; _codeController.clear(); }),
-          child: Text(t('← Назад', '← Back'), style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter')),
+          child: Text(t('в†ђ РќР°Р·Р°Рґ', 'в†ђ Back'), style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter')),
         ),
       ],
     );
@@ -741,7 +802,7 @@ class _AuthScreenState extends State<AuthScreen> {
         const Text('Restore account', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.5)),
         const SizedBox(height: 4),
         Text(
-          t('Введіть токен та пароль дешифрування', 'Enter your backup token and decryption password'),
+          t('Р’РІРµРґС–С‚СЊ С‚РѕРєРµРЅ С‚Р° РїР°СЂРѕР»СЊ РґРµС€РёС„СЂСѓРІР°РЅРЅСЏ', 'Enter your backup token and decryption password'),
           style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter'),
         ),
         const SizedBox(height: 28),
@@ -749,11 +810,11 @@ class _AuthScreenState extends State<AuthScreen> {
         const SizedBox(height: 6),
         GlassInput(controller: _restoreTokenController, hintText: 'xxxx.xxxx.xxxx'),
         const SizedBox(height: 14),
-        _dsLabel(t('Пароль дешифрування', 'Decryption password')),
+        _dsLabel(t('РџР°СЂРѕР»СЊ РґРµС€РёС„СЂСѓРІР°РЅРЅСЏ', 'Decryption password')),
         const SizedBox(height: 6),
         GlassInput(
           controller: _restorePasswordController,
-          hintText: '••••••••',
+          hintText: 'вЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂў',
           obscureText: !_showRestorePassword,
           suffixIcon: IconButton(
             onPressed: () => setState(() => _showRestorePassword = !_showRestorePassword),
@@ -761,13 +822,13 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        ShineButton(text: t('Відновити', 'Restore'), isLoading: isLoading, onPressed: _restoreAccount),
+        ShineButton(text: t('Р’С–РґРЅРѕРІРёС‚Рё', 'Restore'), isLoading: isLoading, onPressed: _restoreAccount),
         const SizedBox(height: 16),
         const _DsDivider(),
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () => setState(() { _step = 0; _restoreTokenController.clear(); _restorePasswordController.clear(); }),
-          child: Text(t('← До входу', '← Back to sign in'), style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter')),
+          child: Text(t('в†ђ Р”Рѕ РІС…РѕРґСѓ', 'в†ђ Back to sign in'), style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter')),
         ),
       ],
     );
@@ -785,7 +846,7 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // ─── MOBILE LAYOUT ──────────────────────────────────────
+  // в”Ђв”Ђв”Ђ MOBILE LAYOUT в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
   Widget _buildMobileLayout() {
     return LiquidBackground(
       child: SafeArea(
@@ -833,15 +894,15 @@ class _AuthScreenState extends State<AuthScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 60),
-        Text(t("З поверненням.", "Welcome back."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        Text(t("Р— РїРѕРІРµСЂРЅРµРЅРЅСЏРј.", "Welcome back."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
         const Text("LUMYN Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
         const SizedBox(height: 48),
-        GlassInput(controller: _nameController, hintText: t("Нікнейм", "Username"), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
+        GlassInput(controller: _nameController, hintText: t("РќС–РєРЅРµР№Рј", "Username"), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
         const SizedBox(height: 16),
         GlassInput(
           controller: _passController,
-          hintText: t("Пароль", "Password"),
+          hintText: t("РџР°СЂРѕР»СЊ", "Password"),
           obscureText: !_showLoginPassword,
           suffixIcon: IconButton(
             onPressed: () => setState(() => _showLoginPassword = !_showLoginPassword),
@@ -849,7 +910,7 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ),
         const SizedBox(height: 32),
-        ShineButton(text: t("Увійти", "Sign In"), isLoading: isLoading, onPressed: _login),
+        ShineButton(text: t("РЈРІС–Р№С‚Рё", "Sign In"), isLoading: isLoading, onPressed: _login),
         const SizedBox(height: 10),
         TextButton.icon(
           onPressed: _isHealthChecking ? null : _checkServerHealth,
@@ -860,7 +921,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.wifi_tethering, size: 16),
-          label: Text(t('Перевірити сервер', 'Check server')),
+          label: Text(t('РџРµСЂРµРІС–СЂРёС‚Рё СЃРµСЂРІРµСЂ', 'Check server')),
           style: TextButton.styleFrom(
             foregroundColor: Colors.white70,
             textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
@@ -869,12 +930,12 @@ class _AuthScreenState extends State<AuthScreen> {
         const SizedBox(height: 24),
         GestureDetector(
           onTap: () => setState(() => _step = 1),
-          child: Text(t("Немає акаунту? Створити", "Don't have an account? Register"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
+          child: Text(t("РќРµРјР°С” Р°РєР°СѓРЅС‚Сѓ? РЎС‚РІРѕСЂРёС‚Рё", "Don't have an account? Register"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
         ),
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () => setState(() => _step = 3),
-          child: Text(t("Відновити з копії", "Restore from backup"), textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFB026FF), fontSize: 14, fontWeight: FontWeight.w600)),
+          child: Text(t("Р’С–РґРЅРѕРІРёС‚Рё Р· РєРѕРїС–С—", "Restore from backup"), textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFB026FF), fontSize: 14, fontWeight: FontWeight.w600)),
         ),
         const SizedBox(height: 60),
       ],
@@ -887,17 +948,17 @@ class _AuthScreenState extends State<AuthScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(t("Створити акаунт.", "Create account."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        Text(t("РЎС‚РІРѕСЂРёС‚Рё Р°РєР°СѓРЅС‚.", "Create account."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
         const Text("LUMYN Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
         const SizedBox(height: 48),
-        GlassInput(controller: _nameController, hintText: t("Нікнейм", "Username"), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
+        GlassInput(controller: _nameController, hintText: t("РќС–РєРЅРµР№Рј", "Username"), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
         const SizedBox(height: 16),
-        GlassInput(controller: _emailController, hintText: t("Email адреса", "Email address"), keyboardType: TextInputType.emailAddress),
+        GlassInput(controller: _emailController, hintText: t("Email Р°РґСЂРµСЃР°", "Email address"), keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 16),
         GlassInput(
           controller: _passController,
-          hintText: t("Пароль", "Password"),
+          hintText: t("РџР°СЂРѕР»СЊ", "Password"),
           obscureText: !_showRegisterPassword,
           suffixIcon: IconButton(
             onPressed: () => setState(() => _showRegisterPassword = !_showRegisterPassword),
@@ -908,16 +969,16 @@ class _AuthScreenState extends State<AuthScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Text(
-            t("На вказаний email прийде код підтвердження", "A verification code will be sent to your email"),
+            t("РќР° РІРєР°Р·Р°РЅРёР№ email РїСЂРёР№РґРµ РєРѕРґ РїС–РґС‚РІРµСЂРґР¶РµРЅРЅСЏ", "A verification code will be sent to your email"),
             style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
           ),
         ),
         const SizedBox(height: 24),
-        ShineButton(text: t("Отримати код", "Get Code"), isLoading: isLoading, onPressed: _sendCode),
+        ShineButton(text: t("РћС‚СЂРёРјР°С‚Рё РєРѕРґ", "Get Code"), isLoading: isLoading, onPressed: _sendCode),
         const SizedBox(height: 24),
         GestureDetector(
           onTap: () => setState(() => _step = 0),
-          child: Text(t("Вже є акаунт? Увійти", "Already have an account? Sign In"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
+          child: Text(t("Р’Р¶Рµ С” Р°РєР°СѓРЅС‚? РЈРІС–Р№С‚Рё", "Already have an account? Sign In"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
         ),
       ],
     );
@@ -931,9 +992,9 @@ class _AuthScreenState extends State<AuthScreen> {
       children: [
         const Icon(Icons.email_outlined, color: Colors.white70, size: 48),
         const SizedBox(height: 24),
-        Text(t("Перевір пошту.", "Check your email."), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        Text(t("РџРµСЂРµРІС–СЂ РїРѕС€С‚Сѓ.", "Check your email."), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
-        Text(t("Код надіслано на", "Code sent to"), style: const TextStyle(color: Colors.white70, fontSize: 14)),
+        Text(t("РљРѕРґ РЅР°РґС–СЃР»Р°РЅРѕ РЅР°", "Code sent to"), style: const TextStyle(color: Colors.white70, fontSize: 14)),
         Text(_pendingEmail ?? '', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
         const SizedBox(height: 48),
         ClipRRect(
@@ -965,11 +1026,11 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ),
         const SizedBox(height: 32),
-        ShineButton(text: t("Підтвердити", "Verify"), isLoading: isLoading, onPressed: _verifyCode),
+        ShineButton(text: t("РџС–РґС‚РІРµСЂРґРёС‚Рё", "Verify"), isLoading: isLoading, onPressed: _verifyCode),
         const SizedBox(height: 16),
         TextButton(
           onPressed: () => setState(() { _step = 1; _codeController.clear(); }),
-          child: Text(t("← Назад", "← Back"), style: const TextStyle(color: Colors.white70)),
+          child: Text(t("в†ђ РќР°Р·Р°Рґ", "в†ђ Back"), style: const TextStyle(color: Colors.white70)),
         ),
       ],
     );
@@ -983,15 +1044,15 @@ class _AuthScreenState extends State<AuthScreen> {
       children: [
         const Icon(Icons.restore, color: Color(0xFFB026FF), size: 48),
         const SizedBox(height: 24),
-        Text(t("Відновлення.", "Restore."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        Text(t("Р’С–РґРЅРѕРІР»РµРЅРЅСЏ.", "Restore."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
-        Text(t("Введіть ваш токен та пароль дешифрування.", "Enter your Backup Token and decryption password."), style: const TextStyle(color: Colors.white70, fontSize: 14)),
+        Text(t("Р’РІРµРґС–С‚СЊ РІР°С€ С‚РѕРєРµРЅ С‚Р° РїР°СЂРѕР»СЊ РґРµС€РёС„СЂСѓРІР°РЅРЅСЏ.", "Enter your Backup Token and decryption password."), style: const TextStyle(color: Colors.white70, fontSize: 14)),
         const SizedBox(height: 48),
         GlassInput(controller: _restoreTokenController, hintText: t("Backup Token", "Backup Token")),
         const SizedBox(height: 16),
         GlassInput(
           controller: _restorePasswordController,
-          hintText: t("Пароль", "Password"),
+          hintText: t("РџР°СЂРѕР»СЊ", "Password"),
           obscureText: !_showRestorePassword,
           suffixIcon: IconButton(
             onPressed: () => setState(() => _showRestorePassword = !_showRestorePassword),
@@ -999,20 +1060,20 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ),
         const SizedBox(height: 32),
-        ShineButton(text: t("Відновити", "Restore"), isLoading: isLoading, onPressed: _restoreAccount),
+        ShineButton(text: t("Р’С–РґРЅРѕРІРёС‚Рё", "Restore"), isLoading: isLoading, onPressed: _restoreAccount),
         const SizedBox(height: 24),
         GestureDetector(
           onTap: () => setState(() { _step = 0; _restoreTokenController.clear(); _restorePasswordController.clear(); }),
-          child: Text(t("← Повернутися до входу", "← Back to login"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
+          child: Text(t("в†ђ РџРѕРІРµСЂРЅСѓС‚РёСЃСЏ РґРѕ РІС…РѕРґСѓ", "в†ђ Back to login"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
         ),
       ],
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 // DESKTOP HELPERS
-// ─────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 class _DsDivider extends StatelessWidget {
   const _DsDivider();
   @override
@@ -1082,3 +1143,4 @@ class _LogoPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
