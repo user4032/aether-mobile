@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cryptography/cryptography.dart';
@@ -27,6 +28,8 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _showLoginPassword = false;
   bool _showRegisterPassword = false;
   bool _showRestorePassword = false;
+
+  String get _serverUrl => 'https://aether-backend-hrmq.onrender.com';
 
   final _nameController = TextEditingController();
   final _passController = TextEditingController();
@@ -96,7 +99,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (name.isEmpty || pass.isEmpty) return;
     setState(() => isLoading = true);
     
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
+    io.Socket s = io.io(_serverUrl, {
       'transports': ['websocket'],
       'forceNew': true,
       'reconnection': false,
@@ -167,7 +170,7 @@ class _AuthScreenState extends State<AuthScreen> {
     }
     setState(() => isLoading = true);
     
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
+    io.Socket s = io.io(_serverUrl, {
       'transports': ['websocket'],
       'forceNew': true,
       'reconnection': false,
@@ -228,7 +231,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (code.length != 6) return;
     setState(() => isLoading = true);
     
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
+    io.Socket s = io.io(_serverUrl, {
       'transports': ['websocket'],
       'forceNew': true,
       'reconnection': false,
