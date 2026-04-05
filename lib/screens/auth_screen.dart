@@ -188,7 +188,45 @@ class _AuthScreenState extends State<AuthScreen> {
         'userName': name, 'email': email, 'password': pass,
         'publicKey': widget.publicKey, 'deviceId': widget.deviceId, 'deviceName': _deviceName(),
       }, ack: (dynamic response) {
+        timeout.ignore();
         s.dispose();
+        if (mounted) {
+          setState(() => isLoading = false);
+          if (response['success'] == true) {
+            _pendingEmail = email;
+            setState(() => _step = 2);
+          } else {
+            _showSnack(response['message'] ?? t('Помилка', 'Error'), isError: true);
+          }
+        }
+      });
+    });
+    
+    s.onError((dynamic error) {
+      timeout.ignore();
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t('Сервер недоступний. Спробуйте пізніше', 'Server unavailable. Try again later'), isError: true);
+      }
+      s.dispose();
+    });
+    
+    s.onConnectError((dynamic error) {
+      timeout.ignore();
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t('Помилка підключення', 'Connection error'), isError: true);
+      }
+      s.dispose();
+    });
+    
+    s.connect();
+  }
+
+  void _verifyCode() async {
+    final code = _codeController.text.trim();
+    if (code.length != 6) return;
+    setState(() => isLoading = true);
     
     io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
       'transports': ['websocket'],
@@ -208,6 +246,7 @@ class _AuthScreenState extends State<AuthScreen> {
     
     s.onConnect((_) {
       s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {
+        timeout.ignore();
         s.dispose();
         if (mounted) setState(() => isLoading = false);
         if (response['success'] == true) {
@@ -221,6 +260,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     s.onError((dynamic error) {
+      timeout.ignore();
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Сервер недоступний. Спробуйте пізніше', 'Server unavailable. Try again later'), isError: true);
@@ -229,18 +269,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     s.onConnectError((dynamic error) {
-      if (mounted) {
-        setState(() => isLoading = false);
-        _showSnack(t('Помилка підключення', 'Connection error'), isError: true);
-      }
-      s.dispose();
-    });
-    
-    s.connect( }
-      s.dispose();
-    });
-    
-    s.onConnectError((dynamic error) {
+      timeout.ignore();
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Помилка підключення', 'Connection error'), isError: true);
@@ -249,27 +278,6 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     s.connect();
-  }
-
-  void _verifyCode() async {
-    final code = _codeController.text.trim();
-    if (code.length != 6) return;
-    setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
-    s.connect();
-    s.onConnect((_) {
-      s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {
-        s.dispose();
-        if (mounted) setState(() => isLoading = false);
-        if (response['success'] == true) {
-          final name = _nameController.text.trim();
-          await (await SharedPreferences.getInstance()).setString('user_name', name);
-          widget.onSuccess(name);
-        } else {
-          _showSnack(response['message'] ?? t('Невірний код', 'Invalid code'), isError: true);
-        }
-      });
-    });
   }
 
   void _restoreAccount() async {
