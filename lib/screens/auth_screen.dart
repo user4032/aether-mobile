@@ -95,8 +95,23 @@ class _AuthScreenState extends State<AuthScreen> {
     final pass = _passController.text.trim();
     if (name.isEmpty || pass.isEmpty) return;
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
-    s.connect();
+    
+    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
+      'transports': ['websocket'],
+      'forceNew': true,
+      'reconnection': false,
+      'reconnectionDelay': 0,
+    });
+    
+    // Set connection timeout
+    final timeout = Future.delayed(const Duration(seconds: 10), () {
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t('Помилка підключення до сервера', 'Connection timeout'), isError: true);
+      }
+      s.dispose();
+    });
+    
     s.onConnect((_) {
       s.emitWithAck('login_device_request', {
         'userName': name, 'password': pass, 'publicKey': widget.publicKey,
@@ -121,6 +136,24 @@ class _AuthScreenState extends State<AuthScreen> {
         _showSnack((response['message'] ?? t('Помилка', 'Error')).toString(), isError: true);
       });
     });
+    
+    s.onError((dynamic error) {
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t('Сервер недоступний. Спробуйте пізніше', 'Server unavailable. Try again later'), isError: true);
+      }
+      s.dispose();
+    });
+    
+    s.onConnectError((dynamic error) {
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t('Помилка підключення', 'Connection error'), isError: true);
+      }
+      s.dispose();
+    });
+    
+    s.connect();
   }
 
   void _sendCode() async {
@@ -133,23 +166,89 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
     setState(() => isLoading = true);
-    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
-    s.connect();
+    
+    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
+      'transports': ['websocket'],
+      'forceNew': true,
+      'reconnection': false,
+      'reconnectionDelay': 0,
+    });
+    
+    // Set connection timeout
+    final timeout = Future.delayed(const Duration(seconds: 10), () {
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t('Помилка підключення до сервера', 'Connection timeout'), isError: true);
+      }
+      s.dispose();
+    });
+    
     s.onConnect((_) {
       s.emitWithAck('send_verification_email', {
         'userName': name, 'email': email, 'password': pass,
         'publicKey': widget.publicKey, 'deviceId': widget.deviceId, 'deviceName': _deviceName(),
       }, ack: (dynamic response) {
         s.dispose();
+    
+    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {
+      'transports': ['websocket'],
+      'forceNew': true,
+      'reconnection': false,
+      'reconnectionDelay': 0,
+    });
+    
+    // Set connection timeout
+    final timeout = Future.delayed(const Duration(seconds: 10), () {
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t('Помилка підключення до сервера', 'Connection timeout'), isError: true);
+      }
+      s.dispose();
+    });
+    
+    s.onConnect((_) {
+      s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {
+        s.dispose();
         if (mounted) setState(() => isLoading = false);
         if (response['success'] == true) {
-          _pendingEmail = email;
-          if (mounted) setState(() => _step = 2);
+          final name = _nameController.text.trim();
+          await (await SharedPreferences.getInstance()).setString('user_name', name);
+          widget.onSuccess(name);
         } else {
-          _showSnack(response['message'] ?? t('Помилка', 'Error'), isError: true);
+          _showSnack(response['message'] ?? t('Невірний код', 'Invalid code'), isError: true);
         }
       });
     });
+    
+    s.onError((dynamic error) {
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t('Сервер недоступний. Спробуйте пізніше', 'Server unavailable. Try again later'), isError: true);
+      }
+      s.dispose();
+    });
+    
+    s.onConnectError((dynamic error) {
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t('Помилка підключення', 'Connection error'), isError: true);
+      }
+      s.dispose();
+    });
+    
+    s.connect( }
+      s.dispose();
+    });
+    
+    s.onConnectError((dynamic error) {
+      if (mounted) {
+        setState(() => isLoading = false);
+        _showSnack(t('Помилка підключення', 'Connection error'), isError: true);
+      }
+      s.dispose();
+    });
+    
+    s.connect();
   }
 
   void _verifyCode() async {
