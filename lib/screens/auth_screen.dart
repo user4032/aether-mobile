@@ -104,7 +104,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     // Set connection timeout
-    final timeout = Future.delayed(const Duration(seconds: 10), () {
+    final timeout = Future.delayed(const Duration(seconds: 30), () {
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Помилка підключення до сервера', 'Connection timeout'), isError: true);
@@ -175,7 +175,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     // Set connection timeout
-    final timeout = Future.delayed(const Duration(seconds: 10), () {
+    final timeout = Future.delayed(const Duration(seconds: 30), () {
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Помилка підключення до сервера', 'Connection timeout'), isError: true);
@@ -236,7 +236,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     
     // Set connection timeout
-    final timeout = Future.delayed(const Duration(seconds: 10), () {
+    final timeout = Future.delayed(const Duration(seconds: 30), () {
       if (mounted) {
         setState(() => isLoading = false);
         _showSnack(t('Помилка підключення до сервера', 'Connection timeout'), isError: true);
