@@ -27,8 +27,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Lumyn',
       theme: ThemeData(
-        scaffoldBackgroundColor: Colors.black,
-        fontFamily: 'Inter',
+        scaffoldBackgroundColor: Colors.black,,
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
         colorScheme: const ColorScheme.dark(
