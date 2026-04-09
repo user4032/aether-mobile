@@ -14,7 +14,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:path_drawing/path_drawing.dart';
+import '../config/server_config.dart';
 import '../utils/globals.dart';
 import '../firebase_web_config.dart';
 import '../widgets/ui_core.dart';
@@ -192,6 +192,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     'white':  Color(0xFFEDEDED),
   };
 
+  bool get isDesktopView => MediaQuery.of(context).size.width >= 720;
+
   // ─────────────────────────────────────────────────────────
   // INIT / DISPOSE
   // ─────────────────────────────────────────────────────────
@@ -202,10 +204,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     WidgetsBinding.instance.addObserver(this);
     _loadSettings();
 
-    _bgSocket = io.io('https://aether-backend-hrmq.onrender.com', {
-      'transports': ['websocket'],
-      'forceNew': true,
-    });
+    _bgSocket = io.io(serverUrl, socketOptions());
     _bgSocket.connect();
     _bgSocket.onConnect((_) {
       _emitSetActive();
@@ -584,11 +583,15 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     if (_currentIndex == index) return;
 
     setState(() => _currentIndex = index);
-    await _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 340),
-      curve: Curves.easeInOutCubicEmphasized,
-    );
+    
+    // Перевіряємо, чи існує PageView на екрані перед анімацією
+    if (_pageController.hasClients) {
+      await _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 340),
+        curve: Curves.easeInOutCubicEmphasized,
+      );
+    }
   }
 
   // ─────────────────────────────────────────────────────────
@@ -988,6 +991,69 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
   }
 
   // ─────────────────────────────────────────────────────────
+  // UI HELPERS (RESPONSIVE)
+  // ─────────────────────────────────────────────────────────
+
+  Widget _buildBackground({required Widget child}) {
+    if (isDesktopView) {
+      return Container(color: Colors.black, child: child);
+    }
+    return LiquidBackground(child: child);
+  }
+
+  Widget _surface({required Widget child, EdgeInsetsGeometry? padding, EdgeInsetsGeometry? margin}) {
+    if (isDesktopView) {
+      return Container(
+        margin: margin,
+        padding: padding,
+        decoration: BoxDecoration(
+          color: const Color(0xFF0A0A0A),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF1A1A1A), width: 1),
+        ),
+        child: child,
+      );
+    }
+    return GlassContainer(padding: padding, margin: margin, child: child);
+  }
+
+  Widget _vercelInput({required TextEditingController controller, required String hintText, List<TextInputFormatter>? inputFormatters, bool obscureText = false}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0A0A),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFF222222)),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        inputFormatters: inputFormatters,
+        style: const TextStyle(color: Colors.white, fontSize: 14),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(color: Color(0xFF666666)),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _vercelButton({required String text, required VoidCallback onPressed}) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        elevation: 0,
+      ),
+      onPressed: onPressed,
+      child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────
   // DIALOGS
   // ─────────────────────────────────────────────────────────
   void _showCreateGroupDialog() {
@@ -1004,7 +1070,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         builder: (context, setStateSB) => AlertDialog(
           backgroundColor: Colors.transparent,
           contentPadding: EdgeInsets.zero,
-          content: GlassContainer(
+          content: _surface(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1012,7 +1078,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                 Text(t('Створити групу', 'Create Group'),
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                 const SizedBox(height: 20),
-                GlassInput(controller: groupNameController, hintText: t('Назва групи', 'Group Name')),
+                isDesktopView 
+                  ? _vercelInput(controller: groupNameController, hintText: t('Назва групи', 'Group Name'))
+                  : GlassInput(controller: groupNameController, hintText: t('Назва групи', 'Group Name')),
                 const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerLeft,
@@ -1075,71 +1143,6 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ignore: unused_element
-  void _showEditBioDialog() {
-    final bioController = TextEditingController(text: _myBio);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.transparent,
-        contentPadding: EdgeInsets.zero,
-        content: GlassContainer(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(t("Про себе", "About"),
-                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              TextField(
-                controller: bioController,
-                maxLength: 100,
-                maxLines: null,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: t("Напишіть щось...", "Write something..."),
-                  hintStyle: const TextStyle(color: Colors.white54),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2))),
-                  enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
-                  focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.4))),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.05),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  counterStyle: const TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(t("Скасувати", "Cancel"), style: const TextStyle(color: Colors.white70)),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      _bgSocket.emit('update_bio', {'userName': widget.userName, 'bio': bioController.text.trim()});
-                      setState(() => _myBio = bioController.text.trim());
-                      Navigator.pop(context);
-                    },
-                    child: Text(t("Зберегти", "Save"),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-            ],
           ),
         ),
       ),
@@ -1348,7 +1351,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
         builder: (context, setStateSB) => AlertDialog(
           backgroundColor: Colors.transparent,
           contentPadding: EdgeInsets.zero,
-          content: GlassContainer(
+          content: _surface(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1364,33 +1367,57 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                 ),
                 const SizedBox(height: 20),
                 if (backupToken == null) ...[
-                  GlassInput(
-                    controller: passwordController,
-                    hintText: t("Придумайте пароль", "Create password"),
-                    obscureText: true,
-                  ),
+                  isDesktopView
+                    ? _vercelInput(controller: passwordController, hintText: t("Придумайте пароль", "Create password"), obscureText: true)
+                    : GlassInput(
+                        controller: passwordController,
+                        hintText: t("Придумайте пароль", "Create password"),
+                        obscureText: true,
+                      ),
                   const SizedBox(height: 20),
-                  ShineButton(
-                    text: t("Згенерувати ключ", "Generate Backup"),
-                    onPressed: () async {
-                      if (passwordController.text.trim().isEmpty) return;
-                      try {
-                        final storage = const FlutterSecureStorage();
-                        final priv = await storage.read(key: 'private_key');
-                        final payloadStr = jsonEncode({
-                          'priv': priv, 'pub': widget.publicKey,
-                          'dev': widget.deviceId, 'name': widget.userName,
-                        });
-                        final passHash = await Sha256().hash(utf8.encode(passwordController.text.trim()));
-                        final key = await _aes.newSecretKeyFromBytes(passHash.bytes);
-                        final box = await _aes.encrypt(utf8.encode(payloadStr), secretKey: key);
-                        setStateSB(() {
-                          backupToken =
-                              '${base64Encode(box.nonce)}.${base64Encode(box.cipherText)}.${base64Encode(box.mac.bytes)}';
-                        });
-                      } catch (e) { _showSnack("Encryption error"); }
-                    },
-                  ),
+                  isDesktopView
+                    ? SizedBox(
+                        width: double.infinity, 
+                        child: _vercelButton(text: t("Згенерувати ключ", "Generate Backup"), onPressed: () async {
+                          if (passwordController.text.trim().isEmpty) return;
+                          try {
+                            final storage = const FlutterSecureStorage();
+                            final priv = await storage.read(key: 'private_key');
+                            final payloadStr = jsonEncode({
+                              'priv': priv, 'pub': widget.publicKey,
+                              'dev': widget.deviceId, 'name': widget.userName,
+                            });
+                            final passHash = await Sha256().hash(utf8.encode(passwordController.text.trim()));
+                            final key = await _aes.newSecretKeyFromBytes(passHash.bytes);
+                            final box = await _aes.encrypt(utf8.encode(payloadStr), secretKey: key);
+                            setStateSB(() {
+                              backupToken =
+                                  '${base64Encode(box.nonce)}.${base64Encode(box.cipherText)}.${base64Encode(box.mac.bytes)}';
+                            });
+                          } catch (e) { _showSnack("Encryption error"); }
+                        })
+                      )
+                    : ShineButton(
+                        text: t("Згенерувати ключ", "Generate Backup"),
+                        onPressed: () async {
+                          if (passwordController.text.trim().isEmpty) return;
+                          try {
+                            final storage = const FlutterSecureStorage();
+                            final priv = await storage.read(key: 'private_key');
+                            final payloadStr = jsonEncode({
+                              'priv': priv, 'pub': widget.publicKey,
+                              'dev': widget.deviceId, 'name': widget.userName,
+                            });
+                            final passHash = await Sha256().hash(utf8.encode(passwordController.text.trim()));
+                            final key = await _aes.newSecretKeyFromBytes(passHash.bytes);
+                            final box = await _aes.encrypt(utf8.encode(payloadStr), secretKey: key);
+                            setStateSB(() {
+                              backupToken =
+                                  '${base64Encode(box.nonce)}.${base64Encode(box.cipherText)}.${base64Encode(box.mac.bytes)}';
+                            });
+                          } catch (e) { _showSnack("Encryption error"); }
+                        },
+                      ),
                 ] else ...[
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -1403,14 +1430,20 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                         style: const TextStyle(color: Colors.white, fontSize: 10, fontFamily: 'monospace')),
                   ),
                   const SizedBox(height: 16),
-                  ElegantButton(
-                    text: t("Скопіювати ключ", "Copy Backup Key"),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: backupToken!));
-                      _showSnack(t("Скопійовано в буфер", "Copied to clipboard"));
-                      Navigator.pop(context);
-                    },
-                  ),
+                  isDesktopView 
+                    ? SizedBox(width: double.infinity, child: _vercelButton(text: t("Скопіювати ключ", "Copy Backup Key"), onPressed: () {
+                        Clipboard.setData(ClipboardData(text: backupToken!));
+                        _showSnack(t("Скопійовано в буфер", "Copied to clipboard"));
+                        Navigator.pop(context);
+                      }))
+                    : ElegantButton(
+                        text: t("Скопіювати ключ", "Copy Backup Key"),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: backupToken!));
+                          _showSnack(t("Скопійовано в буфер", "Copied to clipboard"));
+                          Navigator.pop(context);
+                        },
+                      ),
                 ],
                 if (backupToken == null)
                   TextButton(
@@ -1494,7 +1527,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                               style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 15)),
                         ],
                         const SizedBox(height: 32),
-                        GlassContainer(
+                        _surface(
                           child: Column(children: [
                             ListTile(
                               leading: const Icon(Icons.chat_bubble_outline, color: Colors.white),
@@ -1551,7 +1584,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                           ]),
                         ),
                         const SizedBox(height: 16),
-                        GlassContainer(
+                        _surface(
                           child: Column(children: [
                             ListTile(
                               leading: Icon(isBlocked ? Icons.lock_open : Icons.block,
@@ -1846,208 +1879,6 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     ).then((_) => _loadData());
   }
 
-  // ─────────────────────────────────────────────────────────
-  // LOCK SCREEN
-  // ─────────────────────────────────────────────────────────
-  Widget _buildLockScreen() {
-    const accent = Color(0xFF5DA8FF);
-    const deepBg = Color(0xFF0D1117);
-
-    return Scaffold(
-      backgroundColor: deepBg,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFF111827),
-                    const Color(0xFF0B1020),
-                    deepBg,
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: -120,
-            left: -100,
-            child: Container(
-              width: 340,
-              height: 340,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accent.withValues(alpha: 0.18),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -130,
-            right: -80,
-            child: Container(
-              width: 380,
-              height: 380,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.07),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                const Spacer(),
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 24),
-                  padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        blurRadius: 30,
-                        offset: const Offset(0, 14),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      const _AppleLockIcon(accent: accent),
-                      const SizedBox(height: 14),
-                      Text(
-                        t("Захист Lumyn", "Lumyn Protection"),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        t("Використайте Face ID, відбиток або пароль пристрою", "Use Face ID, fingerprint, or your device passcode"),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.62), fontSize: 14, height: 1.4),
-                      ),
-                      const SizedBox(height: 18),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: Container(
-                          key: ValueKey(_authInProgress),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: _authInProgress
-                                ? accent.withValues(alpha: 0.2)
-                                : Colors.white.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                              color: _authInProgress
-                                  ? accent.withValues(alpha: 0.55)
-                                  : Colors.white.withValues(alpha: 0.14),
-                            ),
-                          ),
-                          child: Text(
-                            _authInProgress
-                                ? t("Перевірка системою...", "Checking system authentication...")
-                                : t("Захищений вхід увімкнено", "Secure sign-in is enabled"),
-                            style: TextStyle(
-                              color: _authInProgress ? accent : Colors.white70,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _authInProgress ? null : _unlockWithSystemAuth,
-                          icon: _authInProgress
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.black),
-                                )
-                              : const Icon(Icons.lock_open_rounded),
-                          label: Text(_authInProgress
-                              ? t("Перевірка...", "Authenticating...")
-                              : t("Розблокувати", "Unlock")),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            disabledBackgroundColor: Colors.white70,
-                            disabledForegroundColor: Colors.black87,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        t("Якщо автентифікація скасована, натисніть кнопку ще раз", "If authentication is canceled, press the button again"),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(flex: 2),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────
-  // TABS
-  // ─────────────────────────────────────────────────────────
-  void _moveDesktopChatSelection(int delta) {
-    if (_recentChats.isEmpty) return;
-    final maxIndex = _recentChats.length - 1;
-    final next = (_desktopSelectedChatIndex + delta).clamp(0, maxIndex);
-    if (next == _desktopSelectedChatIndex) return;
-    setState(() => _desktopSelectedChatIndex = next);
-    _scrollDesktopChatsToSelected();
-  }
-
-  void _scrollDesktopChatsToSelected() {
-    if (!_desktopChatsScrollController.hasClients || _recentChats.isEmpty) return;
-    final approxItemExtent = 84.0;
-    final target = _desktopSelectedChatIndex * approxItemExtent;
-    final max = _desktopChatsScrollController.position.maxScrollExtent;
-    _desktopChatsScrollController.animateTo(
-      target.clamp(0.0, max),
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOut,
-    );
-  }
-
-  void _openSelectedDesktopChat() {
-    if (_recentChats.isEmpty) return;
-    final maxIndex = _recentChats.length - 1;
-    final selected = _desktopSelectedChatIndex.clamp(0, maxIndex);
-    if (selected != _desktopSelectedChatIndex) {
-      setState(() => _desktopSelectedChatIndex = selected);
-    }
-    final chat = _recentChats[selected];
-    final chatVerified = chat['isVerified'] == true;
-    _startChat(
-      chat['partnerName'],
-      chat['publicKey'],
-      targetAvatar: chat['avatar'],
-      targetDisplayName: chat['displayName'],
-      isVerified: chatVerified,
-    );
-  }
-
   Widget _buildChatsTab() {
     final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
     final isDesktopPlatform = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
@@ -2125,10 +1956,11 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                     final chatVerified = chat['isVerified'] == true;
                     final tile = ListTile(
                       mouseCursor: SystemMouseCursors.click,
-                      hoverColor: Colors.white.withValues(alpha: 0.04),
+                      hoverColor: isDesktopView ? const Color(0xFF111111) : Colors.white.withValues(alpha: 0.04),
                       selected: isDesktopPlatform && index == _desktopSelectedChatIndex,
                       selectedColor: Colors.white,
-                      selectedTileColor: Colors.white.withValues(alpha: 0.08),
+                      selectedTileColor: isDesktopView ? const Color(0xFF1A1A1A) : Colors.white.withValues(alpha: 0.08),
+                      shape: isDesktopView ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)) : null,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       leading: isSelf
                           ? CircleAvatar(
@@ -2255,12 +2087,15 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                             isVerified: chatVerified);
                         },
                     );
-                    if (!isDesktopPlatform) return tile;
-                    return Tooltip(
-                      message: t('Відкрити чат', 'Open chat'),
-                      waitDuration: const Duration(milliseconds: 260),
-                      child: tile,
-                    );
+                    if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
+                      return tile;
+                    } else {
+                      return Tooltip(
+                        message: t('Відкрити чат', 'Open chat'),
+                        waitDuration: const Duration(milliseconds: 260),
+                        child: tile,
+                      );
+                    }
                     },
                   ),
                 ),
@@ -2286,14 +2121,22 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(children: [
             Expanded(
-              child: GlassInput(
-                controller: _addFriendController,
-                hintText: t("Нікнейм", "Username"),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))],
-              ),
+              child: isDesktopView
+                ? _vercelInput(
+                    controller: _addFriendController,
+                    hintText: t("Нікнейм", "Username"),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))],
+                  )
+                : GlassInput(
+                    controller: _addFriendController,
+                    hintText: t("Нікнейм", "Username"),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))],
+                  ),
             ),
             const SizedBox(width: 10),
-            ElegantButton(text: t("ДОДАТИ", "ADD"), onPressed: _sendFriendRequest),
+            isDesktopView 
+              ? _vercelButton(text: t("ДОДАТИ", "ADD"), onPressed: _sendFriendRequest)
+              : ElegantButton(text: t("ДОДАТИ", "ADD"), onPressed: _sendFriendRequest),
           ]),
         ),
         const SizedBox(height: 32),
@@ -2306,7 +2149,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                   fontWeight: FontWeight.bold, letterSpacing: 1,
                 )),
           ),
-          GlassContainer(
+          _surface(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: _pendingRequests.asMap().entries.map((entry) {
@@ -2378,7 +2221,7 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                 child: Text(t("У вас ще немає друзів.", "No friends yet."),
                     style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14)),
               )
-            : GlassContainer(
+            : _surface(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: _friends.asMap().entries.map((entry) {
@@ -2417,16 +2260,12 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     );
   }
 
-  // ─────────────────────────────────────────────────────────
-  // SETTINGS TAB
-  // ─────────────────────────────────────────────────────────
   Widget _buildSettingsTab() {
     final accent = _accentColors[_accentColor]!;
 
     return ListView(
       padding: const EdgeInsets.only(top: 0, bottom: 120),
       children: [
-        // ── ПРОФІЛЬ ───────────────────────────────────────────
         Container(
           margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
           child: GestureDetector(
@@ -2434,9 +2273,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                color: isDesktopView ? const Color(0xFF0A0A0A) : Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(isDesktopView ? 8 : 20),
+                border: Border.all(color: isDesktopView ? const Color(0xFF1A1A1A) : Colors.white.withValues(alpha: 0.1), width: 1),
               ),
               child: Row(
               children: [
@@ -2489,9 +2328,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           ),
         ),
 
-        // ── СПОВІЩЕННЯ ────────────────────────────────────────
         _sectionHeader(t("СПОВІЩЕННЯ", "NOTIFICATIONS")),
-        GlassContainer(
+        _surface(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(children: [
             _settingToggle(
@@ -2542,9 +2380,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           ]),
         ),
 
-        // ── КОНФІДЕНЦІЙНІСТЬ ──────────────────────────────────
         _sectionHeader(t("КОНФІДЕНЦІЙНІСТЬ", "PRIVACY")),
-        GlassContainer(
+        _surface(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(children: [
             _settingToggle(
@@ -2656,9 +2493,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           ]),
         ),
 
-        // ── БЕЗПЕКА ───────────────────────────────────────────
         _sectionHeader(t("БЕЗПЕКА", "SECURITY")),
-        GlassContainer(
+        _surface(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(children: [
             _settingToggle(
@@ -2713,12 +2549,10 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           ]),
         ),
 
-        // ── ЗОВНІШНІЙ ВИГЛЯД ──────────────────────────────────
         _sectionHeader(t("ЗОВНІШНІЙ ВИГЛЯД", "APPEARANCE")),
-        GlassContainer(
+        _surface(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(children: [
-            // Акцентний колір
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
               child: Column(
@@ -2767,7 +2601,6 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               ),
             ),
             _divider(),
-            // Розмір шрифту
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
               leading: _settingIcon(Icons.format_size_rounded, accent),
@@ -2783,7 +2616,6 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
               onTap: () => _showTextSizeSheet(accent),
             ),
             _divider(),
-            // Стиль бульок
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
               child: Column(
@@ -2819,9 +2651,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           ]),
         ),
 
-        // ── МОВА ──────────────────────────────────────────────
         _sectionHeader(t("МОВА", "LANGUAGE")),
-        GlassContainer(
+        _surface(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(children: [
             ListTile(
@@ -2844,26 +2675,29 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           ]),
         ),
 
-        // ── АДМІН ─────────────────────────────────────────────
         if (_isAdmin) ...[
           _sectionHeader(t("АДМІН-ПАНЕЛЬ", "ADMIN PANEL"), icon: VerifiedBadge(size: 13, color: accent)),
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
               Expanded(
-                child: GlassInput(
-                  controller: _verifySearchController,
-                  hintText: t("Пошук користувача...", "Search user..."),
-                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))],
-                ),
+                child: isDesktopView
+                  ? _vercelInput(controller: _verifySearchController, hintText: t("Пошук користувача...", "Search user..."), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))])
+                  : GlassInput(
+                      controller: _verifySearchController,
+                      hintText: t("Пошук користувача...", "Search user..."),
+                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))],
+                    ),
               ),
               const SizedBox(width: 10),
-              ElegantButton(text: t("ЗНАЙТИ", "FIND"), onPressed: _searchUsersForVerify),
+              isDesktopView
+                ? _vercelButton(text: t("ЗНАЙТИ", "FIND"), onPressed: _searchUsersForVerify)
+                : ElegantButton(text: t("ЗНАЙТИ", "FIND"), onPressed: _searchUsersForVerify),
             ]),
           ),
           if (_verifyResults.isNotEmpty) ...[
             const SizedBox(height: 12),
-            GlassContainer(
+            _surface(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 children: _verifyResults.asMap().entries.map((entry) {
@@ -2912,7 +2746,6 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
           ],
         ],
 
-        // ── ВИЙТИ ─────────────────────────────────────────────
         const SizedBox(height: 32),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -2921,8 +2754,8 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
             child: Container(
               height: 50,
               decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(50),
+                color: isDesktopView ? Colors.black : Colors.red.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(isDesktopView ? 8 : 50),
                 border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
               ),
               alignment: Alignment.center,
@@ -2981,9 +2814,9 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
             final appliedFont = useSystemSize ? tempSize * mediaScale : tempSize;
 
             return Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF16171B),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              decoration: const BoxDecoration(
+                color: Color(0xFF16171B),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
               child: SafeArea(
                 top: false,
@@ -3089,133 +2922,81 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
                                 separatorBuilder: (_, _) => Divider(height: 1, indent: 72, color: Colors.white.withValues(alpha: 0.05)),
                                 itemBuilder: (context, i) {
                                   final name = nameOrFallback(i, t("Контакт", "Contact"));
-                                  final preview = textOrFallback(i, t("Тестове повідомлення", "Sample message"));
-                                  final time = ['1:02 PM', '2:01 PM', '1:53 PM', '1:50 PM', '1:16 PM', '12:54 PM'][i];
+                                  final preview = textOrFallback(i, t("Тестове повідомлення", "Test message"));
                                   return ListTile(
-                                    dense: true,
-                                    leading: CircleAvatar(
-                                      radius: 22,
-                                      backgroundColor: [
-                                        const Color(0xFFF6B85C),
-                                        const Color(0xFF6B8CFF),
-                                        const Color(0xFF6EDB7A),
-                                        const Color(0xFF37D2E5),
-                                        const Color(0xFF4CB4FF),
-                                        const Color(0xFF63C2FF)
-                                      ][i],
-                                      child: Text(
-                                        name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                        style: TextStyle(color: Colors.white, fontSize: appliedFont + 2, fontWeight: FontWeight.w700),
-                                      ),
-                                    ),
-                                    title: Text(
-                                      name,
-                                      style: TextStyle(color: Colors.white, fontSize: appliedFont + 2, fontWeight: FontWeight.w600),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    subtitle: Text(
-                                      preview,
-                                      style: TextStyle(color: Colors.white.withValues(alpha: 0.52), fontSize: appliedFont),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    trailing: Text(time, style: TextStyle(color: Colors.white38, fontSize: appliedFont - 1)),
-                                  );
+                                        leading: CircleAvatar(
+                                          radius: 20,
+                                          backgroundColor: Colors.white.withValues(alpha: 0.08),
+                                          child: const Icon(Icons.person, color: Colors.white70),
+                                        ),
+                                        title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                                        subtitle: Text(
+                                          preview,
+                                          style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: appliedFont),
+                                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                                        ),
+                                      );
                                 },
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       ValueListenableBuilder<int>(
                         valueListenable: pageIdx,
-                        builder: (_, idx, _) {
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _dot(idx == 0),
-                              const SizedBox(width: 6),
-                              _dot(idx == 1),
-                            ],
-                          );
-                        },
+                        builder: (ctx, idx, _) => Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [0, 1].map((i) => Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: 8, height: 8,
+                            decoration: BoxDecoration(
+                              color: i == idx ? accent : Colors.white24,
+                              shape: BoxShape.circle,
+                            ),
+                          )).toList(),
+                        ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 20),
                       Row(
                         children: [
-                          Text(t("Системний розмір тексту", "System text size"), style: const TextStyle(color: Colors.white, fontSize: 14)),
-                          const Spacer(),
-                          Switch(
-                            value: useSystemSize,
-                            activeTrackColor: accent.withValues(alpha: 0.45),
-                            inactiveTrackColor: Colors.white24,
-                            thumbColor: WidgetStateProperty.all(Colors.white),
-                            onChanged: (v) => setStateSB(() => useSystemSize = v),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          Text('A', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                          const Text("A", style: TextStyle(color: Colors.white70, fontSize: 14)),
                           Expanded(
                             child: SliderTheme(
                               data: SliderThemeData(
-                                activeTrackColor: const Color(0xFFD5AF73),
-                                inactiveTrackColor: Colors.white12,
-                                thumbColor: Colors.white,
+                                activeTrackColor: accent,
+                                inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
+                                thumbColor: accent,
                                 overlayColor: accent.withValues(alpha: 0.2),
-                                trackHeight: 3,
-                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                                trackHeight: 4,
                               ),
                               child: Slider(
                                 value: tempSize,
-                                min: 12,
-                                max: 18,
-                                divisions: 6,
-                                onChanged: (v) => setStateSB(() => tempSize = v),
+                                min: 12.0, max: 24.0, divisions: 12,
+                                onChanged: useSystemSize ? null : (val) => setStateSB(() => tempSize = val),
                               ),
                             ),
                           ),
-                          Text('A', style: TextStyle(color: Colors.white70, fontSize: 28)),
+                          const Text("A", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w500)),
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => Navigator.pop(ctx),
-                              child: Container(
-                                height: 48,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
-                                ),
-                                child: Text(t("Скасувати", "Cancel"), style: const TextStyle(color: Colors.white, fontSize: 16)),
-                              ),
-                            ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accent,
+                            foregroundColor: ThemeData.estimateBrightnessForColor(accent) == Brightness.dark ? Colors.white : Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          Container(width: 1, height: 48, color: Colors.white.withValues(alpha: 0.08)),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                setState(() => _chatFontSize = tempSize);
-                                _saveSetting('chat_font_size', tempSize);
-                                Navigator.pop(ctx);
-                              },
-                              child: Container(
-                                height: 48,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
-                                ),
-                                child: Text(t("Встановити", "Apply"), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-                              ),
-                            ),
-                          ),
-                        ],
+                          onPressed: () {
+                            setState(() { _chatFontSize = tempSize; });
+                            _saveSetting('chat_font_size', tempSize);
+                            Navigator.pop(ctx);
+                          },
+                          child: Text(t("Застосувати", "Apply"), style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ),
                       ),
                     ],
                   ),
@@ -3228,529 +3009,411 @@ class _ContactsScreenState extends State<ContactsScreen> with WidgetsBindingObse
     );
   }
 
-  Widget _dot(bool active) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      width: active ? 16 : 6,
-      height: 6,
-      decoration: BoxDecoration(
-        color: active ? Colors.white : Colors.white38,
-        borderRadius: BorderRadius.circular(20),
+  Widget _divider() => Divider(height: 1, indent: 16, endIndent: 16, color: Colors.white.withValues(alpha: 0.05));
+
+  Widget _sectionHeader(String title, {Widget? icon}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 24, 24, 8),
+      child: Row(
+        children: [
+          Text(title, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+          if (icon != null) ...[const SizedBox(width: 6), icon],
+        ],
       ),
     );
   }
 
-  // ─────────────────────────────────────────────────────────
-  // SETTINGS HELPERS
-  // ─────────────────────────────────────────────────────────
-  Widget _sectionHeader(String text, {Widget? icon}) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 28, 16, 8),
-      child: Row(children: [
-        if (icon != null) ...[icon, const SizedBox(width: 6)],
-        Text(text,
-            style: TextStyle(
-              fontSize: 11, color: Colors.white.withValues(alpha: 0.4),
-              fontWeight: FontWeight.w700, letterSpacing: 0.8,
-            )),
-      ]),
-    );
-  }
-
-  Widget _divider() => Padding(
-    padding: const EdgeInsets.only(left: 54),
-    child: Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
-  );
-
-  Widget _settingIcon(IconData icon, Color color) {
+  Widget _settingIcon(IconData icon, Color accent) {
     return Container(
-      width: 32, height: 32,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-      child: Icon(icon, color: color, size: 17),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(color: accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+      child: Icon(icon, color: accent, size: 20),
     );
   }
 
   Widget _settingToggle({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    String? subtitle,
-    required bool value,
-    bool enabled = true,
-    required ValueChanged<bool> onChanged,
-    required Color accent,
+    required IconData icon, required Color iconColor, required String title, String? subtitle,
+    required bool value, required ValueChanged<bool> onChanged, required Color accent, bool enabled = true,
   }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      leading: _settingIcon(icon, enabled ? iconColor : iconColor.withValues(alpha: 0.35)),
-      title: Text(title,
-          style: TextStyle(
-            color: enabled ? Colors.white : Colors.white38,
-            fontWeight: FontWeight.w500, fontSize: 15,
-          )),
-      subtitle: subtitle != null
-          ? Text(subtitle,
-              style: TextStyle(
-                color: enabled ? Colors.white.withValues(alpha: 0.4) : Colors.white24,
-                fontSize: 12,
-              ))
-          : null,
-      trailing: Transform.scale(
-        scale: 0.85,
-        child: Switch(
-          value: value && enabled,
-          activeTrackColor: accent.withValues(alpha: 0.42),
-          inactiveTrackColor: Colors.white12,
-          trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
-          thumbColor: WidgetStateProperty.all(Colors.white),
-          onChanged: enabled ? onChanged : null,
-        ),
+      enabled: enabled,
+      leading: _settingIcon(icon, iconColor),
+      title: Text(title, style: TextStyle(color: enabled ? Colors.white : Colors.white54, fontWeight: FontWeight.w500, fontSize: 15)),
+      subtitle: subtitle != null ? Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12)) : null,
+      trailing: Switch(
+        value: value, onChanged: enabled ? onChanged : null,
+        activeThumbColor: Colors.white, activeTrackColor: accent,
+        inactiveThumbColor: Colors.white54, inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
       ),
+      onTap: enabled ? () => onChanged(!value) : null,
     );
   }
 
-  Widget _bubbleOption(String style, String label, Color accent) {
-    final isSelected = _chatBubbleStyle == style;
+  Widget _bubbleOption(String value, String label, Color accent) {
+    final isSelected = _chatBubbleStyle == value;
+    BorderRadius radius;
+    if (value == 'sharp') {
+      radius = const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8), bottomLeft: Radius.circular(8), bottomRight: Radius.circular(2));
+    } else if (value == 'minimal') {
+      radius = BorderRadius.circular(6);
+    } else {
+      radius = const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16), bottomLeft: Radius.circular(16), bottomRight: Radius.circular(4));
+    }
     return GestureDetector(
-      onTap: () { setState(() => _chatBubbleStyle = style); _saveSetting('bubble_style', style); },
-      child: Column(children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? accent.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
-            borderRadius: style == 'rounded'
-                ? BorderRadius.circular(18)
-                : style == 'sharp'
-                    ? BorderRadius.circular(4)
-                    : BorderRadius.circular(0),
-            border: Border.all(color: isSelected ? accent : Colors.white12),
+      onTap: () { setState(() => _chatBubbleStyle = value); _saveSetting('bubble_style', value); },
+      child: Column(
+        children: [
+          Container(
+            width: 60, height: 40,
+            decoration: BoxDecoration(
+              color: isSelected ? accent : Colors.white.withValues(alpha: 0.05),
+              borderRadius: radius,
+              border: Border.all(color: isSelected ? accent : Colors.white.withValues(alpha: 0.1), width: 2),
+            ),
+            alignment: Alignment.center,
+            child: Icon(Icons.abc, color: isSelected ? (ThemeData.estimateBrightnessForColor(accent) == Brightness.dark ? Colors.white : Colors.black) : Colors.white54),
           ),
-            child: Text(t("Привіт", "Hi"),
-              style: TextStyle(color: isSelected ? Colors.white : Colors.white54, fontSize: 12)),
-        ),
-        const SizedBox(height: 5),
-        Text(label,
-            style: TextStyle(
-              color: isSelected ? accent : Colors.white38,
-              fontSize: 10, fontWeight: FontWeight.w600,
-            )),
-      ]),
-    );
-  }
-
- // ─────────────────────────────────────────────────────────
-  // МЕНЮ 1-В-1 ЯК НА ДРУГОМУ СКРІНШОТІ
-  // ─────────────────────────────────────────────────────────
-  Widget _buildDarkGlassMenu(int totalUnread, int totalPending) {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 10, right: 10,
-          bottom: MediaQuery.of(context).padding.bottom + 12,
-        ),
-        child: Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Stack(
-            children: [
-              // Uiverse-like glass shell
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.88),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          blurRadius: 30,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _menuItem(0, "Home", totalUnread),
-                        _menuItem(1, "Friends", totalPending),
-                        _menuItem(2, "Settings", 0),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // ::after-like inset highlights from the original CSS
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.white.withValues(alpha: 0.07),
-                          blurRadius: 5,
-                          offset: const Offset(2, 2),
-                          spreadRadius: -2,
-                        ),
-                        BoxShadow(
-                          color: Colors.white.withValues(alpha: 0.03),
-                          blurRadius: 5,
-                          offset: const Offset(-2, -2),
-                          spreadRadius: 2,
-                        ),
-                        BoxShadow(
-                          color: Colors.white.withValues(alpha: 0.02),
-                          blurRadius: 0,
-                          offset: const Offset(0, -2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+          const SizedBox(height: 8),
+          Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.white54, fontSize: 12, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
+        ],
       ),
     );
   }
 
-  Widget _menuItem(int index, String label, int badgeCount) {
-    final isActive = _currentIndex == index;
-    final accent = _accentColors[_accentColor]!;
-
-    final textColor = isActive ? accent : Colors.white.withValues(alpha: 0.65);
-
-    final bgColor = isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _onTabSelected(index),
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(999),
-            border: isActive ? Border.all(color: Colors.white.withValues(alpha: 0.05)) : Border.all(color: Colors.transparent),
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.20),
-                      blurRadius: 5,
-                      offset: const Offset(2, 2),
-                      spreadRadius: -2,
-                    ),
-                    BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      blurRadius: 5,
-                      offset: const Offset(-2, -2),
-                      spreadRadius: 2,
-                    ),
-                    BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      blurRadius: 0,
-                      offset: const Offset(0, -2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Badge(
-                isLabelVisible: badgeCount > 0,
-                backgroundColor: Colors.white,
-                textColor: Colors.black,
-                label: Text('$badgeCount', style: const TextStyle(fontWeight: FontWeight.bold)),
-                // Використовуємо наші кастомні іконки з правильними шляхами
-                child: CustomUiverseIcon(index: index, color: textColor),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 12.0,
-                  fontWeight: FontWeight.w600,
-                  height: 1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _moveDesktopChatSelection(int delta) {
+    if (_recentChats.isEmpty) return;
+    setState(() {
+      _desktopSelectedChatIndex = (_desktopSelectedChatIndex + delta).clamp(0, _recentChats.length - 1);
+    });
+    if (_desktopChatsScrollController.hasClients) {
+      final targetOffset = _desktopSelectedChatIndex * 64.0;
+      final maxExtent = _desktopChatsScrollController.position.maxScrollExtent;
+      final currentOffset = _desktopChatsScrollController.offset;
+      final viewport = _desktopChatsScrollController.position.viewportDimension;
+      if (targetOffset < currentOffset) {
+        _desktopChatsScrollController.jumpTo(targetOffset);
+      } else if (targetOffset > currentOffset + viewport - 64) {
+        _desktopChatsScrollController.jumpTo((targetOffset - viewport + 64).clamp(0.0, maxExtent));
+      }
+    }
   }
-  
 
-  // ─────────────────────────────────────────────────────────
-  // BUILD
-  // ─────────────────────────────────────────────────────────
+  void _openSelectedDesktopChat() {
+    if (_recentChats.isEmpty || _desktopSelectedChatIndex < 0 || _desktopSelectedChatIndex >= _recentChats.length) return;
+    final chat = _recentChats[_desktopSelectedChatIndex];
+    _startChat(chat['partnerName'], chat['publicKey'], targetAvatar: chat['avatar'], targetDisplayName: chat['displayName'], isVerified: chat['isVerified'] == true);
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_isAppLocked) return _buildLockScreen();
+    if (_isAppLocked) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            Positioned.fill(child: LiquidBackground(child: Container())),
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(color: Colors.black.withValues(alpha: 0.5)),
+            ),
+            SafeArea(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _AppleLockIcon(accent: _accentColors[_accentColor] ?? Colors.white),
+                    const SizedBox(height: 24),
+                    Text(t("Додаток заблоковано", "App Locked"), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
+                    const SizedBox(height: 8),
+                    Text(t("Для доступу підтвердіть особу", "Authenticate to gain access"), style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 15)),
+                    const SizedBox(height: 48),
+                    if (_authInProgress)
+                      const CircularProgressIndicator(color: Colors.white)
+                    else
+                      ElevatedButton.icon(
+                        onPressed: _unlockWithSystemAuth,
+                        icon: const Icon(Icons.fingerprint, color: Colors.black),
+                        label: Text(t("Розблокувати", "Unlock"), style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-    final totalUnread = _recentChats.fold(0, (sum, chat) => sum + ((chat['unreadCount'] ?? 0) as int));
-    final totalPending = _pendingRequests.length;
-    final isDesktopLayout = MediaQuery.of(context).size.width >= 980;
-    final isDesktopPlatform = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
-    final appBarTitle = _currentIndex == 0
-        ? t("Чати", "Chats")
-        : (_currentIndex == 1 ? t("Друзі", "Friends") : t("Профіль", "Profile"));
+    final isDesktopPlatform = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+    final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
+
+    Widget body = SafeArea(
+      child: Column(
+        children: [
+          if (!isDesktopView)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _currentIndex == 0 ? t("Чати", "Chats") : (_currentIndex == 1 ? t("Друзі", "Friends") : t("Налаштування", "Settings")),
+                    style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                  ),
+                  if (_currentIndex == 0)
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: _showCreateGroupDialog,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), shape: BoxShape.circle),
+                            child: const Icon(Icons.group_add, color: Colors.white, size: 22),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: isDesktopPlatform
+              ? _buildAnimatedTabPage(_currentIndex)
+              : PageView(
+                  controller: _pageController,
+                  onPageChanged: (i) => setState(() => _currentIndex = i),
+                  children: [ _buildChatsTab(), _buildFriendsTab(), _buildSettingsTab() ],
+                ),
+          ),
+        ],
+      ),
+    );
+
+    if (isDesktopView) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Row(
+          children: [
+            Container(
+              width: 260,
+              decoration: const BoxDecoration(
+                color: Color(0xFF000000),
+                border: Border(right: BorderSide(color: Color(0xFF1A1A1A), width: 1)),
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("LUMYN", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: 2)),
+                        if (_currentIndex == 0)
+                          Tooltip(
+                            message: t("Створити групу", "Create Group"),
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: _showCreateGroupDialog,
+                                child: const Icon(Icons.group_add, color: Colors.white70, size: 20),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      children: [
+                        _DesktopNavItem(
+                          icon: Icons.chat_bubble_outline,
+                          activeIcon: Icons.chat_bubble,
+                          label: t("Чати", "Chats"),
+                          isSelected: _currentIndex == 0,
+                          onTap: () => _onTabSelected(0),
+                        ),
+                        const SizedBox(height: 4),
+                        _DesktopNavItem(
+                          icon: Icons.people_outline,
+                          activeIcon: Icons.people,
+                          label: t("Друзі", "Friends"),
+                          isSelected: _currentIndex == 1,
+                          onTap: () => _onTabSelected(1),
+                          badgeCount: _pendingRequests.length,
+                        ),
+                        const SizedBox(height: 4),
+                        _DesktopNavItem(
+                          icon: Icons.settings_outlined,
+                          activeIcon: Icons.settings,
+                          label: t("Налаштування", "Settings"),
+                          isSelected: _currentIndex == 2,
+                          onTap: () => _onTabSelected(2),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Row(
+                      children: [
+                        SafeAvatar(avatarBase64: _myAvatar, fallbackName: widget.userName, radius: 16),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _myDisplayName.isNotEmpty ? _myDisplayName : widget.userName,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Shortcuts(
+                shortcuts: const <ShortcutActivator, Intent>{
+                  SingleActivator(LogicalKeyboardKey.digit1, control: true): _SwitchTabIntent(0),
+                  SingleActivator(LogicalKeyboardKey.digit2, control: true): _SwitchTabIntent(1),
+                  SingleActivator(LogicalKeyboardKey.digit3, control: true): _SwitchTabIntent(2),
+                },
+                child: Actions(
+                  actions: <Type, Action<Intent>>{
+                    _SwitchTabIntent: CallbackAction<_SwitchTabIntent>(onInvoke: (intent) {
+                      _onTabSelected(intent.index);
+                      return null;
+                    }),
+                  },
+                  child: Focus(autofocus: true, child: body),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBody: true,
-      resizeToAvoidBottomInset: false, // фікс кліку в PWA
-      appBar: AppBar(
-        title: Text(appBarTitle),
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(color: Colors.black.withValues(alpha: 0.5)),
-          ),
-        ),
-        actions: _currentIndex == 0
-            ? [
-                Container(
-                  margin: const EdgeInsets.only(right: 16),
-                  child: IconButton(
-                    icon: const Icon(Icons.group_add, color: Colors.white, size: 24),
-                    tooltip: t('Створити групу', 'Create group'),
-                    onPressed: _showCreateGroupDialog,
-                  ),
-                ),
-              ]
-            : null,
-      ),
-      body: Shortcuts(
-        shortcuts: isDesktopPlatform
-            ? const <ShortcutActivator, Intent>{
-                SingleActivator(LogicalKeyboardKey.digit1, control: true): _SwitchTabIntent(0),
-                SingleActivator(LogicalKeyboardKey.digit2, control: true): _SwitchTabIntent(1),
-                SingleActivator(LogicalKeyboardKey.digit3, control: true): _SwitchTabIntent(2),
-                SingleActivator(LogicalKeyboardKey.digit4, control: true): _SwitchTabIntent(2),
-              }
-            : const <ShortcutActivator, Intent>{},
-        child: Actions(
-          actions: <Type, Action<Intent>>{
-            _SwitchTabIntent: CallbackAction<_SwitchTabIntent>(
-              onInvoke: (intent) {
-                final target = intent.index.clamp(0, 2);
-                unawaited(_onTabSelected(target));
-                return null;
+      backgroundColor: Colors.black,
+      body: _buildBackground(child: body),
+      bottomNavigationBar: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.6),
+              border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 0.5)),
+            ),
+            child: BottomNavigationBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              currentIndex: _currentIndex,
+              onTap: (i) {
+                setState(() {
+                  _currentIndex = i;
+                });
+                // Перевірка для мобільного/веб формату
+                if (_pageController.hasClients) {
+                  _pageController.animateToPage(i, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
+                }
               },
-            ),
-          },
-          child: Focus(
-            autofocus: true,
-            child: LiquidBackground(
-              child: isDesktopLayout
-                  ? Row(
-                      children: [
-                        NavigationRail(
-                          backgroundColor: Colors.black.withValues(alpha: 0.32),
-                          selectedIndex: _currentIndex,
-                          onDestinationSelected: (index) => _onTabSelected(index),
-                          labelType: NavigationRailLabelType.all,
-                          selectedIconTheme: const IconThemeData(color: Colors.white),
-                          unselectedIconTheme: IconThemeData(color: Colors.white.withValues(alpha: 0.45)),
-                          selectedLabelTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                          unselectedLabelTextStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-                          destinations: [
-                            NavigationRailDestination(
-                              icon: const Icon(Icons.chat_bubble_outline_rounded),
-                              selectedIcon: const Icon(Icons.chat_bubble_rounded),
-                              label: Text(t('Чати', 'Chats')),
-                            ),
-                            NavigationRailDestination(
-                              icon: const Icon(Icons.people_outline_rounded),
-                              selectedIcon: const Icon(Icons.people_rounded),
-                              label: Text(t('Друзі', 'Friends')),
-                            ),
-                            NavigationRailDestination(
-                              icon: const Icon(Icons.person_outline_rounded),
-                              selectedIcon: const Icon(Icons.person_rounded),
-                              label: Text(t('Профіль', 'Profile')),
-                            ),
-                          ],
-                          trailing: Padding(
-                            padding: const EdgeInsets.only(top: 16),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (totalUnread > 0) _desktopBadge('$totalUnread'),
-                                if (totalPending > 0) ...[
-                                  const SizedBox(height: 8),
-                                  _desktopBadge('$totalPending', color: const Color(0xFF2FA8FF)),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                        VerticalDivider(width: 1, color: Colors.white.withValues(alpha: 0.08)),
-                        Expanded(
-                          child: Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 1120),
-                              child: _buildAnimatedTabPage(_currentIndex),
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned.fill(
-                          child: PageView.builder(
-                            controller: _pageController,
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: 3,
-                            onPageChanged: (index) {
-                              if (_currentIndex != index && mounted) {
-                                setState(() => _currentIndex = index);
-                              }
-                            },
-                            itemBuilder: (context, index) => _buildAnimatedTabPage(index),
-                          ),
-                        ),
+              selectedItemColor: accent,
+              unselectedItemColor: Colors.white54,
+              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
+              items: [
+                BottomNavigationBarItem(icon: const Icon(Icons.chat_bubble_outline), activeIcon: const Icon(Icons.chat_bubble), label: t("Чати", "Chats")),
+                BottomNavigationBarItem(
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.people_outline),
+                      if (_pendingRequests.isNotEmpty)
                         Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: _buildDarkGlassMenu(totalUnread, totalPending),
+                          right: -4, top: -4,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(color: Color(0xFFFF3B30), shape: BoxShape.circle),
+                            child: Text('${_pendingRequests.length}', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                          ),
                         ),
-                      ],
-                    ),
+                    ],
+                  ),
+                  activeIcon: const Icon(Icons.people),
+                  label: t("Друзі", "Friends"),
+                ),
+                BottomNavigationBarItem(icon: const Icon(Icons.settings_outlined), activeIcon: const Icon(Icons.settings), label: t("Налаштування", "Settings")),
+              ],
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _desktopBadge(String value, {Color color = Colors.white}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
-      ),
-      child: Text(value, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
     );
   }
 }
-// ─────────────────────────────────────────────────────────
-// КАСТОМНІ SVG ІКОНКИ (UIVERSE)
-// ─────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────
-// КАСТОМНІ SVG ІКОНКИ (ТОЧНО З UIVERSE)
-// ─────────────────────────────────────────────────────────
-class CustomUiverseIcon extends StatelessWidget {
-  final int index;
-  final Color color;
-  const CustomUiverseIcon({super.key, required this.index, required this.color});
 
-  double get _offsetY {
-    switch (index) {
-      case 0:
-        return -0.4;
-      case 1:
-        return 0.2;
-      case 2:
-        return -0.6;
-      default:
-        return 0;
-    }
-  }
+class _DesktopNavItem extends StatefulWidget {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final int badgeCount;
+
+  const _DesktopNavItem({
+    required this.icon, required this.activeIcon, required this.label, required this.isSelected, required this.onTap, this.badgeCount = 0,
+  });
+
+  @override
+  State<_DesktopNavItem> createState() => _DesktopNavItemState();
+}
+
+class _DesktopNavItemState extends State<_DesktopNavItem> {
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
-    return Transform.translate(
-      offset: Offset(0, _offsetY),
-      child: SizedBox(
-        width: 24, // Розмір як у CSS (1.4rem)
-        height: 24,
-        child: CustomPaint(
-          painter: _UiverseIconPainter(index: index, color: color),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: widget.isSelected ? const Color(0xFF1A1A1A) : (_isHovered ? const Color(0xFF111111) : Colors.transparent),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              Icon(widget.isSelected ? widget.activeIcon : widget.icon, color: widget.isSelected ? Colors.white : Colors.white70, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  widget.label,
+                  style: TextStyle(color: widget.isSelected ? Colors.white : Colors.white70, fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500, fontSize: 14),
+                ),
+              ),
+              if (widget.badgeCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
+                  child: Text('${widget.badgeCount}', style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
+                ),
+            ],
+          ),
         ),
       ),
     );
-  }
-}
-
-class _UiverseIconPainter extends CustomPainter {
-  final int index;
-  final Color color;
-  _UiverseIconPainter({required this.index, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final solidPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true;
-    final fadedPaint = Paint()
-      ..color = color.withValues(alpha: 0.4)
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true;
-
-    final scale = size.width / 24.0;
-    canvas.scale(scale, scale);
-
-    if (index == 0) {
-      canvas.drawPath(
-        parseSvgPathData('M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.06-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689Z'),
-        solidPaint,
-      );
-      canvas.drawPath(
-        parseSvgPathData('m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198a2.29 2.29 0 0 0 .091-.086L12 5.432Z'),
-        solidPaint,
-      );
-      return;
-    }
-
-    if (index == 1) {
-      canvas.drawPath(
-        parseSvgPathData('M16.5 7.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM3.75 20.1a8.25 8.25 0 0 1 16.5 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.813-1.705A.75.75 0 0 1 3.75 20.1Z'),
-        solidPaint,
-      );
-      canvas.drawPath(
-        parseSvgPathData('M16 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z'),
-        fadedPaint,
-      );
-      canvas.drawPath(
-        parseSvgPathData('M16 13.5a9 9 0 0 1 6.25 2.45.75.75 0 0 1 .25.55v.6a.75.75 0 0 1-.437.695A18 18 0 0 1 18 18.3v-.2a9.26 9.26 0 0 0-3.2-7 9.1 9.1 0 0 1 1.2-.1Z'),
-        fadedPaint,
-      );
-      return;
-    }
-
-    canvas.drawPath(
-      parseSvgPathData('M17.004 10.407c.138.435-.216.842-.672.842h-3.465a.75.75 0 0 1-.65-.375l-1.732-3c-.229-.396-.053-.907.393-1.004a5.252 5.252 0 0 1 6.126 3.537ZM8.12 8.464c.307-.338.838-.235 1.066.16l1.732 3a.75.75 0 0 1 0 .75l-1.732 3c-.229.397-.76.5-1.067.161A5.23 5.23 0 0 1 6.75 12a5.23 5.23 0 0 1 1.37-3.536ZM10.878 17.13c-.447-.098-.623-.608-.394-1.004l1.733-3.002a.75.75 0 0 1 .65-.375h3.465c.457 0 .81.407.672.842a5.252 5.252 0 0 1-6.126 3.539Z'),
-      solidPaint,
-    );
-    final settingsPath = parseSvgPathData('M21 12.75a.75.75 0 1 0 0-1.5h-.783a8.22 8.22 0 0 0-.237-1.357l.734-.267a.75.75 0 1 0-.513-1.41l-.735.268a8.24 8.24 0 0 0-.689-1.192l.6-.503a.75.75 0 1 0-.964-1.149l-.6.504a8.3 8.3 0 0 0-1.054-.885l.391-.678a.75.75 0 1 0-1.299-.75l-.39.676a8.188 8.188 0 0 0-1.295-.47l.136-.77a.75.75 0 0 0-1.477-.26l-.136.77a8.36 8.36 0 0 0-1.377 0l-.136-.77a.75.75 0 1 0-1.477.26l.136.77c-.448.121-.88.28-1.294.47l-.39-.676a.75.75 0 0 0-1.3.75l.392.678a8.29 8.29 0 0 0-1.054.885l-.6-.504a.75.75 0 1 0-.965 1.149l.6.503a8.243 8.243 0 0 0-.689 1.192L3.8 8.216a.75.75 0 1 0-.513 1.41l.735.267a8.222 8.222 0 0 0-.238 1.356h-.783a.75.75 0 0 0 0 1.5h.783c.042.464.122.917.238 1.356l-.735.268a.75.75 0 0 0 .513 1.41l.735-.268c.197.417.428.816.69 1.191l-.6.504a.75.75 0 0 0 .963 1.15l.601-.505c.326.323.679.62 1.054.885l-.392.68a.75.75 0 0 0 1.3.75l.39-.679c.414.192.847.35 1.294.471l-.136.77a.75.75 0 0 0 1.477.261l.137-.772a8.332 8.332 0 0 0 1.376 0l.136.772a.75.75 0 1 0 1.477-.26l-.136-.771a8.19 8.19 0 0 0 1.294-.47l.391.677a.75.75 0 0 0 1.3-.75l-.393-.679a8.29 8.29 0 0 0 1.054-.885l.601.504a.75.75 0 0 0 .964-1.15l-.6-.503c.261-.375.492-.774.69-1.191l.735.267a.75.75 0 1 0 .512-1.41l-.734-.267c.115-.439.195-.892.237-1.356h.784Zm-2.657-3.06a6.744 6.744 0 0 0-1.19-2.053 6.784 6.784 0 0 0-1.82-1.51A6.705 6.705 0 0 0 12 5.25a6.8 6.8 0 0 0-1.225.11 6.7 6.7 0 0 0-2.15.793 6.784 6.784 0 0 0-2.952 3.489.76.76 0 0 1-.036.098A6.74 6.74 0 0 0 5.251 12a6.74 6.74 0 0 0 3.366 5.842l.009.005a6.704 6.704 0 0 0 2.18.798l.022.003a6.792 6.792 0 0 0 2.368-.004 6.704 6.704 0 0 0 2.205-.811 6.785 6.785 0 0 0 1.762-1.484l.009-.01.009-.01a6.743 6.743 0 0 0 1.18-2.066c.253-.707.39-1.469.39-2.263a6.74 6.74 0 0 0-.408-2.309Z');
-    settingsPath.fillType = PathFillType.evenOdd;
-    canvas.drawPath(settingsPath, solidPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _UiverseIconPainter oldDelegate) {
-    return oldDelegate.index != index || oldDelegate.color != color;
   }
 }

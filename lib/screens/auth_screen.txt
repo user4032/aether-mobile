@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
-import '../config/server_config.dart';
 import '../utils/globals.dart';
 import '../widgets/ui_core.dart';
 import 'main_gate.dart';
@@ -25,58 +24,9 @@ class _AuthScreenState extends State<AuthScreen> {
   // 0=login, 1=register_form, 2=verify_code, 3=restore_backup
   int _step = 0;
   bool isLoading = false;
-  bool _isHealthChecking = false;
   bool _showLoginPassword = false;
   bool _showRegisterPassword = false;
   bool _showRestorePassword = false;
-
-  // ─── Server warm-up hint ───────────────────────────────
-  String? _serverHint;
-  Timer? _warmupHintTimer;
-
-  /// Запускає таймер: якщо через [delaySeconds] секунд ще грузить —
-  /// показуємо підказку, і міняємо текст кожні кілька секунд.
-  void _startWarmupHint({int delaySeconds = 6}) {
-    _warmupHintTimer?.cancel();
-    _warmupHintTimer = Timer(Duration(seconds: delaySeconds), () {
-      if (!mounted || !isLoading) return;
-      _setHint(t(
-        '⏳ Сервер прокидається після сну...',
-        '⏳ Server is waking up from sleep...',
-      ));
-
-      // Через 12 с — наступна підказка
-      _warmupHintTimer = Timer(const Duration(seconds: 12), () {
-        if (!mounted || !isLoading) return;
-        _setHint(t(
-          '☕ Це може зайняти до хвилини. Не закривайте додаток.',
-          '☕ This may take up to a minute. Please wait.',
-        ));
-
-        // Через 30 с — фінальна підказка
-        _warmupHintTimer = Timer(const Duration(seconds: 30), () {
-          if (!mounted || !isLoading) return;
-          _setHint(t(
-            '🔄 Майже готово... Безкоштовний сервер стартує повільно.',
-            '🔄 Almost there... Free server starts slowly.',
-          ));
-        });
-      });
-    });
-  }
-
-  void _setHint(String msg) {
-    if (mounted) setState(() => _serverHint = msg);
-  }
-
-  void _stopWarmupHint() {
-    _warmupHintTimer?.cancel();
-    _warmupHintTimer = null;
-    if (mounted) setState(() => _serverHint = null);
-  }
-  // ──────────────────────────────────────────────────────
-
-  String get _serverUrl => serverUrl;
 
   final _nameController = TextEditingController();
   final _passController = TextEditingController();
@@ -86,38 +36,6 @@ class _AuthScreenState extends State<AuthScreen> {
   final _restorePasswordController = TextEditingController();
 
   String? _pendingEmail;
-
-<<<<<<< HEAD
-  io.Socket _createAuthSocket() {
-    return io.io('https://aether-backend-hrmq.onrender.com', {
-      'transports': ['websocket', 'polling'],
-      'forceNew': true,
-      'autoConnect': false,
-      'reconnection': false,
-      'timeout': 10000,
-    });
-  }
-
-  void _attachSocketFailureHandlers(io.Socket socket, void Function(String message) onFail) {
-    socket.onConnectError((err) {
-      onFail(t('Не вдалося підключитися до сервера', 'Failed to connect to server'));
-    });
-    socket.onError((err) {
-      onFail(t('Помилка мережі під час підключення', 'Network error during connection'));
-    });
-=======
-  @override
-  void dispose() {
-    _warmupHintTimer?.cancel();
-    _nameController.dispose();
-    _passController.dispose();
-    _emailController.dispose();
-    _codeController.dispose();
-    _restoreTokenController.dispose();
-    _restorePasswordController.dispose();
-    super.dispose();
->>>>>>> 432548728a22f8479fd31b309b7aa9c02f192a06
-  }
 
   String _deviceName() {
     final platform = Platform.isAndroid
@@ -149,15 +67,7 @@ class _AuthScreenState extends State<AuthScreen> {
       socket.emitWithAck('check_device_link_status', {'requestId': requestId, 'userName': userName}, ack: (dynamic data) {
         completer.complete(Map<String, dynamic>.from(data as Map));
       });
-<<<<<<< HEAD
-
-      final status = await completer.future.timeout(
-        const Duration(seconds: 8),
-        onTimeout: () => {'success': false, 'status': 'pending'},
-      );
-=======
       final status = await completer.future;
->>>>>>> 432548728a22f8479fd31b309b7aa9c02f192a06
       if (status['success'] == true && status['status'] == 'approved') {
         await _applyLinkedKeysAndFinish(userName, status);
         socket.dispose();
@@ -167,7 +77,6 @@ class _AuthScreenState extends State<AuthScreen> {
         socket.dispose();
         if (mounted) {
           setState(() => isLoading = false);
-          _stopWarmupHint();
           _showSnack((status['message'] ?? t('Запит на підключення відхилено', 'Device link request was rejected')).toString(), isError: true);
         }
         return;
@@ -177,7 +86,6 @@ class _AuthScreenState extends State<AuthScreen> {
     socket.dispose();
     if (mounted) {
       setState(() => isLoading = false);
-      _stopWarmupHint();
       _showSnack(t('Час очікування підтвердження минув', 'Approval timed out'), isError: true);
     }
   }
@@ -187,156 +95,32 @@ class _AuthScreenState extends State<AuthScreen> {
     final pass = _passController.text.trim();
     if (name.isEmpty || pass.isEmpty) return;
     setState(() => isLoading = true);
-<<<<<<< HEAD
-    io.Socket s = _createAuthSocket();
-    var finished = false;
-    void failAuth(String message) {
-      if (finished) return;
-      finished = true;
-      s.dispose();
-      if (mounted) setState(() => isLoading = false);
-      _showSnack(message, isError: true);
-    }
-    _attachSocketFailureHandlers(s, failAuth);
-    Timer(const Duration(seconds: 15), () {
-      if (!finished && !s.connected) {
-        failAuth(t('Сервер не відповідає. Спробуйте ще раз', 'Server is not responding. Please try again'));
-      }
-    });
+    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
     s.connect();
-=======
-    _startWarmupHint();
-
-    final io.Socket s = io.io(
-      _serverUrl,
-      socketOptions(forceNew: true, reconnection: false),
-    );
-
-    final connectTimeout = Timer(const Duration(seconds: 60), () {
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Connection timeout', 'Connection timeout'), isError: true);
-      }
-      s.dispose();
-    });
-
-    Timer? ackTimeout;
-
->>>>>>> 432548728a22f8479fd31b309b7aa9c02f192a06
     s.onConnect((_) {
-      connectTimeout.cancel();
-      // Сервер відповів — прибираємо підказку про пробудження
-      _stopWarmupHint();
-
-      ackTimeout = Timer(const Duration(seconds: 45), () {
-        if (mounted) {
-          setState(() => isLoading = false);
-          _stopWarmupHint();
-          _showSnack(t('Server did not respond', 'Server did not respond'), isError: true);
-        }
-        s.dispose();
-      });
-
       s.emitWithAck('login_device_request', {
-        'userName': name,
-        'password': pass,
-        'publicKey': widget.publicKey,
-        'deviceId': widget.deviceId,
-        'deviceName': _deviceName(),
+        'userName': name, 'password': pass, 'publicKey': widget.publicKey,
+        'deviceId': widget.deviceId, 'deviceName': _deviceName(),
       }, ack: (dynamic responseRaw) async {
-<<<<<<< HEAD
-        if (finished) return;
-=======
-        ackTimeout?.cancel();
->>>>>>> 432548728a22f8479fd31b309b7aa9c02f192a06
         final response = Map<String, dynamic>.from(responseRaw as Map);
-        if (response['success'] == true) {
-          finished = true;
-          s.dispose();
-          await _applyLinkedKeysAndFinish(name, response);
-          return;
-        }
-
+        if (response['success'] == true) { s.dispose(); await _applyLinkedKeysAndFinish(name, response); return; }
         if (response['requiresApproval'] == true) {
-<<<<<<< HEAD
-              s.emitWithAck('login', {
-                'userName': name,
-                'password': pass,
-                'publicKey': widget.publicKey,
-                'deviceId': widget.deviceId,
-                'deviceName': _deviceName(),
-              }, ack: (dynamic legacyRaw) async {
-                if (finished) return;
-                final legacyResponse = Map<String, dynamic>.from(legacyRaw as Map);
-                if (legacyResponse['success'] == true) {
-                  finished = true;
-                  s.dispose();
-                  await _applyLinkedKeysAndFinish(name, legacyResponse);
-                  return;
-                }
-=======
-          ackTimeout = Timer(const Duration(seconds: 20), () {
-            if (mounted) setState(() => isLoading = false);
-          });
->>>>>>> 432548728a22f8479fd31b309b7aa9c02f192a06
-
           s.emitWithAck('login', {
-            'userName': name,
-            'password': pass,
-            'publicKey': widget.publicKey,
-            'deviceId': widget.deviceId,
-            'deviceName': _deviceName(),
+            'userName': name, 'password': pass, 'publicKey': widget.publicKey,
+            'deviceId': widget.deviceId, 'deviceName': _deviceName(),
           }, ack: (dynamic legacyRaw) async {
-            ackTimeout?.cancel();
             final legacyResponse = Map<String, dynamic>.from(legacyRaw as Map);
-            if (legacyResponse['success'] == true) {
-              s.dispose();
-              await _applyLinkedKeysAndFinish(name, legacyResponse);
-              return;
-            }
-            if (mounted) {
-              setState(() => isLoading = false);
-              _showSnack('${t('Approve this device from your existing logged-in device', 'Approve this device from your existing logged-in device')} (${response['code'] ?? '----'})');
-            }
+            if (legacyResponse['success'] == true) { s.dispose(); await _applyLinkedKeysAndFinish(name, legacyResponse); return; }
+            if (mounted) _showSnack('${t('Підтвердіть новий пристрій у вже авторизованому акаунті', 'Approve this device from your existing logged-in device')} (${response['code'] ?? '----'})');
             unawaited(_waitForDeviceApproval(s, (response['requestId'] ?? '').toString(), name));
           });
           return;
         }
-
-<<<<<<< HEAD
-        failAuth((response['message'] ?? t('Помилка', 'Error')).toString());
-=======
         s.dispose();
         if (mounted) setState(() => isLoading = false);
-        _showSnack((response['message'] ?? t('Error', 'Error')).toString(), isError: true);
->>>>>>> 432548728a22f8479fd31b309b7aa9c02f192a06
+        _showSnack((response['message'] ?? t('Помилка', 'Error')).toString(), isError: true);
       });
     });
-
-    s.onError((dynamic error) {
-      connectTimeout.cancel();
-      ackTimeout?.cancel();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Server unavailable. Try again later', 'Server unavailable. Try again later'), isError: true);
-      }
-      s.dispose();
-    });
-
-    s.onConnectError((dynamic error) {
-      connectTimeout.cancel();
-      ackTimeout?.cancel();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Connection error', 'Connection error'), isError: true);
-      }
-      s.dispose();
-    });
-
-    s.connect();
   }
 
   void _sendCode() async {
@@ -345,255 +129,48 @@ class _AuthScreenState extends State<AuthScreen> {
     final email = _emailController.text.trim();
     if (name.isEmpty || pass.isEmpty || email.isEmpty) return;
     if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
-      _showSnack(t('Invalid email format', 'Invalid email format'), isError: true);
+      _showSnack(t('Невірний формат email', 'Invalid email format'), isError: true);
       return;
     }
     setState(() => isLoading = true);
-<<<<<<< HEAD
-    io.Socket s = _createAuthSocket();
-    var finished = false;
-    void failAuth(String message) {
-      if (finished) return;
-      finished = true;
-      s.dispose();
-      if (mounted) setState(() => isLoading = false);
-      _showSnack(message, isError: true);
-    }
-    _attachSocketFailureHandlers(s, failAuth);
-    Timer(const Duration(seconds: 15), () {
-      if (!finished && !s.connected) {
-        failAuth(t('Сервер не відповідає. Спробуйте ще раз', 'Server is not responding. Please try again'));
-      }
-    });
+    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
     s.connect();
-=======
-    _startWarmupHint();
-
-    final io.Socket s = io.io(
-      _serverUrl,
-      socketOptions(forceNew: true, reconnection: false),
-    );
-
-    final connectTimeout = Timer(const Duration(seconds: 60), () {
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Connection timeout', 'Connection timeout'), isError: true);
-      }
-      s.dispose();
-    });
-
-    Timer? ackTimeout;
-
->>>>>>> 432548728a22f8479fd31b309b7aa9c02f192a06
     s.onConnect((_) {
-      connectTimeout.cancel();
-      _stopWarmupHint();
-
-      ackTimeout = Timer(const Duration(seconds: 45), () {
-        if (mounted) {
-          setState(() => isLoading = false);
-          _stopWarmupHint();
-          _showSnack(t('Server did not respond', 'Server did not respond'), isError: true);
-        }
-        s.dispose();
-      });
-
       s.emitWithAck('send_verification_email', {
-        'userName': name,
-        'email': email,
-        'password': pass,
-        'publicKey': widget.publicKey,
-        'deviceId': widget.deviceId,
-        'deviceName': _deviceName(),
+        'userName': name, 'email': email, 'password': pass,
+        'publicKey': widget.publicKey, 'deviceId': widget.deviceId, 'deviceName': _deviceName(),
       }, ack: (dynamic response) {
-<<<<<<< HEAD
-        if (finished) return;
-        finished = true;
-=======
-        ackTimeout?.cancel();
->>>>>>> 432548728a22f8479fd31b309b7aa9c02f192a06
         s.dispose();
-        if (mounted) {
-          setState(() => isLoading = false);
-          _stopWarmupHint();
-          if (response['success'] == true) {
-            _pendingEmail = email;
-            setState(() => _step = 2);
-          } else {
-            _showSnack(response['message'] ?? t('Error', 'Error'), isError: true);
-          }
+        if (mounted) setState(() => isLoading = false);
+        if (response['success'] == true) {
+          _pendingEmail = email;
+          if (mounted) setState(() => _step = 2);
+        } else {
+          _showSnack(response['message'] ?? t('Помилка', 'Error'), isError: true);
         }
       });
     });
-
-    s.onError((dynamic error) {
-      connectTimeout.cancel();
-      ackTimeout?.cancel();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Server unavailable. Try again later', 'Server unavailable. Try again later'), isError: true);
-      }
-      s.dispose();
-    });
-
-    s.onConnectError((dynamic error) {
-      connectTimeout.cancel();
-      ackTimeout?.cancel();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Connection error', 'Connection error'), isError: true);
-      }
-      s.dispose();
-    });
-
-    s.connect();
   }
 
   void _verifyCode() async {
     final code = _codeController.text.trim();
     if (code.length != 6) return;
     setState(() => isLoading = true);
-<<<<<<< HEAD
-    io.Socket s = _createAuthSocket();
-    var finished = false;
-    void failAuth(String message) {
-      if (finished) return;
-      finished = true;
-      s.dispose();
-      if (mounted) setState(() => isLoading = false);
-      _showSnack(message, isError: true);
-    }
-    _attachSocketFailureHandlers(s, failAuth);
-    Timer(const Duration(seconds: 15), () {
-      if (!finished && !s.connected) {
-        failAuth(t('Сервер не відповідає. Спробуйте ще раз', 'Server is not responding. Please try again'));
-      }
-    });
+    io.Socket s = io.io('https://aether-backend-hrmq.onrender.com', {'transports': ['websocket'], 'forceNew': true});
     s.connect();
     s.onConnect((_) {
       s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {
-        if (finished) return;
-        finished = true;
-=======
-    _startWarmupHint();
-
-    final io.Socket s = io.io(
-      _serverUrl,
-      socketOptions(forceNew: true, reconnection: false),
-    );
-
-    final connectTimeout = Timer(const Duration(seconds: 60), () {
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Connection timeout', 'Connection timeout'), isError: true);
-      }
-      s.dispose();
-    });
-
-    Timer? ackTimeout;
-
-    s.onConnect((_) {
-      connectTimeout.cancel();
-      _stopWarmupHint();
-
-      ackTimeout = Timer(const Duration(seconds: 45), () {
-        if (mounted) {
-          setState(() => isLoading = false);
-          _stopWarmupHint();
-          _showSnack(t('Server did not respond', 'Server did not respond'), isError: true);
-        }
->>>>>>> 432548728a22f8479fd31b309b7aa9c02f192a06
         s.dispose();
-      });
-
-      s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {
-        ackTimeout?.cancel();
-        s.dispose();
-        if (mounted) {
-          setState(() => isLoading = false);
-          _stopWarmupHint();
-        }
+        if (mounted) setState(() => isLoading = false);
         if (response['success'] == true) {
           final name = _nameController.text.trim();
           await (await SharedPreferences.getInstance()).setString('user_name', name);
           widget.onSuccess(name);
         } else {
-          _showSnack(response['message'] ?? t('Invalid code', 'Invalid code'), isError: true);
+          _showSnack(response['message'] ?? t('Невірний код', 'Invalid code'), isError: true);
         }
       });
     });
-
-    s.onError((dynamic error) {
-      connectTimeout.cancel();
-      ackTimeout?.cancel();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Server unavailable. Try again later', 'Server unavailable. Try again later'), isError: true);
-      }
-      s.dispose();
-    });
-
-    s.onConnectError((dynamic error) {
-      connectTimeout.cancel();
-      ackTimeout?.cancel();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Connection error', 'Connection error'), isError: true);
-      }
-      s.dispose();
-    });
-
-    s.connect();
-  }
-
-  Future<void> _checkServerHealth() async {
-    if (_isHealthChecking || isLoading) return;
-    setState(() => _isHealthChecking = true);
-
-    final completer = Completer<bool>();
-    final io.Socket s = io.io(
-      _serverUrl,
-      socketOptions(forceNew: true, reconnection: false),
-    );
-
-    final timeout = Timer(const Duration(seconds: 8), () {
-      if (!completer.isCompleted) completer.complete(false);
-      s.dispose();
-    });
-
-    s.onConnect((_) {
-      if (!completer.isCompleted) completer.complete(true);
-      s.dispose();
-    });
-
-    s.onConnectError((_) {
-      if (!completer.isCompleted) completer.complete(false);
-      s.dispose();
-    });
-
-    s.onError((_) {
-      if (!completer.isCompleted) completer.complete(false);
-      s.dispose();
-    });
-
-    s.connect();
-    final ok = await completer.future;
-    timeout.cancel();
-
-    if (!mounted) return;
-    setState(() => _isHealthChecking = false);
-    _showSnack(
-      ok
-          ? t('Сервер доступний', 'Server is reachable')
-          : t('Не вдалося підключитись до сервера', 'Could not connect to server'),
-      isError: !ok,
-    );
   }
 
   void _restoreAccount() async {
@@ -658,51 +235,6 @@ class _AuthScreenState extends State<AuthScreen> {
     ));
   }
 
-  // ─── Warm-up hint widget ──────────────────────────────
-  Widget _buildWarmupHint() {
-    if (_serverHint == null) return const SizedBox.shrink();
-    return AnimatedOpacity(
-      opacity: _serverHint != null ? 1.0 : 0.0,
-      duration: const Duration(milliseconds: 400),
-      child: Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.5,
-                  color: Colors.white.withValues(alpha: 0.5),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  _serverHint!,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 12,
-                    fontFamily: 'Inter',
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  // ─────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final isDesktop = LumynTheme.isDesktop(context);
@@ -712,10 +244,11 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // ─── DESKTOP LAYOUT ──────────────────────────────────
+  // ─── DESKTOP LAYOUT ──────────────────────────────────────
   Widget _buildDesktopLayout() {
     return Row(
       children: [
+        // Left panel — branding
         Container(
           width: 380,
           decoration: const BoxDecoration(
@@ -724,12 +257,15 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           child: Stack(
             children: [
+              // Grid
               const Positioned.fill(child: _DesktopGridBg()),
+              // Content
               Padding(
                 padding: const EdgeInsets.all(40),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Logo
                     Row(
                       children: [
                         Container(
@@ -756,6 +292,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ],
                     ),
                     const Spacer(),
+                    // Quote / tagline
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -795,6 +332,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ],
                     ),
                     const SizedBox(height: 40),
+                    // Footer
                     Text(
                       'LUMYN Protocol · ${DateTime.now().year}',
                       style: const TextStyle(
@@ -810,6 +348,8 @@ class _AuthScreenState extends State<AuthScreen> {
             ],
           ),
         ),
+
+        // Right panel — form
         Expanded(
           child: Center(
             child: SizedBox(
@@ -876,26 +416,11 @@ class _AuthScreenState extends State<AuthScreen> {
           obscureText: !_showLoginPassword,
           suffixIcon: IconButton(
             onPressed: () => setState(() => _showLoginPassword = !_showLoginPassword),
-            icon: Icon(_showLoginPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: const Color(0xFF666666), size: 18),
+            icon: Icon(_showLoginPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: const Color(0xFF666666), size: 18),
           ),
         ),
         const SizedBox(height: 24),
         ShineButton(text: t('Увійти', 'Sign in'), isLoading: isLoading, onPressed: _login),
-        // ─── Warm-up hint ───
-        _buildWarmupHint(),
-        const SizedBox(height: 10),
-        TextButton.icon(
-          onPressed: _isHealthChecking ? null : _checkServerHealth,
-          icon: _isHealthChecking
-              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.wifi_tethering, size: 16),
-          label: Text(t('Перевірити сервер', 'Check server')),
-          style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFF888888),
-            textStyle: const TextStyle(fontSize: 12, fontFamily: 'Inter'),
-          ),
-        ),
         const SizedBox(height: 16),
         const _DsDivider(),
         const SizedBox(height: 16),
@@ -940,8 +465,7 @@ class _AuthScreenState extends State<AuthScreen> {
         const SizedBox(height: 28),
         _dsLabel(t('Нікнейм', 'Username')),
         const SizedBox(height: 6),
-        GlassInput(controller: _nameController, hintText: 'username',
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
+        GlassInput(controller: _nameController, hintText: 'username', inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
         const SizedBox(height: 14),
         _dsLabel('Email'),
         const SizedBox(height: 6),
@@ -955,8 +479,7 @@ class _AuthScreenState extends State<AuthScreen> {
           obscureText: !_showRegisterPassword,
           suffixIcon: IconButton(
             onPressed: () => setState(() => _showRegisterPassword = !_showRegisterPassword),
-            icon: Icon(_showRegisterPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: const Color(0xFF666666), size: 18),
+            icon: Icon(_showRegisterPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: const Color(0xFF666666), size: 18),
           ),
         ),
         const SizedBox(height: 6),
@@ -966,14 +489,12 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 24),
         ShineButton(text: t('Отримати код', 'Get code'), isLoading: isLoading, onPressed: _sendCode),
-        _buildWarmupHint(),
         const SizedBox(height: 16),
         const _DsDivider(),
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () => setState(() => _step = 0),
-          child: Text(t('Вже є акаунт? Увійти', 'Already have an account? Sign in'),
-              style: const TextStyle(color: Color(0xFF888888), fontSize: 13, fontFamily: 'Inter')),
+          child: Text(t('Вже є акаунт? Увійти', 'Already have an account? Sign in'), style: const TextStyle(color: Color(0xFF888888), fontSize: 13, fontFamily: 'Inter')),
         ),
       ],
     );
@@ -996,8 +517,7 @@ class _AuthScreenState extends State<AuthScreen> {
           child: const Center(child: Icon(Icons.mail_outline_rounded, color: Colors.white, size: 20)),
         ),
         const SizedBox(height: 20),
-        const Text('Check your email',
-            style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.5)),
+        const Text('Check your email', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.5)),
         const SizedBox(height: 4),
         RichText(
           text: TextSpan(
@@ -1035,7 +555,6 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 24),
         ShineButton(text: t('Підтвердити', 'Verify'), isLoading: isLoading, onPressed: _verifyCode),
-        _buildWarmupHint(),
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () => setState(() { _step = 1; _codeController.clear(); }),
@@ -1051,8 +570,7 @@ class _AuthScreenState extends State<AuthScreen> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Restore account',
-            style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.5)),
+        const Text('Restore account', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.5)),
         const SizedBox(height: 4),
         Text(
           t('Введіть токен та пароль дешифрування', 'Enter your backup token and decryption password'),
@@ -1071,8 +589,7 @@ class _AuthScreenState extends State<AuthScreen> {
           obscureText: !_showRestorePassword,
           suffixIcon: IconButton(
             onPressed: () => setState(() => _showRestorePassword = !_showRestorePassword),
-            icon: Icon(_showRestorePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: const Color(0xFF666666), size: 18),
+            icon: Icon(_showRestorePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: const Color(0xFF666666), size: 18),
           ),
         ),
         const SizedBox(height: 24),
@@ -1082,19 +599,25 @@ class _AuthScreenState extends State<AuthScreen> {
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () => setState(() { _step = 0; _restoreTokenController.clear(); _restorePasswordController.clear(); }),
-          child: Text(t('← До входу', '← Back to sign in'),
-              style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter')),
+          child: Text(t('← До входу', '← Back to sign in'), style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter')),
         ),
       ],
     );
   }
 
   Widget _dsLabel(String text) {
-    return Text(text,
-        style: const TextStyle(color: Color(0xFF888888), fontSize: 12, fontWeight: FontWeight.w500, fontFamily: 'Inter'));
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(0xFF888888),
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        fontFamily: 'Inter',
+      ),
+    );
   }
 
-  // ─── MOBILE LAYOUT ───────────────────────────────────
+  // ─── MOBILE LAYOUT ──────────────────────────────────────
   Widget _buildMobileLayout() {
     return LiquidBackground(
       child: SafeArea(
@@ -1142,15 +665,11 @@ class _AuthScreenState extends State<AuthScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 60),
-        Text(t("З поверненням.", "Welcome back."),
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        Text(t("З поверненням.", "Welcome back."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
         const Text("LUMYN Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
         const SizedBox(height: 48),
-        GlassInput(
-            controller: _nameController,
-            hintText: t("Нікнейм", "Username"),
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
+        GlassInput(controller: _nameController, hintText: t("Нікнейм", "Username"), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
         const SizedBox(height: 16),
         GlassInput(
           controller: _passController,
@@ -1158,39 +677,20 @@ class _AuthScreenState extends State<AuthScreen> {
           obscureText: !_showLoginPassword,
           suffixIcon: IconButton(
             onPressed: () => setState(() => _showLoginPassword = !_showLoginPassword),
-            icon: Icon(_showLoginPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: Colors.white70, size: 20),
+            icon: Icon(_showLoginPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: Colors.white70, size: 20),
           ),
         ),
         const SizedBox(height: 32),
         ShineButton(text: t("Увійти", "Sign In"), isLoading: isLoading, onPressed: _login),
-        // ─── Warm-up hint ───
-        _buildWarmupHint(),
-        const SizedBox(height: 10),
-        TextButton.icon(
-          onPressed: _isHealthChecking ? null : _checkServerHealth,
-          icon: _isHealthChecking
-              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.wifi_tethering, size: 16),
-          label: Text(t('Перевірити сервер', 'Check server')),
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.white70,
-            textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-          ),
-        ),
         const SizedBox(height: 24),
         GestureDetector(
           onTap: () => setState(() => _step = 1),
-          child: Text(t("Немає акаунту? Створити", "Don't have an account? Register"),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
+          child: Text(t("Немає акаунту? Створити", "Don't have an account? Register"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
         ),
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () => setState(() => _step = 3),
-          child: Text(t("Відновити з копії", "Restore from backup"),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFFB026FF), fontSize: 14, fontWeight: FontWeight.w600)),
+          child: Text(t("Відновити з копії", "Restore from backup"), textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFB026FF), fontSize: 14, fontWeight: FontWeight.w600)),
         ),
         const SizedBox(height: 60),
       ],
@@ -1203,15 +703,11 @@ class _AuthScreenState extends State<AuthScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(t("Створити акаунт.", "Create account."),
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        Text(t("Створити акаунт.", "Create account."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
         const Text("LUMYN Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
         const SizedBox(height: 48),
-        GlassInput(
-            controller: _nameController,
-            hintText: t("Нікнейм", "Username"),
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
+        GlassInput(controller: _nameController, hintText: t("Нікнейм", "Username"), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
         const SizedBox(height: 16),
         GlassInput(controller: _emailController, hintText: t("Email адреса", "Email address"), keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 16),
@@ -1221,8 +717,7 @@ class _AuthScreenState extends State<AuthScreen> {
           obscureText: !_showRegisterPassword,
           suffixIcon: IconButton(
             onPressed: () => setState(() => _showRegisterPassword = !_showRegisterPassword),
-            icon: Icon(_showRegisterPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: Colors.white70, size: 20),
+            icon: Icon(_showRegisterPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: Colors.white70, size: 20),
           ),
         ),
         const SizedBox(height: 8),
@@ -1235,13 +730,10 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 24),
         ShineButton(text: t("Отримати код", "Get Code"), isLoading: isLoading, onPressed: _sendCode),
-        _buildWarmupHint(),
         const SizedBox(height: 24),
         GestureDetector(
           onTap: () => setState(() => _step = 0),
-          child: Text(t("Вже є акаунт? Увійти", "Already have an account? Sign In"),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
+          child: Text(t("Вже є акаунт? Увійти", "Already have an account? Sign In"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
         ),
       ],
     );
@@ -1255,8 +747,7 @@ class _AuthScreenState extends State<AuthScreen> {
       children: [
         const Icon(Icons.email_outlined, color: Colors.white70, size: 48),
         const SizedBox(height: 24),
-        Text(t("Перевір пошту.", "Check your email."),
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        Text(t("Перевір пошту.", "Check your email."), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
         Text(t("Код надіслано на", "Code sent to"), style: const TextStyle(color: Colors.white70, fontSize: 14)),
         Text(_pendingEmail ?? '', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
@@ -1291,7 +782,6 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 32),
         ShineButton(text: t("Підтвердити", "Verify"), isLoading: isLoading, onPressed: _verifyCode),
-        _buildWarmupHint(),
         const SizedBox(height: 16),
         TextButton(
           onPressed: () => setState(() { _step = 1; _codeController.clear(); }),
@@ -1309,11 +799,9 @@ class _AuthScreenState extends State<AuthScreen> {
       children: [
         const Icon(Icons.restore, color: Color(0xFFB026FF), size: 48),
         const SizedBox(height: 24),
-        Text(t("Відновлення.", "Restore."),
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        Text(t("Відновлення.", "Restore."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
-        Text(t("Введіть ваш токен та пароль дешифрування.", "Enter your Backup Token and decryption password."),
-            style: const TextStyle(color: Colors.white70, fontSize: 14)),
+        Text(t("Введіть ваш токен та пароль дешифрування.", "Enter your Backup Token and decryption password."), style: const TextStyle(color: Colors.white70, fontSize: 14)),
         const SizedBox(height: 48),
         GlassInput(controller: _restoreTokenController, hintText: t("Backup Token", "Backup Token")),
         const SizedBox(height: 16),
@@ -1323,8 +811,7 @@ class _AuthScreenState extends State<AuthScreen> {
           obscureText: !_showRestorePassword,
           suffixIcon: IconButton(
             onPressed: () => setState(() => _showRestorePassword = !_showRestorePassword),
-            icon: Icon(_showRestorePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: Colors.white70, size: 20),
+            icon: Icon(_showRestorePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: Colors.white70, size: 20),
           ),
         ),
         const SizedBox(height: 32),
@@ -1332,29 +819,34 @@ class _AuthScreenState extends State<AuthScreen> {
         const SizedBox(height: 24),
         GestureDetector(
           onTap: () => setState(() { _step = 0; _restoreTokenController.clear(); _restorePasswordController.clear(); }),
-          child: Text(t("← Повернутись до входу", "← Back to login"),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
+          child: Text(t("← Повернутися до входу", "← Back to login"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
         ),
       ],
     );
   }
 }
 
-// ─── DESKTOP HELPERS ─────────────────────────────────────
-
+// ─────────────────────────────────────────────────────────
+// DESKTOP HELPERS
+// ─────────────────────────────────────────────────────────
 class _DsDivider extends StatelessWidget {
   const _DsDivider();
   @override
   Widget build(BuildContext context) {
-    return Row(children: [Expanded(child: Container(height: 1, color: const Color(0xFF1A1A1A)))]);
+    return Row(
+      children: [
+        Expanded(child: Container(height: 1, color: const Color(0xFF1A1A1A))),
+      ],
+    );
   }
 }
 
 class _DesktopGridBg extends StatelessWidget {
   const _DesktopGridBg();
   @override
-  Widget build(BuildContext context) => CustomPaint(painter: _DesktopGridPainter());
+  Widget build(BuildContext context) {
+    return CustomPaint(painter: _DesktopGridPainter());
+  }
 }
 
 class _DesktopGridPainter extends CustomPainter {
@@ -1371,7 +863,6 @@ class _DesktopGridPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
@@ -1380,7 +871,9 @@ class _LumynLogoMark extends StatelessWidget {
   final double size;
   const _LumynLogoMark({this.size = 14});
   @override
-  Widget build(BuildContext context) => CustomPaint(size: Size(size, size), painter: _LogoPainter());
+  Widget build(BuildContext context) {
+    return CustomPaint(size: Size(size, size), painter: _LogoPainter());
+  }
 }
 
 class _LogoPainter extends CustomPainter {
@@ -1400,10 +893,8 @@ class _LogoPainter extends CustomPainter {
     path.lineTo(cx - r * 0.55, cy + r * 0.55);
     path.lineTo(cx + r * 0.55, cy + r * 0.55);
     canvas.drawPath(path, paint);
-    canvas.drawCircle(
-        Offset(cx + r * 0.55, cy - r * 0.1), size.width * 0.07, Paint()..color = const Color(0xFFB026FF));
+    canvas.drawCircle(Offset(cx + r * 0.55, cy - r * 0.1), size.width * 0.07, Paint()..color = const Color(0xFFB026FF));
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

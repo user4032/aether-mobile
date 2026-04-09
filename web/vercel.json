@@ -39,10 +39,14 @@
 
     { "source": "/uk-ua/support",  "destination": "/support.html" },
     { "source": "/en-us/support",  "destination": "/en-us/support.html" },
+    
+    { "source": "/uk-ua/status",   "destination": "/status.html" },
+    { "source": "/en-us/status",   "destination": "/en-us/status.html" },
 
     { "source": "/download",       "destination": "/download.html" },
     { "source": "/faq",            "destination": "/faq.html" },
     { "source": "/support",        "destination": "/support.html" },
+    { "source": "/status",         "destination": "/status.html" },
     { "source": "/updates",        "destination": "/updates.html" },
     { "source": "/api",            "destination": "/api.html" },
     { "source": "/protocol",       "destination": "/protocol.html" },
