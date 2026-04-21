@@ -51,61 +51,7 @@ class MyApp extends StatelessWidget {
           },
         ),
       ),
-      home: const VercelAppLoader(child: MainGate()),
+      home: const MainGate(), // Відразу показуємо головний екран
     );
   }
-}
-
-// Прикольне мінімалістичне вікно завантаження в стилі Vercel
-class VercelAppLoader extends StatefulWidget {
-  final Widget child;
-  const VercelAppLoader({super.key, required this.child});
-
-  @override
-  State<VercelAppLoader> createState() => _VercelAppLoaderState();
-}
-
-class _VercelAppLoaderState extends State<VercelAppLoader> {
-  bool _showSplash = true;
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(milliseconds: 1800), () {
-      if (mounted) setState(() => _showSplash = false);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_showSplash) return widget.child;
-
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: TweenAnimationBuilder(
-          duration: const Duration(milliseconds: 1200),
-          tween: Tween<double>(begin: 0, end: 1),
-          curve: Curves.easeOutExpo,
-          builder: (context, value, child) {
-            return Opacity(
-              opacity: value,
-              child: Transform.scale(
-                scale: 0.95 + (value * 0.05),
-                child: const Text(
-                  'LUMYN',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 12,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
+} 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart'; // ДОДАНО ІМПОРТ
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../config/server_config.dart';
 
@@ -18,4 +19,3 @@ class SocketService {
     socket!.onDisconnect((_) => debugPrint('Disconnected from server'));
   }
 }
-

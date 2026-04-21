@@ -311,7 +311,6 @@ class _LumynSplashScreenState extends State<LumynSplashScreen>
 
   late final Animation<double> _logoScale;
   late final Animation<double> _logoOpacity;
-  late final Animation<double> _glowPulse;
   late final Animation<double> _textOpacity;
   late final Animation<double> _textSlide;
   late final Animation<double> _gridOpacity;
@@ -327,7 +326,6 @@ class _LumynSplashScreenState extends State<LumynSplashScreen>
 
     _logoScale   = CurvedAnimation(parent: _logoCtrl, curve: Curves.easeOutBack);
     _logoOpacity = CurvedAnimation(parent: _logoCtrl, curve: Curves.easeOut);
-    _glowPulse   = CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut);
     _textOpacity = CurvedAnimation(parent: _textCtrl, curve: Curves.easeOut);
     _textSlide   = Tween<double>(begin: 10, end: 0)
         .animate(CurvedAnimation(parent: _textCtrl, curve: Curves.easeOut));
@@ -512,25 +510,6 @@ class _GridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _LumynLogoMark extends StatelessWidget {
-  final double size;
-  const _LumynLogoMark({this.size = 32});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Image.asset(
-        'web/icons/logo-512.png',
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
-      ),
-    );
-  }
 }
 
 // ─────────────────────────────────────────────────────────

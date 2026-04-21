@@ -82,6 +82,10 @@ class _ChatScreenState extends State<ChatScreen> {
   final Map<String, SecretKey> _keyCache = {};
   final Map<String, Map<String, List<String>>> _reactions = {};
   final ScrollController _scrollController = ScrollController();
+  
+  // Ключі для плавного скролу до повідомлень (Reply UI)
+  final Map<String, GlobalKey> _msgKeys = {};
+  String? _highlightedMsgId;
 
   Timer? _typingTimer;
   late String _currentPartnerKey;
@@ -225,56 +229,56 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _startRecording() async {
-  try {
-    final hasPermission = await _audioRecorder.hasPermission();
-    if (!hasPermission) {
-      debugPrint("Microphone permission denied");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(t('Дозвольте доступ до мікрофону в налаштуваннях', 'Allow microphone access in Settings')),
-          backgroundColor: Colors.red.shade900,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-        ));
+    try {
+      final hasPermission = await _audioRecorder.hasPermission();
+      if (!hasPermission) {
+        debugPrint("Microphone permission denied");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(t('Дозвольте доступ до мікрофону в налаштуваннях', 'Allow microphone access in Settings')),
+            backgroundColor: Colors.red.shade900,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          ));
+        }
+        return;
       }
-      return;
+      final dir = await getApplicationDocumentsDirectory();
+      final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 128000,
+          sampleRate: 44100,
+          noiseSuppress: true,
+          echoCancel: true,
+        ),
+        path: path,
+      );
+      setState(() {
+        _isRecordingAudio = true;
+        _recordDuration = 0;
+        _recordAmplitudes = List.generate(30, (_) => 2.0);
+      });
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() => _recordDuration++);
+      });
+      _amplitudeSub = _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 50)).listen((amp) {
+        if (mounted) {
+          setState(() {
+            double height = (amp.current + 50).clamp(0.0, 50.0) / 50.0 * 28.0;
+            List<double> newAmps = List.from(_recordAmplitudes);
+            newAmps.add(max(2.0, height));
+            if (newAmps.length > 30) newAmps.removeAt(0);
+            _recordAmplitudes = newAmps;
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint("Recording error: $e");
+      setState(() => _isRecordingAudio = false);
     }
-    final dir = await getApplicationDocumentsDirectory();
-    final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _audioRecorder.start(
-      const RecordConfig(
-        encoder: AudioEncoder.aacLc,
-        bitRate: 128000,
-        sampleRate: 44100,
-        noiseSuppress: true,
-        echoCancel: true,
-      ),
-      path: path,
-    );
-    setState(() {
-      _isRecordingAudio = true;
-      _recordDuration = 0;
-      _recordAmplitudes = List.generate(30, (_) => 2.0);
-    });
-    _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _recordDuration++);
-    });
-    _amplitudeSub = _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 50)).listen((amp) {
-      if (mounted) {
-        setState(() {
-          double height = (amp.current + 50).clamp(0.0, 50.0) / 50.0 * 28.0;
-          List<double> newAmps = List.from(_recordAmplitudes);
-          newAmps.add(max(2.0, height));
-          if (newAmps.length > 30) newAmps.removeAt(0);
-          _recordAmplitudes = newAmps;
-        });
-      }
-    });
-  } catch (e) {
-    debugPrint("Recording error: $e");
-    setState(() => _isRecordingAudio = false);
   }
-}
 
   Future<void> _stopRecording() async {
     try {
@@ -639,6 +643,33 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // --- ЛОГІКА СКРОЛУ ТА ПІДСВІТКИ ПОВІДОМЛЕНЬ ---
+  void _scrollToMessage(String? timestamp) {
+    if (timestamp == null) return;
+    final key = _msgKeys[timestamp];
+    if (key != null && key.currentContext != null) {
+      Scrollable.ensureVisible(
+        key.currentContext!,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
+        alignment: 0.5, 
+      );
+      setState(() => _highlightedMsgId = timestamp);
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted && _highlightedMsgId == timestamp) {
+          setState(() => _highlightedMsgId = null);
+        }
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(t('Повідомлення занадто далеко', 'Message is too far up'), style: const TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF333333),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+      ));
+    }
+  }
+
   void _updateSearchResults() {
     _searchMatchIndices = [];
     if (_searchQuery.isEmpty) { _currentSearchIdx = -1; return; }
@@ -689,7 +720,13 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty && type == 'text') return;
     final isEditingMode = _editingMessage != null;
     if (type == 'text' && !isEditingMode) { _c.clear(); setState(() { _hasText = false; }); }
-    final replyData = _replyingTo != null ? {'senderName': _replyingTo!['senderName'] ?? 'Unknown', 'text': _replyingTo!['type'] == 'image' ? t('Фото', 'Image') : (_replyingTo!['type'] == 'audio' ? t('Голосове повідомлення', 'Voice message') : (_replyingTo!['text']?.toString() ?? t('Повідомлення', 'Message')))} : null;
+    
+    final replyData = _replyingTo != null ? {
+      'senderName': _replyingTo!['senderName'] ?? 'Unknown',
+      'timestamp': _replyingTo!['timestamp'],
+      'text': _replyingTo!['type'] == 'image' ? t('Фото', 'Image') : (_replyingTo!['type'] == 'audio' ? t('Голосове повідомлення', 'Voice message') : (_replyingTo!['text']?.toString() ?? t('Повідомлення', 'Message')))
+    } : null;
+    
     setState(() { _replyingTo = null; });
     _emitTyping(false);
     final key = await _getSecretKey(_currentPartnerKey);
@@ -845,7 +882,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.memory(bytes, height: 250, fit: BoxFit.contain)),
                 const SizedBox(height: 16),
                 GlassInput(controller: captionController, hintText: t("Додати підпис...", "Add a caption...")),
-    const SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
@@ -879,7 +916,8 @@ class _ChatScreenState extends State<ChatScreen> {
       'text': caption,
       'imageBytes': base64Image,
       if (_replyingTo != null) 'replyTo': {
-        'senderName': _replyingTo!['senderName'] ?? 'Unknown', 
+        'senderName': _replyingTo!['senderName'] ?? 'Unknown',
+        'timestamp': _replyingTo!['timestamp'], 
         'text': _replyingTo!['type'] == 'image' ? 'Фото' : _replyingTo!['text']
       }
     });
@@ -1011,7 +1049,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 final box = await _aes.encrypt(utf8.encode(originalText), secretKey: key);
                                 socket.emit('message', {'type': 'text', 'text': originalText, 'ciphertext': base64Encode(box.cipherText), 'nonce': base64Encode(box.nonce), 'mac': base64Encode(box.mac.bytes), 'senderName': widget.userName, 'receiverName': f['userName']});
                                 if (mounted) {
-                                  messenger.showSnackBar(SnackBar(  // ← use captured messenger
+                                  messenger.showSnackBar(SnackBar(  
                                     content: Text('${t("Переслано до", "Forwarded to")} ${f['userName']}'),
                                     backgroundColor: const Color(0xFF333333),
                                     behavior: SnackBarBehavior.floating,
@@ -1066,71 +1104,250 @@ class _ChatScreenState extends State<ChatScreen> {
     if (widget.partnerPublicKey.startsWith('GROUP_')) {
       return;
     }
-    final accent = _accentColors[_accentColor] ?? const Color(0xFFB026FF);
     String? currentBio;
     String? currentAvatar = widget.partnerAvatar;
     String? currentDisplayName = widget.partnerDisplayName;
     bool isVerifiedUser = widget.partnerIsVerified;
     bool fetched = false;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateSB) {
-          if (!fetched) {
-            fetched = true;
-            socket.emitWithAck('get_user_profile', widget.partnerName, ack: (dynamic data) {
-              if (data['success'] == true) {
-                setStateSB(() {
-                  currentBio = data['bio'];
-                  currentAvatar = data['avatar'] ?? currentAvatar;
-                  currentDisplayName = data['displayName'] ?? currentDisplayName;
-                  isVerifiedUser = data['isVerified'] == true;
+
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return StatefulBuilder(
+            builder: (context, setStateSB) {
+              if (!fetched) {
+                fetched = true;
+                socket.emitWithAck('get_user_profile', widget.partnerName, ack: (dynamic data) {
+                  if (data['success'] == true) {
+                    setStateSB(() {
+                      currentBio = data['bio'];
+                      currentAvatar = data['avatar'] ?? currentAvatar;
+                      currentDisplayName = data['displayName'] ?? currentDisplayName;
+                      isVerifiedUser = data['isVerified'] == true;
+                    });
+                  }
                 });
               }
-            });
-          }
-          return Container(
-            width: MediaQuery.of(context).size.width,
-            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SafeAvatar(avatarBase64: currentAvatar, fallbackName: widget.partnerName, radius: 56),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            (currentDisplayName != null && currentDisplayName!.trim().isNotEmpty)
-                                ? currentDisplayName!.trim()
-                                : widget.partnerName,
-                            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -0.5),
-                          ),
-                          if (isVerifiedUser) ...[const SizedBox(width: 8), VerifiedBadge(size: 22, color: accent)],
-                        ],
+
+              return Scaffold(
+                backgroundColor: const Color(0xFF0A0A0A),
+                body: CustomScrollView(
+                  slivers: [
+                    // App Bar
+                    SliverAppBar(
+                      backgroundColor: const Color(0xFF0A0A0A),
+                      elevation: 0,
+                      leading: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      const SizedBox(height: 4),
-                      Text('@${widget.partnerName}', style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 13)),
-                      if (currentBio != null && currentBio!.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Text(currentBio!, textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 15)),
+                      actions: [
+                        IconButton(
+                          icon: const Icon(Icons.search, color: Colors.white),
+                          onPressed: () {},
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.more_vert, color: Colors.white),
+                          onPressed: () {},
+                        ),
                       ],
-                      const SizedBox(height: 10),
-                    ],
-                  ),
+                    ),
+                    // Profile Content
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Column(
+                          children: [
+                            // Large Avatar
+                            Container(
+                              width: 140,
+                              height: 140,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFF6366F1).withValues(alpha: 0.3),
+                                    Color(0xFF6366F1).withValues(alpha: 0.1),
+                                  ],
+                                ),
+                              ),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  SafeAvatar(
+                                    avatarBase64: currentAvatar,
+                                    fallbackName: widget.partnerName,
+                                    radius: 65,
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      if (currentAvatar != null && currentAvatar!.isNotEmpty) {
+                                        // Photo view
+                                      }
+                                    },
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.black.withValues(alpha: 0.2),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Name with verified badge
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    (currentDisplayName != null && currentDisplayName!.trim().isNotEmpty)
+                                        ? currentDisplayName!.trim()
+                                        : widget.partnerName,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isVerifiedUser) ...[
+                                  const SizedBox(width: 8),
+                                  const VerifiedBadge(size: 20, color: Colors.white),
+                                ]
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+
+                            // Username handle
+                            Text(
+                              '@${widget.partnerName}',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.55),
+                                fontSize: 13,
+                              ),
+                            ),
+
+                            // Bio
+                            if (currentBio != null && currentBio!.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 24),
+                                child: Text(
+                                  currentBio!,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    fontSize: 14,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+
+                            const SizedBox(height: 28),
+
+                            // Action Buttons
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF0EA5E9),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(Icons.send, color: Colors.black, size: 18),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              t('Написати', 'Message'),
+                                              style: const TextStyle(
+                                                color: Colors.black,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {},
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.08),
+                                          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.phone,
+                                              color: Colors.white.withValues(alpha: 0.5),
+                                              size: 18,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              t('Дзвінок', 'Call'),
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(alpha: 0.5),
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 28),
+
+                            // Divider
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
+                            ),
+
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+              );
+            },
+          );
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: animation.drive(
+              Tween(begin: const Offset(1, 0), end: Offset.zero)
+                  .chain(CurveTween(curve: Curves.easeOutCubic)),
             ),
+            child: child,
           );
         },
       ),
@@ -1390,6 +1607,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 itemCount: _messages.length,
                                 itemBuilder: (context, i) {
                                   final m = _messages[i];
+                                  final msgTimestamp = m['timestamp'];
                                   
                                   if (m['isSystem'] == true) {
                                     return Padding(padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24), child: Text(m['text'] ?? '', textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13, fontWeight: FontWeight.w500, height: 1.5)));
@@ -1410,6 +1628,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                   final textValue = (m['text'] ?? '').toString();
                                   final isEmojiOnlyTextMessage = !isImage && !isAudio && !hasReply && _emojiSymbolCount(textValue) > 0;
                                   
+                                  _msgKeys[msgTimestamp] ??= GlobalKey();
+                                  final isHighlighted = _highlightedMsgId == msgTimestamp;
+
                                   final desktopBubbleColor = isSearchMatch 
                                     ? const Color(0xFF332A00) 
                                     : (isEmojiOnlyTextMessage
@@ -1433,6 +1654,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                       : (isMsgEphemeral
                                         ? const Color(0xFF4A1073)
                                         : (isMe ? const Color(0xFF111111) : accent.withValues(alpha: 0.92))));
+                                  
                                   final bubbleBorderColor = isSearchMatch
                                     ? const Color(0xFFFFD700).withValues(alpha: 0.55)
                                     : (isEmojiOnlyTextMessage
@@ -1445,6 +1667,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                   
                                   final finalBubbleColor = isDesktopView ? desktopBubbleColor : bubbleColor;
                                   final finalBorderColor = isDesktopView ? desktopBorderColor : bubbleBorderColor;
+                                  
+                                  final displayBubbleColor = isHighlighted ? accent.withValues(alpha: 0.3) : finalBubbleColor;
+                                  final displayBorderColor = isHighlighted ? accent : finalBorderColor;
+
                                   final finalBorderRadius = isDesktopView 
                                       ? BorderRadius.only(
                                           topLeft: const Radius.circular(6),
@@ -1462,7 +1688,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                   bool hasCaption = m['text'] != null && m['text'].toString().isNotEmpty && m['text'].toString().length < 1000;
 
                                   Widget bubble = RepaintBoundary(
-                                    child: Container(
+                                    key: _msgKeys[msgTimestamp],
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 400),
                                       margin: EdgeInsets.only(bottom: bubbleBottomMargin),
                                       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
                                       padding: EdgeInsets.only(
@@ -1472,8 +1700,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                         bottom: isImage ? 4 : (isEmojiOnlyTextMessage ? 2 : bubbleVerticalPadding),
                                       ),
                                       decoration: BoxDecoration(
-                                        color: finalBubbleColor,
-                                        border: Border.all(color: finalBorderColor, width: isDesktopView ? 1.0 : 0.9),
+                                        color: displayBubbleColor,
+                                        border: Border.all(color: displayBorderColor, width: isDesktopView ? 1.0 : 0.9),
                                         borderRadius: finalBorderRadius,
                                         boxShadow: isEmojiOnlyTextMessage || isDesktopView ? const [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 2, offset: const Offset(0, 1))],
                                       ),
@@ -1485,35 +1713,28 @@ class _ChatScreenState extends State<ChatScreen> {
                                             Padding(padding: const EdgeInsets.only(bottom: 2, left: 2), child: Text(m['senderName'] ?? 'Unknown', style: TextStyle(fontSize: 12, color: isMsgEphemeral ? const Color(0xFFE5B3FF) : messageTextColor, fontWeight: FontWeight.w600))),
                                           ],
                                           if (hasReply) ...[
-                                        if (_isLoadingMoreHistory)
-                                          Positioned(
-                                            top: 8,
-                                            left: 0,
-                                            right: 0,
-                                            child: Center(
-                                              child: Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.black.withValues(alpha: 0.35),
-                                                  borderRadius: BorderRadius.circular(999),
-                                                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                            MouseRegion(
+                                              cursor: SystemMouseCursors.click,
+                                              child: GestureDetector(
+                                                onTap: () => _scrollToMessage(m['replyTo']['timestamp']),
+                                                child: Container(
+                                                  margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black.withValues(alpha: 0.2), 
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    border: Border(left: BorderSide(color: accent, width: 3)),
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start, 
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Text(m['replyTo']['senderName']?.toString() ?? 'Unknown', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accent)),
+                                                      const SizedBox(height: 2),
+                                                      Text(m['replyTo']['text']?.toString() ?? t('Повідомлення', 'Message'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.7))),
+                                                    ]
+                                                  ),
                                                 ),
-                                              child: const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                               ),
-                                              ),
-                                            ),
-                                          ),
-                                            Container(
-                                              margin: const EdgeInsets.only(bottom: 6), width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-                                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                                Text(m['replyTo']['senderName']?.toString() ?? 'Unknown', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
-                                                const SizedBox(height: 2),
-                                                Text(m['replyTo']['text']?.toString() ?? t('Повідомлення', 'Message'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.7))),
-                                              ]),
                                             ),
                                           ],
                                           if (isAudio) ...[
@@ -1543,7 +1764,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                           ]
                                         ],
                                       ),
-                                  )
+                                    )
                                   );
 
                                   return SwipeToReplyWrapper(
@@ -1555,7 +1776,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                         crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                                         children: [
                                           GestureDetector(
-                                            onLongPress: () => _showMessageOptions(m, isMe),
+                                            onLongPress: LumynTheme.isDesktop(context) ? null : () => _showMessageOptions(m, isMe),
+                                            onSecondaryTapDown: LumynTheme.isDesktop(context) ? (details) => _showMessageOptions(m, isMe) : null,
                                             child: HoldToRevealWrapper(
                                               isEphemeral: isMsgEphemeral,
                                               durationSeconds: ephemeralDuration,
@@ -1580,6 +1802,27 @@ class _ChatScreenState extends State<ChatScreen> {
                                   );
                                 },
                               ),
+                              if (_isLoadingMoreHistory)
+                                Positioned(
+                                  top: 8,
+                                  left: 0,
+                                  right: 0,
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.35),
+                                        borderRadius: BorderRadius.circular(999),
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                      ),
+                                    child: const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    ),
+                                    ),
+                                  ),
+                                ),
                               Align(
                                 alignment: Alignment.bottomLeft,
                                 child: AnimatedContainer(

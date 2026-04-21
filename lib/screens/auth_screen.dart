@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
@@ -22,7 +22,6 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  // 0=login, 1=register_form, 2=verify_code, 3=restore_backup
   int _step = 0;
   bool isLoading = false;
   bool _isHealthChecking = false;
@@ -30,36 +29,22 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _showRegisterPassword = false;
   bool _showRestorePassword = false;
 
-  // тФАтФАтФА Server warm-up hint тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
   String? _serverHint;
   Timer? _warmupHintTimer;
 
-  /// ╨Ч╨░╨┐╤Г╤Б╨║╨░╤Ф ╤В╨░╨╣╨╝╨╡╤А: ╤П╨║╤Й╨╛ ╤З╨╡╤А╨╡╨╖ [delaySeconds] ╤Б╨╡╨║╤Г╨╜╨┤ ╤Й╨╡ ╨│╤А╤Г╨╖╨╕╤В╤М тАФ
-  /// ╨┐╨╛╨║╨░╨╖╤Г╤Ф╨╝╨╛ ╨┐╤Ц╨┤╨║╨░╨╖╨║╤Г, ╤Ц ╨╝╤Ц╨╜╤П╤Ф╨╝╨╛ ╤В╨╡╨║╤Б╤В ╨║╨╛╨╢╨╜╤Ц ╨║╤Ц╨╗╤М╨║╨░ ╤Б╨╡╨║╤Г╨╜╨┤.
   void _startWarmupHint({int delaySeconds = 6}) {
     _warmupHintTimer?.cancel();
     _warmupHintTimer = Timer(Duration(seconds: delaySeconds), () {
       if (!mounted || !isLoading) return;
-      _setHint(t(
-        'тП│ ╨б╨╡╤А╨▓╨╡╤А ╨┐╤А╨╛╨║╨╕╨┤╨░╤Ф╤В╤М╤Б╤П ╨┐╤Ц╤Б╨╗╤П ╤Б╨╜╤Г...',
-        'тП│ Server is waking up from sleep...',
-      ));
+      _setHint(t('⏳ Сервер прокидається після сну...', '⏳ Server is waking up from sleep...'));
 
-      // ╨з╨╡╤А╨╡╨╖ 12 ╤Б тАФ ╨╜╨░╤Б╤В╤Г╨┐╨╜╨░ ╨┐╤Ц╨┤╨║╨░╨╖╨║╨░
       _warmupHintTimer = Timer(const Duration(seconds: 12), () {
         if (!mounted || !isLoading) return;
-        _setHint(t(
-          'тШХ ╨ж╨╡ ╨╝╨╛╨╢╨╡ ╨╖╨░╨╣╨╜╤П╤В╨╕ ╨┤╨╛ ╤Е╨▓╨╕╨╗╨╕╨╜╨╕. ╨Э╨╡ ╨╖╨░╨║╤А╨╕╨▓╨░╨╣╤В╨╡ ╨┤╨╛╨┤╨░╤В╨╛╨║.',
-          'тШХ This may take up to a minute. Please wait.',
-        ));
+        _setHint(t('☕ Це може зайняти до хвилини. Не закривайте додаток.', '☕ This may take up to a minute. Please wait.'));
 
-        // ╨з╨╡╤А╨╡╨╖ 30 ╤Б тАФ ╤Д╤Ц╨╜╨░╨╗╤М╨╜╨░ ╨┐╤Ц╨┤╨║╨░╨╖╨║╨░
         _warmupHintTimer = Timer(const Duration(seconds: 30), () {
           if (!mounted || !isLoading) return;
-          _setHint(t(
-            'ЁЯФД ╨Ь╨░╨╣╨╢╨╡ ╨│╨╛╤В╨╛╨▓╨╛... ╨С╨╡╨╖╨║╨╛╤И╤В╨╛╨▓╨╜╨╕╨╣ ╤Б╨╡╤А╨▓╨╡╤А ╤Б╤В╨░╤А╤В╤Г╤Ф ╨┐╨╛╨▓╤Ц╨╗╤М╨╜╨╛.',
-            'ЁЯФД Almost there... Free server starts slowly.',
-          ));
+          _setHint(t('🔄 Майже готово... Безкоштовний сервер стартує повільно.', '🔄 Almost there... Free server starts slowly.'));
         });
       });
     });
@@ -74,7 +59,6 @@ class _AuthScreenState extends State<AuthScreen> {
     _warmupHintTimer = null;
     if (mounted) setState(() => _serverHint = null);
   }
-  // тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
 
   String get _serverUrl => serverUrl;
 
@@ -100,13 +84,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   String _deviceName() {
-    final platform = Platform.isAndroid
-        ? 'Android'
-        : Platform.isIOS
-            ? 'iPhone'
-            : Platform.isWindows
-                ? 'Windows'
-                : Platform.operatingSystem;
+    final platform = Platform.isAndroid ? 'Android' : Platform.isIOS ? 'iPhone' : Platform.isWindows ? 'Windows' : Platform.operatingSystem;
     return '$platform ${widget.deviceId.substring(0, 6)}';
   }
 
@@ -140,7 +118,7 @@ class _AuthScreenState extends State<AuthScreen> {
         if (mounted) {
           setState(() => isLoading = false);
           _stopWarmupHint();
-          _showSnack((status['message'] ?? t('╨Ч╨░╨┐╨╕╤В ╨╜╨░ ╨┐╤Ц╨┤╨║╨╗╤О╤З╨╡╨╜╨╜╤П ╨▓╤Ц╨┤╤Е╨╕╨╗╨╡╨╜╨╛', 'Device link request was rejected')).toString(), isError: true);
+          _showSnack((status['message'] ?? t('Запит на підключення відхилено', 'Device link request was rejected')).toString(), isError: true);
         }
         return;
       }
@@ -150,9 +128,11 @@ class _AuthScreenState extends State<AuthScreen> {
     if (mounted) {
       setState(() => isLoading = false);
       _stopWarmupHint();
-      _showSnack(t('╨з╨░╤Б ╨╛╤З╤Ц╨║╤Г╨▓╨░╨╜╨╜╤П ╨┐╤Ц╨┤╤В╨▓╨╡╤А╨┤╨╢╨╡╨╜╨╜╤П ╨╝╨╕╨╜╤Г╨▓', 'Approval timed out'), isError: true);
+      _showSnack(t('Час очікування підтвердження минув', 'Approval timed out'), isError: true);
     }
   }
+
+  Map<String, dynamic> _getSocketOptions() => <String, dynamic>{'transports': ['websocket'], 'forceNew': true, 'autoConnect': false, 'reconnection': false};
 
   void _login() async {
     final name = _nameController.text.trim();
@@ -161,17 +141,10 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => isLoading = true);
     _startWarmupHint();
 
-    final io.Socket s = io.io(
-      _serverUrl,
-      socketOptions(forceNew: true, reconnection: false),
-    );
+    final io.Socket s = io.io(_serverUrl, _getSocketOptions());
 
     final connectTimeout = Timer(const Duration(seconds: 60), () {
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Connection timeout', 'Connection timeout'), isError: true);
-      }
+      if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); _showSnack(t('Connection timeout', 'Connection timeout'), isError: true); }
       s.dispose();
     });
 
@@ -179,24 +152,15 @@ class _AuthScreenState extends State<AuthScreen> {
 
     s.onConnect((_) {
       connectTimeout.cancel();
-      // ╨б╨╡╤А╨▓╨╡╤А ╨▓╤Ц╨┤╨┐╨╛╨▓╤Ц╨▓ тАФ ╨┐╤А╨╕╨▒╨╕╤А╨░╤Ф╨╝╨╛ ╨┐╤Ц╨┤╨║╨░╨╖╨║╤Г ╨┐╤А╨╛ ╨┐╤А╨╛╨▒╤Г╨┤╨╢╨╡╨╜╨╜╤П
       _stopWarmupHint();
 
       ackTimeout = Timer(const Duration(seconds: 45), () {
-        if (mounted) {
-          setState(() => isLoading = false);
-          _stopWarmupHint();
-          _showSnack(t('Server did not respond', 'Server did not respond'), isError: true);
-        }
+        if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); _showSnack(t('Server did not respond', 'Server did not respond'), isError: true); }
         s.dispose();
       });
 
       s.emitWithAck('login_device_request', {
-        'userName': name,
-        'password': pass,
-        'publicKey': widget.publicKey,
-        'deviceId': widget.deviceId,
-        'deviceName': _deviceName(),
+        'userName': name, 'password': pass, 'publicKey': widget.publicKey, 'deviceId': widget.deviceId, 'deviceName': _deviceName(),
       }, ack: (dynamic responseRaw) async {
         ackTimeout?.cancel();
         final response = Map<String, dynamic>.from(responseRaw as Map);
@@ -207,28 +171,14 @@ class _AuthScreenState extends State<AuthScreen> {
         }
 
         if (response['requiresApproval'] == true) {
-          ackTimeout = Timer(const Duration(seconds: 20), () {
-            if (mounted) setState(() => isLoading = false);
-          });
-
+          ackTimeout = Timer(const Duration(seconds: 20), () { if (mounted) setState(() => isLoading = false); });
           s.emitWithAck('login', {
-            'userName': name,
-            'password': pass,
-            'publicKey': widget.publicKey,
-            'deviceId': widget.deviceId,
-            'deviceName': _deviceName(),
+            'userName': name, 'password': pass, 'publicKey': widget.publicKey, 'deviceId': widget.deviceId, 'deviceName': _deviceName(),
           }, ack: (dynamic legacyRaw) async {
             ackTimeout?.cancel();
             final legacyResponse = Map<String, dynamic>.from(legacyRaw as Map);
-            if (legacyResponse['success'] == true) {
-              s.dispose();
-              await _applyLinkedKeysAndFinish(name, legacyResponse);
-              return;
-            }
-            if (mounted) {
-              setState(() => isLoading = false);
-              _showSnack('${t('Approve this device from your existing logged-in device', 'Approve this device from your existing logged-in device')} (${response['code'] ?? '----'})');
-            }
+            if (legacyResponse['success'] == true) { s.dispose(); await _applyLinkedKeysAndFinish(name, legacyResponse); return; }
+            if (mounted) { setState(() => isLoading = false); _showSnack('${t('Підтвердіть цей пристрій з вже авторизованого', 'Approve this device from your existing logged-in device')} (${response['code'] ?? '----'})'); }
             unawaited(_waitForDeviceApproval(s, (response['requestId'] ?? '').toString(), name));
           });
           return;
@@ -240,28 +190,8 @@ class _AuthScreenState extends State<AuthScreen> {
       });
     });
 
-    s.onError((dynamic error) {
-      connectTimeout.cancel();
-      ackTimeout?.cancel();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Server unavailable. Try again later', 'Server unavailable. Try again later'), isError: true);
-      }
-      s.dispose();
-    });
-
-    s.onConnectError((dynamic error) {
-      connectTimeout.cancel();
-      ackTimeout?.cancel();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Connection error', 'Connection error'), isError: true);
-      }
-      s.dispose();
-    });
-
+    s.onError((dynamic error) { connectTimeout.cancel(); ackTimeout?.cancel(); if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); _showSnack(t('Server unavailable. Try again later', 'Server unavailable. Try again later'), isError: true); } s.dispose(); });
+    s.onConnectError((dynamic error) { connectTimeout.cancel(); ackTimeout?.cancel(); if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); _showSnack(t('Connection error', 'Connection error'), isError: true); } s.dispose(); });
     s.connect();
   }
 
@@ -270,87 +200,34 @@ class _AuthScreenState extends State<AuthScreen> {
     final pass = _passController.text.trim();
     final email = _emailController.text.trim();
     if (name.isEmpty || pass.isEmpty || email.isEmpty) return;
-    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
-      _showSnack(t('Invalid email format', 'Invalid email format'), isError: true);
-      return;
-    }
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) { _showSnack(t('Invalid email format', 'Invalid email format'), isError: true); return; }
     setState(() => isLoading = true);
     _startWarmupHint();
 
-    final io.Socket s = io.io(
-      _serverUrl,
-      socketOptions(forceNew: true, reconnection: false),
-    );
-
-    final connectTimeout = Timer(const Duration(seconds: 60), () {
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Connection timeout', 'Connection timeout'), isError: true);
-      }
-      s.dispose();
-    });
-
+    final io.Socket s = io.io(_serverUrl, _getSocketOptions());
+    final connectTimeout = Timer(const Duration(seconds: 60), () { if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); _showSnack(t('Connection timeout', 'Connection timeout'), isError: true); } s.dispose(); });
     Timer? ackTimeout;
 
     s.onConnect((_) {
       connectTimeout.cancel();
       _stopWarmupHint();
-
-      ackTimeout = Timer(const Duration(seconds: 45), () {
-        if (mounted) {
-          setState(() => isLoading = false);
-          _stopWarmupHint();
-          _showSnack(t('Server did not respond', 'Server did not respond'), isError: true);
-        }
-        s.dispose();
-      });
+      ackTimeout = Timer(const Duration(seconds: 45), () { if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); _showSnack(t('Server did not respond', 'Server did not respond'), isError: true); } s.dispose(); });
 
       s.emitWithAck('send_verification_email', {
-        'userName': name,
-        'email': email,
-        'password': pass,
-        'publicKey': widget.publicKey,
-        'deviceId': widget.deviceId,
-        'deviceName': _deviceName(),
+        'userName': name, 'email': email, 'password': pass, 'publicKey': widget.publicKey, 'deviceId': widget.deviceId, 'deviceName': _deviceName(),
       }, ack: (dynamic response) {
         ackTimeout?.cancel();
         s.dispose();
         if (mounted) {
           setState(() => isLoading = false);
           _stopWarmupHint();
-          if (response['success'] == true) {
-            _pendingEmail = email;
-            setState(() => _step = 2);
-          } else {
-            _showSnack(response['message'] ?? t('Error', 'Error'), isError: true);
-          }
+          if (response['success'] == true) { _pendingEmail = email; setState(() => _step = 2); } else { _showSnack(response['message'] ?? t('Error', 'Error'), isError: true); }
         }
       });
     });
 
-    s.onError((dynamic error) {
-      connectTimeout.cancel();
-      ackTimeout?.cancel();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Server unavailable. Try again later', 'Server unavailable. Try again later'), isError: true);
-      }
-      s.dispose();
-    });
-
-    s.onConnectError((dynamic error) {
-      connectTimeout.cancel();
-      ackTimeout?.cancel();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Connection error', 'Connection error'), isError: true);
-      }
-      s.dispose();
-    });
-
+    s.onError((dynamic error) { connectTimeout.cancel(); ackTimeout?.cancel(); if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); _showSnack(t('Server unavailable. Try again later', 'Server unavailable. Try again later'), isError: true); } s.dispose(); });
+    s.onConnectError((dynamic error) { connectTimeout.cancel(); ackTimeout?.cancel(); if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); _showSnack(t('Connection error', 'Connection error'), isError: true); } s.dispose(); });
     s.connect();
   }
 
@@ -360,42 +237,19 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => isLoading = true);
     _startWarmupHint();
 
-    final io.Socket s = io.io(
-      _serverUrl,
-      socketOptions(forceNew: true, reconnection: false),
-    );
-
-    final connectTimeout = Timer(const Duration(seconds: 60), () {
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Connection timeout', 'Connection timeout'), isError: true);
-      }
-      s.dispose();
-    });
-
+    final io.Socket s = io.io(_serverUrl, _getSocketOptions());
+    final connectTimeout = Timer(const Duration(seconds: 60), () { if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); _showSnack(t('Connection timeout', 'Connection timeout'), isError: true); } s.dispose(); });
     Timer? ackTimeout;
 
     s.onConnect((_) {
       connectTimeout.cancel();
       _stopWarmupHint();
-
-      ackTimeout = Timer(const Duration(seconds: 45), () {
-        if (mounted) {
-          setState(() => isLoading = false);
-          _stopWarmupHint();
-          _showSnack(t('Server did not respond', 'Server did not respond'), isError: true);
-        }
-        s.dispose();
-      });
+      ackTimeout = Timer(const Duration(seconds: 45), () { if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); _showSnack(t('Server did not respond', 'Server did not respond'), isError: true); } s.dispose(); });
 
       s.emitWithAck('verify_email_code', {'email': _pendingEmail, 'code': code}, ack: (dynamic response) async {
         ackTimeout?.cancel();
         s.dispose();
-        if (mounted) {
-          setState(() => isLoading = false);
-          _stopWarmupHint();
-        }
+        if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); }
         if (response['success'] == true) {
           final name = _nameController.text.trim();
           await (await SharedPreferences.getInstance()).setString('user_name', name);
@@ -406,73 +260,27 @@ class _AuthScreenState extends State<AuthScreen> {
       });
     });
 
-    s.onError((dynamic error) {
-      connectTimeout.cancel();
-      ackTimeout?.cancel();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Server unavailable. Try again later', 'Server unavailable. Try again later'), isError: true);
-      }
-      s.dispose();
-    });
-
-    s.onConnectError((dynamic error) {
-      connectTimeout.cancel();
-      ackTimeout?.cancel();
-      if (mounted) {
-        setState(() => isLoading = false);
-        _stopWarmupHint();
-        _showSnack(t('Connection error', 'Connection error'), isError: true);
-      }
-      s.dispose();
-    });
-
+    s.onError((dynamic error) { connectTimeout.cancel(); ackTimeout?.cancel(); if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); _showSnack(t('Server unavailable. Try again later', 'Server unavailable. Try again later'), isError: true); } s.dispose(); });
+    s.onConnectError((dynamic error) { connectTimeout.cancel(); ackTimeout?.cancel(); if (mounted) { setState(() => isLoading = false); _stopWarmupHint(); _showSnack(t('Connection error', 'Connection error'), isError: true); } s.dispose(); });
     s.connect();
   }
 
   Future<void> _checkServerHealth() async {
     if (_isHealthChecking || isLoading) return;
     setState(() => _isHealthChecking = true);
-
     final completer = Completer<bool>();
-    final io.Socket s = io.io(
-      _serverUrl,
-      socketOptions(forceNew: true, reconnection: false),
-    );
+    final io.Socket s = io.io(_serverUrl, _getSocketOptions());
 
-    final timeout = Timer(const Duration(seconds: 8), () {
-      if (!completer.isCompleted) completer.complete(false);
-      s.dispose();
-    });
-
-    s.onConnect((_) {
-      if (!completer.isCompleted) completer.complete(true);
-      s.dispose();
-    });
-
-    s.onConnectError((_) {
-      if (!completer.isCompleted) completer.complete(false);
-      s.dispose();
-    });
-
-    s.onError((_) {
-      if (!completer.isCompleted) completer.complete(false);
-      s.dispose();
-    });
-
+    final timeout = Timer(const Duration(seconds: 8), () { if (!completer.isCompleted) completer.complete(false); s.dispose(); });
+    s.onConnect((_) { if (!completer.isCompleted) completer.complete(true); s.dispose(); });
+    s.onConnectError((_) { if (!completer.isCompleted) completer.complete(false); s.dispose(); });
+    s.onError((_) { if (!completer.isCompleted) completer.complete(false); s.dispose(); });
     s.connect();
     final ok = await completer.future;
     timeout.cancel();
-
     if (!mounted) return;
     setState(() => _isHealthChecking = false);
-    _showSnack(
-      ok
-          ? t('╨б╨╡╤А╨▓╨╡╤А ╨┤╨╛╤Б╤В╤Г╨┐╨╜╨╕╨╣', 'Server is reachable')
-          : t('╨Э╨╡ ╨▓╨┤╨░╨╗╨╛╤Б╤П ╨┐╤Ц╨┤╨║╨╗╤О╤З╨╕╤В╨╕╤Б╤М ╨┤╨╛ ╤Б╨╡╤А╨▓╨╡╤А╨░', 'Could not connect to server'),
-      isError: !ok,
-    );
+    _showSnack(ok ? t('Сервер доступний', 'Server is reachable') : t('Не вдалося підключитись до сервера', 'Could not connect to server'), isError: !ok);
   }
 
   void _restoreAccount() async {
@@ -498,15 +306,12 @@ class _AuthScreenState extends State<AuthScreen> {
       await prefs.setString('public_key', payload['pub']);
       await prefs.setString('user_name', payload['name']);
       if (!mounted) return;
-      _showSnack(t("╨г╤Б╨┐╤Ц╤И╨╜╨╛ ╨▓╤Ц╨┤╨╜╨╛╨▓╨╗╨╡╨╜╨╛!", "Restored successfully!"));
+      _showSnack(t("Успішно відновлено!", "Restored successfully!"));
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const MainGate()), (route) => false);
       });
     } catch (e) {
-      if (mounted) {
-        setState(() => isLoading = false);
-        _showSnack(t("╨Э╨╡╨▓╤Ц╤А╨╜╨╕╨╣ ╤В╨╛╨║╨╡╨╜ ╨░╨▒╨╛ ╨┐╨░╤А╨╛╨╗╤М", "Invalid token or password"), isError: true);
-      }
+      if (mounted) { setState(() => isLoading = false); _showSnack(t("Невірний токен або пароль", "Invalid token or password"), isError: true); }
     }
   }
 
@@ -514,93 +319,48 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!mounted) return;
     final isDesktop = LumynTheme.isDesktop(context);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(
-        msg,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: isDesktop ? 13 : 14,
-          fontFamily: 'Inter',
-        ),
-      ),
-      backgroundColor: isError
-          ? (isDesktop ? const Color(0xFF1A0000) : Colors.red.shade900)
-          : (isDesktop ? const Color(0xFF0A0A0A) : const Color(0xFF1A1A2E)),
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(isDesktop ? 8 : 14),
-        side: isDesktop
-            ? BorderSide(color: isError ? const Color(0xFF3A0000) : const Color(0xFF1A1A1A))
-            : BorderSide.none,
-      ),
+      content: Text(msg, style: TextStyle(color: Colors.white, fontSize: isDesktop ? 13 : 14, fontFamily: 'Inter')),
+      backgroundColor: isError ? (isDesktop ? const Color(0xFF1A0000) : Colors.red.shade900) : (isDesktop ? const Color(0xFF0A0A0A) : const Color(0xFF1A1A2E)),
+      behavior: SnackBarBehavior.floating, margin: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isDesktop ? 8 : 14), side: isDesktop ? BorderSide(color: isError ? const Color(0xFF3A0000) : const Color(0xFF1A1A1A)) : BorderSide.none),
       duration: const Duration(seconds: 3),
     ));
   }
 
-  // тФАтФАтФА Warm-up hint widget тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
   Widget _buildWarmupHint() {
     if (_serverHint == null) return const SizedBox.shrink();
     return AnimatedOpacity(
-      opacity: _serverHint != null ? 1.0 : 0.0,
-      duration: const Duration(milliseconds: 400),
+      opacity: _serverHint != null ? 1.0 : 0.0, duration: const Duration(milliseconds: 400),
       child: Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-          ),
+          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white.withValues(alpha: 0.12))),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.5,
-                  color: Colors.white.withValues(alpha: 0.5),
-                ),
-              ),
+              SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white.withValues(alpha: 0.5))),
               const SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  _serverHint!,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 12,
-                    fontFamily: 'Inter',
-                  ),
-                ),
-              ),
+              Flexible(child: Text(_serverHint!, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12, fontFamily: 'Inter'))),
             ],
           ),
         ),
       ),
     );
   }
-  // тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
 
   @override
   Widget build(BuildContext context) {
     final isDesktop = LumynTheme.isDesktop(context);
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
-    );
+    return Scaffold(backgroundColor: Colors.black, body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout());
   }
 
-  // тФАтФАтФА DESKTOP LAYOUT тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
   Widget _buildDesktopLayout() {
     return Row(
       children: [
         Container(
           width: 380,
-          decoration: const BoxDecoration(
-            color: Color(0xFF050505),
-            border: Border(right: BorderSide(color: Color(0xFF1A1A1A))),
-          ),
+          decoration: const BoxDecoration(color: Color(0xFF050505), border: Border(right: BorderSide(color: Color(0xFF1A1A1A)))),
           child: Stack(
             children: [
               const Positioned.fill(child: _DesktopGridBg()),
@@ -609,80 +369,35 @@ class _AuthScreenState extends State<AuthScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(7),
-                            border: Border.all(color: const Color(0xFF2A2A2A)),
-                          ),
-                          child: const Center(child: _LumynLogoMark(size: 14)),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Lumyn',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Inter',
-                            letterSpacing: -0.2,
+                    Row(children: [
+                      Container(
+                        width: 28, height: 28, 
+                        decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(7), border: Border.all(color: const Color(0xFF2A2A2A))), 
+                        child: Center(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Image.asset('web/icons/logo-512.png', width: 16, height: 16, fit: BoxFit.cover),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text('Lumyn', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.2)),
+                    ]),
                     const Spacer(),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          t('"╨Я╨╛╨▓╨╜╤Ц╤Б╤В╤О ╨╖╨░╤И╨╕╤Д╤А╨╛╨▓╨░╨╜╨╛.\n╨Я╨╛╨▓╨╜╤Ц╤Б╤В╤О ╨┐╤А╨╕╨▓╨░╤В╨╜╨╛."', '"Fully encrypted.\nFully private."'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w500,
-                            fontFamily: 'Inter',
-                            letterSpacing: -0.5,
-                            height: 1.4,
-                          ),
-                        ),
+                        Text(t('"Повністю зашифровано.\nПовністю приватно."', '"Fully encrypted.\nFully private."'), style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w500, fontFamily: 'Inter', letterSpacing: -0.5, height: 1.4)),
                         const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF22C55E),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              t('End-to-end ╤И╨╕╤Д╤А╤Г╨▓╨░╨╜╨╜╤П', 'End-to-end encrypted'),
-                              style: const TextStyle(
-                                color: Color(0xFF666666),
-                                fontSize: 12,
-                                fontFamily: 'Inter',
-                              ),
-                            ),
-                          ],
-                        ),
+                        Row(children: [
+                          Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF22C55E), shape: BoxShape.circle)),
+                          const SizedBox(width: 8),
+                          Text(t('End-to-end шифрування', 'End-to-end encrypted'), style: const TextStyle(color: Color(0xFF666666), fontSize: 12, fontFamily: 'Inter')),
+                        ]),
                       ],
                     ),
                     const SizedBox(height: 40),
-                    Text(
-                      'LUMYN Protocol ┬╖ ${DateTime.now().year}',
-                      style: const TextStyle(
-                        color: Color(0xFF333333),
-                        fontSize: 11,
-                        fontFamily: 'Inter',
-                        letterSpacing: 0.5,
-                      ),
-                    ),
+                    Text('LUMYN Protocol · ${DateTime.now().year}', style: const TextStyle(color: Color(0xFF333333), fontSize: 11, fontFamily: 'Inter', letterSpacing: 0.5)),
                   ],
                 ),
               ),
@@ -695,20 +410,8 @@ class _AuthScreenState extends State<AuthScreen> {
               width: 360,
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
-                transitionBuilder: (child, anim) => FadeTransition(
-                  opacity: anim,
-                  child: SlideTransition(
-                    position: Tween(begin: const Offset(0.03, 0), end: Offset.zero).animate(anim),
-                    child: child,
-                  ),
-                ),
-                child: _step == 3
-                    ? _buildDesktopRestoreStep()
-                    : _step == 2
-                        ? _buildDesktopCodeStep()
-                        : _step == 1
-                            ? _buildDesktopRegisterStep()
-                            : _buildDesktopLoginStep(),
+                transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: SlideTransition(position: Tween(begin: const Offset(0.03, 0), end: Offset.zero).animate(anim), child: child)),
+                child: _step == 3 ? _buildDesktopRestoreStep() : _step == 2 ? _buildDesktopCodeStep() : _step == 1 ? _buildDesktopRegisterStep() : _buildDesktopLoginStep(),
               ),
             ),
           ),
@@ -719,261 +422,130 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _buildDesktopLoginStep() {
     return Column(
-      key: const ValueKey('desktop_login'),
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      key: const ValueKey('desktop_login'), mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Sign in',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Inter',
-            letterSpacing: -0.5,
-          ),
-        ),
+        const Text('Sign in', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.5)),
         const SizedBox(height: 4),
-        Text(
-          t('╨Т╨▓╨╡╨┤╤Ц╤В╤М ╨▓╨░╤И ╨╜╤Ц╨║╨╜╨╡╨╣╨╝ ╤В╨░ ╨┐╨░╤А╨╛╨╗╤М', 'Enter your username and password'),
-          style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter'),
-        ),
+        Text(t('Введіть ваш нікнейм та пароль', 'Enter your username and password'), style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter')),
         const SizedBox(height: 28),
-        _dsLabel(t('╨Э╤Ц╨║╨╜╨╡╨╣╨╝', 'Username')),
+        _dsLabel(t('Нікнейм', 'Username')),
         const SizedBox(height: 6),
-        GlassInput(
-          controller: _nameController,
-          hintText: 'username',
-          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))],
-        ),
+        GlassInput(controller: _nameController, hintText: 'username', inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
         const SizedBox(height: 16),
-        _dsLabel(t('╨Я╨░╤А╨╛╨╗╤М', 'Password')),
+        _dsLabel(t('Пароль', 'Password')),
         const SizedBox(height: 6),
-        GlassInput(
-          controller: _passController,
-          hintText: 'тАвтАвтАвтАвтАвтАвтАвтАв',
-          obscureText: !_showLoginPassword,
-          suffixIcon: IconButton(
-            onPressed: () => setState(() => _showLoginPassword = !_showLoginPassword),
-            icon: Icon(_showLoginPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: const Color(0xFF666666), size: 18),
-          ),
-        ),
+        GlassInput(controller: _passController, hintText: '••••••••', obscureText: !_showLoginPassword, suffixIcon: IconButton(onPressed: () => setState(() => _showLoginPassword = !_showLoginPassword), icon: Icon(_showLoginPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: const Color(0xFF666666), size: 18))),
         const SizedBox(height: 24),
-        ShineButton(text: t('╨г╨▓╤Ц╨╣╤В╨╕', 'Sign in'), isLoading: isLoading, onPressed: _login),
-        // тФАтФАтФА Warm-up hint тФАтФАтФА
+        ShineButton(text: t('Увійти', 'Sign in'), isLoading: isLoading, onPressed: _login),
         _buildWarmupHint(),
         const SizedBox(height: 10),
-        TextButton.icon(
-          onPressed: _isHealthChecking ? null : _checkServerHealth,
-          icon: _isHealthChecking
-              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.wifi_tethering, size: 16),
-          label: Text(t('╨Я╨╡╤А╨╡╨▓╤Ц╤А╨╕╤В╨╕ ╤Б╨╡╤А╨▓╨╡╤А', 'Check server')),
-          style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFF888888),
-            textStyle: const TextStyle(fontSize: 12, fontFamily: 'Inter'),
-          ),
-        ),
+        TextButton.icon(onPressed: _isHealthChecking ? null : _checkServerHealth, icon: _isHealthChecking ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.wifi_tethering, size: 16), label: Text(t('Перевірити сервер', 'Check server')), style: TextButton.styleFrom(foregroundColor: const Color(0xFF888888), textStyle: const TextStyle(fontSize: 12, fontFamily: 'Inter'))),
         const SizedBox(height: 16),
         const _DsDivider(),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            GestureDetector(
-              onTap: () => setState(() => _step = 1),
-              child: Text(
-                t("╨Э╨╡╨╝╨░╤Ф ╨░╨║╨░╤Г╨╜╤В╤Г? ╨Ч╨░╤А╨╡╤Ф╤Б╤В╤А╤Г╨▓╨░╤В╨╕╤Б╤М", "No account? Register"),
-                style: const TextStyle(color: Color(0xFF888888), fontSize: 13, fontFamily: 'Inter'),
-              ),
-            ),
-            const Spacer(),
-            GestureDetector(
-              onTap: () => setState(() => _step = 3),
-              child: Text(
-                t("╨Т╤Ц╨┤╨╜╨╛╨▓╨╕╤В╨╕", "Restore"),
-                style: const TextStyle(color: Color(0xFF888888), fontSize: 13, fontFamily: 'Inter'),
-              ),
-            ),
-          ],
-        ),
+        Row(children: [
+          GestureDetector(onTap: () => setState(() => _step = 1), child: Text(t("Немає акаунту? Зареєструватись", "No account? Register"), style: const TextStyle(color: Color(0xFF888888), fontSize: 13, fontFamily: 'Inter'))),
+          const Spacer(),
+          GestureDetector(onTap: () => setState(() => _step = 3), child: Text(t("Відновити", "Restore"), style: const TextStyle(color: Color(0xFF888888), fontSize: 13, fontFamily: 'Inter'))),
+        ]),
       ],
     );
   }
 
   Widget _buildDesktopRegisterStep() {
     return Column(
-      key: const ValueKey('desktop_register'),
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      key: const ValueKey('desktop_register'), mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Create account',
-          style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.5),
-        ),
+        const Text('Create account', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.5)),
         const SizedBox(height: 4),
-        Text(
-          t('╨Ч╨░╨┐╨╛╨▓╨╜╤Ц╤В╤М ╤Д╨╛╤А╨╝╤Г ╨┤╨╗╤П ╤А╨╡╤Ф╤Б╤В╤А╨░╤Ж╤Ц╤Ч', 'Fill the form to get started'),
-          style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter'),
-        ),
+        Text(t('Заповніть форму для реєстрації', 'Fill the form to get started'), style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter')),
         const SizedBox(height: 28),
-        _dsLabel(t('╨Э╤Ц╨║╨╜╨╡╨╣╨╝', 'Username')),
+        _dsLabel(t('Нікнейм', 'Username')),
         const SizedBox(height: 6),
-        GlassInput(controller: _nameController, hintText: 'username',
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
+        GlassInput(controller: _nameController, hintText: 'username', inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
         const SizedBox(height: 14),
         _dsLabel('Email'),
         const SizedBox(height: 6),
         GlassInput(controller: _emailController, hintText: 'you@example.com', keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 14),
-        _dsLabel(t('╨Я╨░╤А╨╛╨╗╤М', 'Password')),
+        _dsLabel(t('Пароль', 'Password')),
         const SizedBox(height: 6),
-        GlassInput(
-          controller: _passController,
-          hintText: 'тАвтАвтАвтАвтАвтАвтАвтАв',
-          obscureText: !_showRegisterPassword,
-          suffixIcon: IconButton(
-            onPressed: () => setState(() => _showRegisterPassword = !_showRegisterPassword),
-            icon: Icon(_showRegisterPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: const Color(0xFF666666), size: 18),
-          ),
-        ),
+        GlassInput(controller: _passController, hintText: '••••••••', obscureText: !_showRegisterPassword, suffixIcon: IconButton(onPressed: () => setState(() => _showRegisterPassword = !_showRegisterPassword), icon: Icon(_showRegisterPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: const Color(0xFF666666), size: 18))),
         const SizedBox(height: 6),
-        Text(
-          t('╨Ъ╨╛╨┤ ╨┐╤Ц╨┤╤В╨▓╨╡╤А╨┤╨╢╨╡╨╜╨╜╤П ╨▒╤Г╨┤╨╡ ╨▓╤Ц╨┤╨┐╤А╨░╨▓╨╗╨╡╨╜╨╛ ╨╜╨░ ╨▓╨║╨░╨╖╨░╨╜╨╕╨╣ email', 'A verification code will be sent to your email'),
-          style: const TextStyle(color: Color(0xFF444444), fontSize: 11, fontFamily: 'Inter'),
-        ),
+        Text(t('Код підтвердження буде відправлено на вказаний email', 'A verification code will be sent to your email'), style: const TextStyle(color: Color(0xFF444444), fontSize: 11, fontFamily: 'Inter')),
         const SizedBox(height: 24),
-        ShineButton(text: t('╨Ю╤В╤А╨╕╨╝╨░╤В╨╕ ╨║╨╛╨┤', 'Get code'), isLoading: isLoading, onPressed: _sendCode),
+        ShineButton(text: t('Отримати код', 'Get code'), isLoading: isLoading, onPressed: _sendCode),
         _buildWarmupHint(),
         const SizedBox(height: 16),
         const _DsDivider(),
         const SizedBox(height: 16),
-        GestureDetector(
-          onTap: () => setState(() => _step = 0),
-          child: Text(t('╨Т╨╢╨╡ ╤Ф ╨░╨║╨░╤Г╨╜╤В? ╨г╨▓╤Ц╨╣╤В╨╕', 'Already have an account? Sign in'),
-              style: const TextStyle(color: Color(0xFF888888), fontSize: 13, fontFamily: 'Inter')),
-        ),
+        GestureDetector(onTap: () => setState(() => _step = 0), child: Text(t('Вже є акаунт? Увійти', 'Already have an account? Sign in'), style: const TextStyle(color: Color(0xFF888888), fontSize: 13, fontFamily: 'Inter'))),
       ],
     );
   }
 
   Widget _buildDesktopCodeStep() {
     return Column(
-      key: const ValueKey('desktop_code'),
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      key: const ValueKey('desktop_code'), mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: const Color(0xFF0A0A0A),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF1A1A1A)),
-          ),
-          child: const Center(child: Icon(Icons.mail_outline_rounded, color: Colors.white, size: 20)),
-        ),
+        Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFF0A0A0A), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF1A1A1A))), child: const Center(child: Icon(Icons.mail_outline_rounded, color: Colors.white, size: 20))),
         const SizedBox(height: 20),
-        const Text('Check your email',
-            style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.5)),
+        const Text('Check your email', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.5)),
         const SizedBox(height: 4),
-        RichText(
-          text: TextSpan(
-            style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter'),
-            children: [
-              TextSpan(text: t('╨Ъ╨╛╨┤ ╨▓╤Ц╨┤╨┐╤А╨░╨▓╨╗╨╡╨╜╨╛ ╨╜╨░ ', 'Code sent to ')),
-              TextSpan(text: _pendingEmail ?? '', style: const TextStyle(color: Colors.white)),
-            ],
-          ),
-        ),
+        RichText(text: TextSpan(style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter'), children: [TextSpan(text: t('Код відправлено на ', 'Code sent to ')), TextSpan(text: _pendingEmail ?? '', style: const TextStyle(color: Colors.white))])),
         const SizedBox(height: 28),
-        _dsLabel(t('6-╨╖╨╜╨░╤З╨╜╨╕╨╣ ╨║╨╛╨┤', '6-digit code')),
+        _dsLabel(t('6-значний код', '6-digit code')),
         const SizedBox(height: 6),
         Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF0A0A0A),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFF1A1A1A)),
-          ),
+          decoration: BoxDecoration(color: const Color(0xFF0A0A0A), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFF1A1A1A))),
           child: TextField(
-            controller: _codeController,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            textAlign: TextAlign.center,
+            controller: _codeController, keyboardType: TextInputType.number, maxLength: 6, textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w600, letterSpacing: 12, fontFamily: 'Inter'),
-            decoration: InputDecoration(
-              hintText: '000000',
-              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.15), fontSize: 28, letterSpacing: 12),
-              border: InputBorder.none,
-              counterText: '',
-              contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-            ),
+            decoration: InputDecoration(hintText: '000000', hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.15), fontSize: 28, letterSpacing: 12), border: InputBorder.none, counterText: '', contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18)),
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           ),
         ),
         const SizedBox(height: 24),
-        ShineButton(text: t('╨Я╤Ц╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╨╕', 'Verify'), isLoading: isLoading, onPressed: _verifyCode),
+        ShineButton(text: t('Підтвердити', 'Verify'), isLoading: isLoading, onPressed: _verifyCode),
         _buildWarmupHint(),
         const SizedBox(height: 16),
-        GestureDetector(
-          onTap: () => setState(() { _step = 1; _codeController.clear(); }),
-          child: Text(t('тЖР ╨Э╨░╨╖╨░╨┤', 'тЖР Back'), style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter')),
-        ),
+        GestureDetector(onTap: () => setState(() { _step = 1; _codeController.clear(); }), child: Text(t('← Назад', '← Back'), style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter'))),
       ],
     );
   }
 
   Widget _buildDesktopRestoreStep() {
     return Column(
-      key: const ValueKey('desktop_restore'),
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      key: const ValueKey('desktop_restore'), mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Restore account',
-            style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.5)),
+        const Text('Restore account', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600, fontFamily: 'Inter', letterSpacing: -0.5)),
         const SizedBox(height: 4),
-        Text(
-          t('╨Т╨▓╨╡╨┤╤Ц╤В╤М ╤В╨╛╨║╨╡╨╜ ╤В╨░ ╨┐╨░╤А╨╛╨╗╤М ╨┤╨╡╤И╨╕╤Д╤А╤Г╨▓╨░╨╜╨╜╤П', 'Enter your backup token and decryption password'),
-          style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter'),
-        ),
+        Text(t('Введіть токен та пароль дешифрування', 'Enter your backup token and decryption password'), style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter')),
         const SizedBox(height: 28),
         _dsLabel('Backup Token'),
         const SizedBox(height: 6),
         GlassInput(controller: _restoreTokenController, hintText: 'xxxx.xxxx.xxxx'),
         const SizedBox(height: 14),
-        _dsLabel(t('╨Я╨░╤А╨╛╨╗╤М ╨┤╨╡╤И╨╕╤Д╤А╤Г╨▓╨░╨╜╨╜╤П', 'Decryption password')),
+        _dsLabel(t('Пароль дешифрування', 'Decryption password')),
         const SizedBox(height: 6),
         GlassInput(
-          controller: _restorePasswordController,
-          hintText: 'тАвтАвтАвтАвтАвтАвтАвтАв',
-          obscureText: !_showRestorePassword,
-          suffixIcon: IconButton(
-            onPressed: () => setState(() => _showRestorePassword = !_showRestorePassword),
-            icon: Icon(_showRestorePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: const Color(0xFF666666), size: 18),
-          ),
+          controller: _restorePasswordController, hintText: '••••••••', obscureText: !_showRestorePassword,
+          suffixIcon: IconButton(onPressed: () => setState(() => _showRestorePassword = !_showRestorePassword), icon: Icon(_showRestorePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: const Color(0xFF666666), size: 18)),
         ),
         const SizedBox(height: 24),
-        ShineButton(text: t('╨Т╤Ц╨┤╨╜╨╛╨▓╨╕╤В╨╕', 'Restore'), isLoading: isLoading, onPressed: _restoreAccount),
+        ShineButton(text: t('Відновити', 'Restore'), isLoading: isLoading, onPressed: _restoreAccount),
         const SizedBox(height: 16),
         const _DsDivider(),
         const SizedBox(height: 16),
-        GestureDetector(
-          onTap: () => setState(() { _step = 0; _restoreTokenController.clear(); _restorePasswordController.clear(); }),
-          child: Text(t('тЖР ╨Ф╨╛ ╨▓╤Е╨╛╨┤╤Г', 'тЖР Back to sign in'),
-              style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter')),
-        ),
+        GestureDetector(onTap: () => setState(() { _step = 0; _restoreTokenController.clear(); _restorePasswordController.clear(); }), child: Text(t('← До входу', '← Back to sign in'), style: const TextStyle(color: Color(0xFF666666), fontSize: 13, fontFamily: 'Inter'))),
       ],
     );
   }
 
   Widget _dsLabel(String text) {
-    return Text(text,
-        style: const TextStyle(color: Color(0xFF888888), fontSize: 12, fontWeight: FontWeight.w500, fontFamily: 'Inter'));
+    return Text(text, style: const TextStyle(color: Color(0xFF888888), fontSize: 12, fontWeight: FontWeight.w500, fontFamily: 'Inter'));
   }
 
-  // тФАтФАтФА MOBILE LAYOUT тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
   Widget _buildMobileLayout() {
     return LiquidBackground(
       child: SafeArea(
@@ -988,20 +560,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: Center(
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 350),
-                      transitionBuilder: (child, anim) => FadeTransition(
-                        opacity: anim,
-                        child: SlideTransition(
-                          position: Tween(begin: const Offset(0.05, 0), end: Offset.zero).animate(anim),
-                          child: child,
-                        ),
-                      ),
-                      child: _step == 3
-                          ? _buildRestoreStep()
-                          : _step == 2
-                              ? _buildCodeStep()
-                              : _step == 1
-                                  ? _buildRegisterStep()
-                                  : _buildLoginStep(),
+                      transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: SlideTransition(position: Tween(begin: const Offset(0.05, 0), end: Offset.zero).animate(anim), child: child)),
+                      child: _step == 3 ? _buildRestoreStep() : _step == 2 ? _buildCodeStep() : _step == 1 ? _buildRegisterStep() : _buildLoginStep(),
                     ),
                   ),
                 ),
@@ -1015,62 +575,33 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _buildLoginStep() {
     return Column(
-      key: const ValueKey('login'),
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      key: const ValueKey('login'), mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 60),
-        Text(t("╨Ч ╨┐╨╛╨▓╨╡╤А╨╜╨╡╨╜╨╜╤П╨╝.", "Welcome back."),
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        Text(t("З поверненням.", "Welcome back."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
         const Text("LUMYN Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
         const SizedBox(height: 48),
-        GlassInput(
-            controller: _nameController,
-            hintText: t("╨Э╤Ц╨║╨╜╨╡╨╣╨╝", "Username"),
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
+        GlassInput(controller: _nameController, hintText: t("Нікнейм", "Username"), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
         const SizedBox(height: 16),
         GlassInput(
-          controller: _passController,
-          hintText: t("╨Я╨░╤А╨╛╨╗╤М", "Password"),
-          obscureText: !_showLoginPassword,
-          suffixIcon: IconButton(
-            onPressed: () => setState(() => _showLoginPassword = !_showLoginPassword),
-            icon: Icon(_showLoginPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: Colors.white70, size: 20),
-          ),
+          controller: _passController, hintText: t("Пароль", "Password"), obscureText: !_showLoginPassword,
+          suffixIcon: IconButton(onPressed: () => setState(() => _showLoginPassword = !_showLoginPassword), icon: Icon(_showLoginPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: Colors.white70, size: 20)),
         ),
         const SizedBox(height: 32),
-        ShineButton(text: t("╨г╨▓╤Ц╨╣╤В╨╕", "Sign In"), isLoading: isLoading, onPressed: _login),
-        // тФАтФАтФА Warm-up hint тФАтФАтФА
+        ShineButton(text: t("Увійти", "Sign In"), isLoading: isLoading, onPressed: _login),
         _buildWarmupHint(),
         const SizedBox(height: 10),
         TextButton.icon(
           onPressed: _isHealthChecking ? null : _checkServerHealth,
-          icon: _isHealthChecking
-              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.wifi_tethering, size: 16),
-          label: Text(t('╨Я╨╡╤А╨╡╨▓╤Ц╤А╨╕╤В╨╕ ╤Б╨╡╤А╨▓╨╡╤А', 'Check server')),
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.white70,
-            textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-          ),
+          icon: _isHealthChecking ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.wifi_tethering, size: 16),
+          label: Text(t('Перевірити сервер', 'Check server')),
+          style: TextButton.styleFrom(foregroundColor: Colors.white70, textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
         ),
         const SizedBox(height: 24),
-        GestureDetector(
-          onTap: () => setState(() => _step = 1),
-          child: Text(t("╨Э╨╡╨╝╨░╤Ф ╨░╨║╨░╤Г╨╜╤В╤Г? ╨б╤В╨▓╨╛╤А╨╕╤В╨╕", "Don't have an account? Register"),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
-        ),
+        GestureDetector(onTap: () => setState(() => _step = 1), child: Text(t("Немає акаунту? Створити", "Don't have an account? Register"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500))),
         const SizedBox(height: 16),
-        GestureDetector(
-          onTap: () => setState(() => _step = 3),
-          child: Text(t("╨Т╤Ц╨┤╨╜╨╛╨▓╨╕╤В╨╕ ╨╖ ╨║╨╛╨┐╤Ц╤Ч", "Restore from backup"),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFFB026FF), fontSize: 14, fontWeight: FontWeight.w600)),
-        ),
+        GestureDetector(onTap: () => setState(() => _step = 3), child: Text(t("Відновити з копії", "Restore from backup"), textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFB026FF), fontSize: 14, fontWeight: FontWeight.w600))),
         const SizedBox(height: 60),
       ],
     );
@@ -1078,66 +609,40 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _buildRegisterStep() {
     return Column(
-      key: const ValueKey('register'),
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      key: const ValueKey('register'), mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(t("╨б╤В╨▓╨╛╤А╨╕╤В╨╕ ╨░╨║╨░╤Г╨╜╤В.", "Create account."),
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        Text(t("Створити акаунт.", "Create account."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
         const Text("LUMYN Protocol", style: TextStyle(fontSize: 16, color: Colors.white70)),
         const SizedBox(height: 48),
-        GlassInput(
-            controller: _nameController,
-            hintText: t("╨Э╤Ц╨║╨╜╨╡╨╣╨╝", "Username"),
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
+        GlassInput(controller: _nameController, hintText: t("Нікнейм", "Username"), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.\-]'))]),
         const SizedBox(height: 16),
-        GlassInput(controller: _emailController, hintText: t("Email ╨░╨┤╤А╨╡╤Б╨░", "Email address"), keyboardType: TextInputType.emailAddress),
+        GlassInput(controller: _emailController, hintText: t("Email адреса", "Email address"), keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 16),
         GlassInput(
-          controller: _passController,
-          hintText: t("╨Я╨░╤А╨╛╨╗╤М", "Password"),
-          obscureText: !_showRegisterPassword,
-          suffixIcon: IconButton(
-            onPressed: () => setState(() => _showRegisterPassword = !_showRegisterPassword),
-            icon: Icon(_showRegisterPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: Colors.white70, size: 20),
-          ),
+          controller: _passController, hintText: t("Пароль", "Password"), obscureText: !_showRegisterPassword,
+          suffixIcon: IconButton(onPressed: () => setState(() => _showRegisterPassword = !_showRegisterPassword), icon: Icon(_showRegisterPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: Colors.white70, size: 20)),
         ),
         const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            t("╨Э╨░ ╨▓╨║╨░╨╖╨░╨╜╨╕╨╣ email ╨┐╤А╨╕╨╣╨┤╨╡ ╨║╨╛╨┤ ╨┐╤Ц╨┤╤В╨▓╨╡╤А╨┤╨╢╨╡╨╜╨╜╤П", "A verification code will be sent to your email"),
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
-          ),
-        ),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(t("На вказаний email прийде код підтвердження", "A verification code will be sent to your email"), style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12))),
         const SizedBox(height: 24),
-        ShineButton(text: t("╨Ю╤В╤А╨╕╨╝╨░╤В╨╕ ╨║╨╛╨┤", "Get Code"), isLoading: isLoading, onPressed: _sendCode),
+        ShineButton(text: t("Отримати код", "Get Code"), isLoading: isLoading, onPressed: _sendCode),
         _buildWarmupHint(),
         const SizedBox(height: 24),
-        GestureDetector(
-          onTap: () => setState(() => _step = 0),
-          child: Text(t("╨Т╨╢╨╡ ╤Ф ╨░╨║╨░╤Г╨╜╤В? ╨г╨▓╤Ц╨╣╤В╨╕", "Already have an account? Sign In"),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
-        ),
+        GestureDetector(onTap: () => setState(() => _step = 0), child: Text(t("Вже є акаунт? Увійти", "Already have an account? Sign In"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500))),
       ],
     );
   }
 
   Widget _buildCodeStep() {
     return Column(
-      key: const ValueKey('code'),
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      key: const ValueKey('code'), mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Icon(Icons.email_outlined, color: Colors.white70, size: 48),
         const SizedBox(height: 24),
-        Text(t("╨Я╨╡╤А╨╡╨▓╤Ц╤А ╨┐╨╛╤И╤В╤Г.", "Check your email."),
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        Text(t("Перевірте пошту.", "Check your email."), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
-        Text(t("╨Ъ╨╛╨┤ ╨╜╨░╨┤╤Ц╤Б╨╗╨░╨╜╨╛ ╨╜╨░", "Code sent to"), style: const TextStyle(color: Colors.white70, fontSize: 14)),
+        Text(t("Код надіслано на", "Code sent to"), style: const TextStyle(color: Colors.white70, fontSize: 14)),
         Text(_pendingEmail ?? '', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
         const SizedBox(height: 48),
         ClipRRect(
@@ -1145,82 +650,49 @@ class _AuthScreenState extends State<AuthScreen> {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-              ),
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
               child: TextField(
-                controller: _codeController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                textAlign: TextAlign.center,
+                controller: _codeController, keyboardType: TextInputType.number, maxLength: 6, textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: 16),
-                decoration: InputDecoration(
-                  hintText: '000000',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2), fontSize: 32, letterSpacing: 16),
-                  border: InputBorder.none,
-                  counterText: '',
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-                ),
+                decoration: InputDecoration(hintText: '000000', hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2), fontSize: 32, letterSpacing: 16), border: InputBorder.none, counterText: '', contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18)),
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
             ),
           ),
         ),
         const SizedBox(height: 32),
-        ShineButton(text: t("╨Я╤Ц╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╨╕", "Verify"), isLoading: isLoading, onPressed: _verifyCode),
+        ShineButton(text: t("Підтвердити", "Verify"), isLoading: isLoading, onPressed: _verifyCode),
         _buildWarmupHint(),
         const SizedBox(height: 16),
-        TextButton(
-          onPressed: () => setState(() { _step = 1; _codeController.clear(); }),
-          child: Text(t("тЖР ╨Э╨░╨╖╨░╨┤", "тЖР Back"), style: const TextStyle(color: Colors.white70)),
-        ),
+        TextButton(onPressed: () => setState(() { _step = 1; _codeController.clear(); }), child: Text(t("← Назад", "← Back"), style: const TextStyle(color: Colors.white70))),
       ],
     );
   }
 
   Widget _buildRestoreStep() {
     return Column(
-      key: const ValueKey('restore'),
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      key: const ValueKey('restore'), mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Icon(Icons.restore, color: Color(0xFFB026FF), size: 48),
         const SizedBox(height: 24),
-        Text(t("╨Т╤Ц╨┤╨╜╨╛╨▓╨╗╨╡╨╜╨╜╤П.", "Restore."),
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
+        Text(t("Відновлення.", "Restore."), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1, color: Colors.white)),
         const SizedBox(height: 8),
-        Text(t("╨Т╨▓╨╡╨┤╤Ц╤В╤М ╨▓╨░╤И ╤В╨╛╨║╨╡╨╜ ╤В╨░ ╨┐╨░╤А╨╛╨╗╤М ╨┤╨╡╤И╨╕╤Д╤А╤Г╨▓╨░╨╜╨╜╤П.", "Enter your Backup Token and decryption password."),
-            style: const TextStyle(color: Colors.white70, fontSize: 14)),
+        Text(t("Введіть ваш токен та пароль.", "Enter your Backup Token and decryption password."), style: const TextStyle(color: Colors.white70, fontSize: 14)),
         const SizedBox(height: 48),
         GlassInput(controller: _restoreTokenController, hintText: t("Backup Token", "Backup Token")),
         const SizedBox(height: 16),
         GlassInput(
-          controller: _restorePasswordController,
-          hintText: t("╨Я╨░╤А╨╛╨╗╤М", "Password"),
-          obscureText: !_showRestorePassword,
-          suffixIcon: IconButton(
-            onPressed: () => setState(() => _showRestorePassword = !_showRestorePassword),
-            icon: Icon(_showRestorePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: Colors.white70, size: 20),
-          ),
+          controller: _restorePasswordController, hintText: t("Пароль", "Password"), obscureText: !_showRestorePassword,
+          suffixIcon: IconButton(onPressed: () => setState(() => _showRestorePassword = !_showRestorePassword), icon: Icon(_showRestorePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: Colors.white70, size: 20)),
         ),
         const SizedBox(height: 32),
-        ShineButton(text: t("╨Т╤Ц╨┤╨╜╨╛╨▓╨╕╤В╨╕", "Restore"), isLoading: isLoading, onPressed: _restoreAccount),
+        ShineButton(text: t("Відновити", "Restore"), isLoading: isLoading, onPressed: _restoreAccount),
         const SizedBox(height: 24),
-        GestureDetector(
-          onTap: () => setState(() { _step = 0; _restoreTokenController.clear(); _restorePasswordController.clear(); }),
-          child: Text(t("тЖР ╨Я╨╛╨▓╨╡╤А╨╜╤Г╤В╨╕╤Б╤М ╨┤╨╛ ╨▓╤Е╨╛╨┤╤Г", "тЖР Back to login"),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
-        ),
+        GestureDetector(onTap: () => setState(() { _step = 0; _restoreTokenController.clear(); _restorePasswordController.clear(); }), child: Text(t("← Повернутися до входу", "← Back to login"), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500))),
       ],
     );
   }
 }
-
-// тФАтФАтФА DESKTOP HELPERS тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
 
 class _DsDivider extends StatelessWidget {
   const _DsDivider();
@@ -1250,39 +722,6 @@ class _DesktopGridPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _LumynLogoMark extends StatelessWidget {
-  final double size;
-  const _LumynLogoMark({this.size = 14});
-  @override
-  Widget build(BuildContext context) => CustomPaint(size: Size(size, size), painter: _LogoPainter());
-}
-
-class _LogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final r = size.width * 0.42;
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..color = Colors.white
-      ..strokeWidth = size.width * 0.12;
-    final path = Path();
-    path.moveTo(cx - r * 0.55, cy - r * 0.55);
-    path.lineTo(cx - r * 0.55, cy + r * 0.55);
-    path.lineTo(cx + r * 0.55, cy + r * 0.55);
-    canvas.drawPath(path, paint);
-    canvas.drawCircle(
-        Offset(cx + r * 0.55, cy - r * 0.1), size.width * 0.07, Paint()..color = const Color(0xFFB026FF));
-  }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
