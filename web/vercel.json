@@ -54,6 +54,9 @@
     { "source": "/moderation",     "destination": "/moderation.html" },
     { "source": "/en",             "destination": "/en.html" },
 
+    { "source": "/uk-ua/404",      "destination": "/404.html" },
+    { "source": "/en-us/404",      "destination": "/en-us/404.html" },
+
     { "source": "/(.*)",           "destination": "/index.html" }
   ]
 }

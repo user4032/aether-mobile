@@ -6,555 +6,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
+import '../utils/globals.dart';
 
-// ═══════════════════════════════════════════════════════════
-// LUMYN THEME — DUAL DESIGN SYSTEM (Resend Dark + Liquid Glass)
-// ═══════════════════════════════════════════════════════════
-
-class LumynTheme {
-  // ─── DESKTOP (Resend Dark) — Vercel/Resend style ───
-  static const Color black      = Color(0xFF000000);
-  static const Color surface    = Color(0xFF0A0A0A);
-  static const Color border     = Color(0xFF1A1A1A);
-  static const Color borderLoud = Color(0xFF333333);
-  static const Color accent     = Color(0xFF9281F7); // Resend Purple (adjusted)
-  static const Color textMuted  = Color(0xFF888888);
-  static const Color text       = Color(0xFFEDEDED);
-
-  // ─── MOBILE (Liquid Glass) ───
-  static const Color glassBase     = Color(0x14FFFFFF);
-  static const Color glassBorder   = Color(0x29FFFFFF);
-
-  // ─── SHARED BRAND ───
-  static const Color purple        = Color(0xFFB026FF);
-  static const Color blue          = Color(0xFF007AFF);
-  static const Color cyan          = Color(0xFF00C7FF);
-  static const Color green         = Color(0xFF34C759);
-  
-  // ─── TYPOGRAPHY ───
-  static const String fontFamily   = 'Inter';
-
-  static bool isDesktop(BuildContext context) =>
-      MediaQuery.of(context).size.width >= 720;
-}
-
-// ═══════════════════════════════════════════════════════════
-// ADAPTIVE UI COMPONENTS
-// ═══════════════════════════════════════════════════════════
-
-/// Adaptive card — Resend Dark on desktop, Liquid Glass on mobile
-class AetherCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry? padding;
-  final EdgeInsetsGeometry? margin;
-  final double borderRadius;
-  final Color? backgroundColor;
-
-  const AetherCard({
-    super.key,
-    required this.child,
-    this.padding,
-    this.margin,
-    this.borderRadius = 12,
-    this.backgroundColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isPc = LumynTheme.isDesktop(context);
-    
-    if (isPc) {
-      // Desktop: Resend Dark style
-      return Container(
-        margin: margin,
-        padding: padding ?? const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: backgroundColor ?? LumynTheme.surface,
-          borderRadius: BorderRadius.circular(borderRadius),
-          border: Border.all(color: LumynTheme.border, width: 1),
-        ),
-        child: child,
-      );
-    } else {
-      // Mobile: Liquid Glass style
-      return Container(
-        margin: margin,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(borderRadius),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              padding: padding ?? const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(borderRadius),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  width: 1,
-                ),
-              ),
-              child: child,
-            ),
-          ),
-        ),
-      );
-    }
-  }
-}
-
-/// Animated loader in Vercel style
-class VercelLoader extends StatefulWidget {
-  final double size;
-  const VercelLoader({super.key, this.size = 40});
-
-  @override
-  State<VercelLoader> createState() => _VercelLoaderState();
-}
-
-class _VercelLoaderState extends State<VercelLoader>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              // Pulsing outer circle
-              Container(
-                width: 60 + (20 * _controller.value),
-                height: 60 + (20 * _controller.value),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: LumynTheme.accent.withValues(
-                    alpha: 0.15 * (1 - _controller.value),
-                  ),
-                ),
-              ),
-              // Vercel-style triangle
-              CustomPaint(
-                size: Size(widget.size, widget.size),
-                painter: _VercelTrianglePainter(),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _VercelTrianglePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    
-    final path = Path()
-      ..moveTo(size.width / 2, 0)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Responsive input field
-class VercelInput extends StatefulWidget {
-  final TextEditingController controller;
-  final String hintText;
-  final bool obscure;
-  final Widget? suffixIcon;
-
-  const VercelInput({
-    super.key,
-    required this.controller,
-    required this.hintText,
-    this.obscure = false,
-    this.suffixIcon,
-  });
-
-  @override
-  State<VercelInput> createState() => _VercelInputState();
-}
-
-class _VercelInputState extends State<VercelInput> {
-  late FocusNode _focusNode;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode = FocusNode();
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isPc = LumynTheme.isDesktop(context);
-
-    return TextField(
-      controller: widget.controller,
-      focusNode: _focusNode,
-      obscureText: widget.obscure,
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: isPc ? Colors.black : Colors.white.withValues(alpha: 0.1),
-        hintText: widget.hintText,
-        hintStyle: TextStyle(
-          color: isPc ? LumynTheme.textMuted : Colors.white.withValues(alpha: 0.4),
-        ),
-        suffixIcon: widget.suffixIcon,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 14,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(
-            color: isPc ? LumynTheme.border : Colors.white.withValues(alpha: 0.1),
-          ),
-          borderRadius: BorderRadius.circular(isPc ? 6 : 12),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(
-            color: isPc ? LumynTheme.borderLoud : LumynTheme.accent,
-          ),
-          borderRadius: BorderRadius.circular(isPc ? 6 : 12),
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// GRID BACKGROUND (Vercel-style for desktop)
-// ═══════════════════════════════════════════════════════════
-class GridBackground extends StatelessWidget {
-  final Color gridColor;
-  const GridBackground({super.key, this.gridColor = const Color(0xFF1A1A1A)});
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _GridPainterVercel(color: gridColor),
-      size: Size.infinite,
-    );
-  }
-}
-
-class _GridPainterVercel extends CustomPainter {
-  final Color color;
-  const _GridPainterVercel({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1;
-
-    for (double i = 0; i < size.width; i += 40) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-    for (double i = 0; i < size.height; i += 40) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ─────────────────────────────────────────────────────────
-// SPLASH SCREEN
-// ─────────────────────────────────────────────────────────
-class LumynSplashScreen extends StatefulWidget {
-  const LumynSplashScreen({super.key});
-
-  @override
-  State<LumynSplashScreen> createState() => _LumynSplashScreenState();
-}
-
-class _LumynSplashScreenState extends State<LumynSplashScreen>
-    with TickerProviderStateMixin {
-  late final AnimationController _logoCtrl;
-  late final AnimationController _glowCtrl;
-  late final AnimationController _textCtrl;
-  late final AnimationController _gridCtrl;
-
-  late final Animation<double> _logoScale;
-  late final Animation<double> _logoOpacity;
-  late final Animation<double> _textOpacity;
-  late final Animation<double> _textSlide;
-  late final Animation<double> _gridOpacity;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _logoCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-    _glowCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2000))..repeat(reverse: true);
-    _textCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
-    _gridCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
-
-    _logoScale   = CurvedAnimation(parent: _logoCtrl, curve: Curves.easeOutBack);
-    _logoOpacity = CurvedAnimation(parent: _logoCtrl, curve: Curves.easeOut);
-    _textOpacity = CurvedAnimation(parent: _textCtrl, curve: Curves.easeOut);
-    _textSlide   = Tween<double>(begin: 10, end: 0)
-        .animate(CurvedAnimation(parent: _textCtrl, curve: Curves.easeOut));
-    _gridOpacity = CurvedAnimation(parent: _gridCtrl, curve: Curves.easeIn);
-
-    _gridCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) _logoCtrl.forward();
-    });
-    Future.delayed(const Duration(milliseconds: 700), () {
-      if (mounted) _textCtrl.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _logoCtrl.dispose();
-    _glowCtrl.dispose();
-    _textCtrl.dispose();
-    _gridCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Grid background (Vercel-style)
-          FadeTransition(
-            opacity: _gridOpacity,
-            child: const _GridBackground(),
-          ),
-
-          // Center content
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Full-screen Logo
-                AnimatedBuilder(
-                  animation: Listenable.merge([_logoCtrl, _glowCtrl]),
-                  builder: (context, _) {
-                    return ScaleTransition(
-                      scale: _logoScale,
-                      child: FadeTransition(
-                        opacity: _logoOpacity,
-                        child: SizedBox(
-                          width: 300,
-                          height: 300,
-                          child: Image.asset(
-                            'web/icons/logo-512.png',
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 32),
-
-                // Text
-                AnimatedBuilder(
-                  animation: _textCtrl,
-                  builder: (context, _) {
-                    return Transform.translate(
-                      offset: Offset(0, _textSlide.value),
-                      child: FadeTransition(
-                        opacity: _textOpacity,
-                        child: Column(
-                          children: [
-                            const Text(
-                              'LUMYN',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 6,
-                                fontFamily: 'Inter',
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Encrypted Protocol',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.35),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                letterSpacing: 2,
-                                fontFamily: 'Inter',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 56),
-
-                // Loading dots
-                AnimatedBuilder(
-                  animation: _glowCtrl,
-                  builder: (context, _) {
-                    return _SplashDots(progress: _glowCtrl.value);
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SplashDots extends StatelessWidget {
-  final double progress;
-  const _SplashDots({required this.progress});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(3, (i) {
-        final phase = (progress - i * 0.25).clamp(0.0, 1.0);
-        final opacity = (sin(phase * pi)).clamp(0.15, 1.0);
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          width: 4,
-          height: 4,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: opacity),
-          ),
-        );
-      }),
-    );
-  }
-}
-
-class _GridBackground extends StatelessWidget {
-  const _GridBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _GridPainter(),
-      size: MediaQuery.of(context).size,
-    );
-  }
-}
-
-class _GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.03)
-      ..strokeWidth = 0.5;
-
-    const step = 40.0;
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-
-    // Fade gradient over grid
-    final fadeRect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final fadePaint = Paint()
-      ..shader = RadialGradient(
-        center: Alignment.center,
-        radius: 0.8,
-        colors: [Colors.transparent, Colors.black.withValues(alpha: 0.85)],
-      ).createShader(fadeRect);
-    canvas.drawRect(fadeRect, fadePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ─────────────────────────────────────────────────────────
-// ADAPTIVE BACKGROUND
-// Desktop: pure black with subtle grid
-// Mobile: liquid glass gradient
-// ─────────────────────────────────────────────────────────
-class LumynBackground extends StatelessWidget {
-  final Widget child;
-  final Color accentColor;
-  const LumynBackground({super.key, required this.child, this.accentColor = const Color(0xFF1E1E2C)});
-
-  @override
-  Widget build(BuildContext context) {
-    if (LumynTheme.isDesktop(context)) {
-      return Container(color: Colors.black, child: child);
-    }
-    return _MobileLiquidBackground(accentColor: accentColor, child: child);
-  }
-}
-
-// Legacy alias
 class LiquidBackground extends StatelessWidget {
   final Widget child;
   final Color accentColor;
   const LiquidBackground({super.key, required this.child, this.accentColor = const Color(0xFF1E1E2C)});
 
   @override
-  Widget build(BuildContext context) => LumynBackground(accentColor: accentColor, child: child);
-}
-
-class _MobileLiquidBackground extends StatelessWidget {
-  final Widget child;
-  final Color accentColor;
-  const _MobileLiquidBackground({required this.child, required this.accentColor});
-
-  @override
   Widget build(BuildContext context) {
+    // Зменшено контрастність фону. Замість яскравого градієнта — глибокий темний, 
+    // який лише злегка відливає акцентним кольором.
     return AnimatedContainer(
       duration: const Duration(seconds: 1),
       decoration: BoxDecoration(
+        color: const Color(0xFF111214), // Базовий колір фону a-la Discord
         gradient: RadialGradient(
           center: const Alignment(-0.8, -0.5),
           radius: 1.5,
-          colors: [accentColor, Colors.black],
+          colors: [accentColor.withValues(alpha: 0.15), const Color(0xFF111214)],
         ),
       ),
       child: child,
@@ -562,11 +32,7 @@ class _MobileLiquidBackground extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────
-// ADAPTIVE GLASS CONTAINER
-// Desktop: sharp-bordered dark card (Vercel style)
-// Mobile: frosted glass
-// ─────────────────────────────────────────────────────────
+// Назва залишена для сумісності з вашим кодом, але тепер це Solid Surface
 class GlassContainer extends StatelessWidget {
   final Widget child;
   final double borderRadius;
@@ -576,616 +42,24 @@ class GlassContainer extends StatelessWidget {
   final double? height;
   final Color? color;
 
-  const GlassContainer({super.key, required this.child, this.borderRadius = 20, this.padding, this.margin, this.width, this.height, this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    if (LumynTheme.isDesktop(context)) {
-      return _DesktopCard(
-        borderRadius: borderRadius,
-        padding: padding,
-        margin: margin,
-        width: width,
-        height: height,
-        color: color,
-        child: child,
-      );
-    }
-    return _MobileGlassContainer(
-      borderRadius: borderRadius,
-      padding: padding,
-      margin: margin,
-      width: width,
-      height: height,
-      color: color,
-      child: child,
-    );
-  }
-}
-
-class _DesktopCard extends StatelessWidget {
-  final Widget child;
-  final double borderRadius;
-  final EdgeInsetsGeometry? padding;
-  final EdgeInsetsGeometry? margin;
-  final double? width;
-  final double? height;
-  final Color? color;
-
-  const _DesktopCard({required this.child, this.borderRadius = 12, this.padding, this.margin, this.width, this.height, this.color});
+  const GlassContainer({super.key, required this.child, this.borderRadius = 16, this.padding, this.margin, this.width, this.height, this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: width,
-      height: height,
-      margin: margin,
-      padding: padding,
+      width: width, height: height, margin: margin, padding: padding,
       decoration: BoxDecoration(
-        color: LumynTheme.surface,
+        color: color ?? const Color(0xFF2B2D31), // Класичний колір карток Discord
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: LumynTheme.border, width: 1.0),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.04), width: 1), // Ледь помітна рамка для глибини
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 4))
+        ],
       ),
       child: child,
     );
   }
 }
-
-class _MobileGlassContainer extends StatelessWidget {
-  final Widget child;
-  final double borderRadius;
-  final EdgeInsetsGeometry? padding;
-  final EdgeInsetsGeometry? margin;
-  final double? width;
-  final double? height;
-  final Color? color;
-
-  const _MobileGlassContainer({required this.child, this.borderRadius = 20, this.padding, this.margin, this.width, this.height, this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width, height: height, margin: margin,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              color: (color ?? Colors.white).withValues(alpha: 0.08),
-              border: Border.all(color: (color ?? Colors.white).withValues(alpha: 0.18), width: 1.5),
-              borderRadius: BorderRadius.circular(borderRadius),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 32, offset: const Offset(0, 8))],
-            ),
-            child: Stack(
-              children: [
-                Positioned(top: 0, left: 0, right: 0,
-                  child: Container(
-                    height: 32,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                        colors: [Colors.white.withValues(alpha: 0.12), Colors.transparent],
-                      ),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(borderRadius)),
-                    ),
-                  ),
-                ),
-                child,
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// ADAPTIVE INPUT FIELD
-// Desktop: Vercel/Resend sharp input
-// Mobile: frosted glass input
-// ─────────────────────────────────────────────────────────
-class GlassInput extends StatefulWidget {
-  final TextEditingController controller;
-  final String hintText;
-  final bool obscureText;
-  final Widget? suffixIcon;
-  final Widget? prefixIcon;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
-  final FocusNode? focusNode;
-  final VoidCallback? onEditingComplete;
-  final ValueChanged<String>? onChanged;
-
-  const GlassInput({
-    super.key,
-    required this.controller,
-    required this.hintText,
-    this.obscureText = false,
-    this.suffixIcon,
-    this.prefixIcon,
-    this.keyboardType,
-    this.inputFormatters,
-    this.focusNode,
-    this.onEditingComplete,
-    this.onChanged,
-  });
-
-  @override
-  State<GlassInput> createState() => _GlassInputState();
-}
-
-class _GlassInputState extends State<GlassInput> {
-  late FocusNode _focusNode;
-  bool _isFocused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode = widget.focusNode ?? FocusNode();
-    _focusNode.addListener(() { if (mounted) setState(() { _isFocused = _focusNode.hasFocus; }); });
-  }
-
-  @override
-  void dispose() {
-    if (widget.focusNode == null) _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (LumynTheme.isDesktop(context)) {
-      return _DesktopInput(
-        controller: widget.controller,
-        hintText: widget.hintText,
-        obscureText: widget.obscureText,
-        suffixIcon: widget.suffixIcon,
-        prefixIcon: widget.prefixIcon,
-        keyboardType: widget.keyboardType,
-        inputFormatters: widget.inputFormatters,
-        focusNode: _focusNode,
-        isFocused: _isFocused,
-        onEditingComplete: widget.onEditingComplete,
-        onChanged: widget.onChanged,
-      );
-    }
-    return _MobileGlassInput(
-      controller: widget.controller,
-      hintText: widget.hintText,
-      obscureText: widget.obscureText,
-      suffixIcon: widget.suffixIcon,
-      prefixIcon: widget.prefixIcon,
-      keyboardType: widget.keyboardType,
-      inputFormatters: widget.inputFormatters,
-      focusNode: _focusNode,
-      isFocused: _isFocused,
-      onEditingComplete: widget.onEditingComplete,
-      onChanged: widget.onChanged,
-    );
-  }
-}
-
-class _DesktopInput extends StatelessWidget {
-  final TextEditingController controller;
-  final String hintText;
-  final bool obscureText;
-  final Widget? suffixIcon;
-  final Widget? prefixIcon;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
-  final FocusNode focusNode;
-  final bool isFocused;
-  final VoidCallback? onEditingComplete;
-  final ValueChanged<String>? onChanged;
-
-  const _DesktopInput({
-    required this.controller,
-    required this.hintText,
-    required this.focusNode,
-    required this.isFocused,
-    this.obscureText = false,
-    this.suffixIcon,
-    this.prefixIcon,
-    this.keyboardType,
-    this.inputFormatters,
-    this.onEditingComplete,
-    this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      decoration: BoxDecoration(
-        color: isFocused ? const Color(0xFF111111) : const Color(0xFF0A0A0A),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isFocused ? const Color(0xFF444444) : const Color(0xFF1A1A1A),
-          width: 1.0,
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        obscureText: obscureText,
-        inputFormatters: inputFormatters,
-        keyboardType: keyboardType,
-        onEditingComplete: onEditingComplete,
-        onChanged: onChanged,
-        style: const TextStyle(
-          color: LumynTheme.text,
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          fontFamily: 'Inter',
-        ),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: const TextStyle(
-            color: LumynTheme.textMuted,
-            fontSize: 14,
-            fontFamily: 'Inter',
-          ),
-          border: InputBorder.none,
-          suffixIcon: suffixIcon != null
-              ? Theme(
-                  data: Theme.of(context).copyWith(
-                    iconTheme: const IconThemeData(color: LumynTheme.textMuted),
-                  ),
-                  child: suffixIcon!,
-                )
-              : null,
-          prefixIcon: prefixIcon,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
-      ),
-    );
-  }
-}
-
-class _MobileGlassInput extends StatelessWidget {
-  final TextEditingController controller;
-  final String hintText;
-  final bool obscureText;
-  final Widget? suffixIcon;
-  final Widget? prefixIcon;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
-  final FocusNode focusNode;
-  final bool isFocused;
-  final VoidCallback? onEditingComplete;
-  final ValueChanged<String>? onChanged;
-
-  const _MobileGlassInput({
-    required this.controller,
-    required this.hintText,
-    required this.focusNode,
-    required this.isFocused,
-    this.obscureText = false,
-    this.suffixIcon,
-    this.prefixIcon,
-    this.keyboardType,
-    this.inputFormatters,
-    this.onEditingComplete,
-    this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: isFocused ? 1.02 : 1.0,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutBack,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutBack,
-            decoration: BoxDecoration(
-              color: isFocused ? Colors.white.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.03),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isFocused ? Colors.white.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.1), width: 1.5),
-            ),
-            child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              obscureText: obscureText,
-              inputFormatters: inputFormatters,
-              keyboardType: keyboardType,
-              onEditingComplete: onEditingComplete,
-              onChanged: onChanged,
-              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
-              decoration: InputDecoration(
-                hintText: hintText,
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
-                border: InputBorder.none,
-                suffixIcon: suffixIcon,
-                prefixIcon: prefixIcon,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// ADAPTIVE BUTTON
-// Desktop: Vercel-style solid white button
-// Mobile: ShineButton (glass + shine animation)
-// ─────────────────────────────────────────────────────────
-class ShineButton extends StatefulWidget {
-  final String text;
-  final VoidCallback? onPressed;
-  final bool isLoading;
-  const ShineButton({super.key, required this.text, this.onPressed, this.isLoading = false});
-  @override
-  State<ShineButton> createState() => _ShineButtonState();
-}
-
-class _ShineButtonState extends State<ShineButton> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  bool _isHovered = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
-  }
-
-  @override
-  void dispose() { _controller.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDesktop = LumynTheme.isDesktop(context);
-    final disabled = widget.onPressed == null || widget.isLoading;
-
-    if (isDesktop) {
-      return MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: GestureDetector(
-          onTap: disabled ? null : widget.onPressed,
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 150),
-            opacity: disabled ? 0.4 : 1.0,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              height: 36,
-              decoration: BoxDecoration(
-                color: _isHovered ? const Color(0xFFE5E5E5) : Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: widget.isLoading
-                    ? const SizedBox(
-                        height: 14, width: 14,
-                        child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
-                      )
-                    : Text(
-                        widget.text,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          fontFamily: 'Inter',
-                          letterSpacing: 0,
-                        ),
-                      ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Mobile: original shine effect
-    return GestureDetector(
-      onTap: disabled ? null : widget.onPressed,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: disabled ? 0.5 : 1.0,
-        child: GlassContainer(
-          height: 54, borderRadius: 50,
-          child: Center(
-            child: widget.isLoading
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    double progress = _controller.value <= 0.6 ? (_controller.value / 0.6) : 1.0;
-                    return ShaderMask(
-                      blendMode: BlendMode.srcIn,
-                      shaderCallback: (bounds) => LinearGradient(
-                        colors: const [Color(0xFF888888), Colors.white, Color(0xFF888888)],
-                        stops: const [0.3, 0.5, 0.7],
-                        begin: Alignment(-2.0 + (progress * 4.0), 0),
-                        end: Alignment(-1.0 + (progress * 4.0), 0),
-                      ).createShader(bounds),
-                      child: Text(widget.text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                    );
-                  },
-                ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// DESKTOP SIDEBAR ITEM (Vercel nav style)
-// ─────────────────────────────────────────────────────────
-class DesktopNavItem extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final int? badgeCount;
-
-  const DesktopNavItem({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.badgeCount,
-  });
-
-  @override
-  State<DesktopNavItem> createState() => _DesktopNavItemState();
-}
-
-class _DesktopNavItemState extends State<DesktopNavItem> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: widget.selected
-                ? const Color(0xFF1A1A1A)
-                : _hovered
-                    ? const Color(0xFF111111)
-                    : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                widget.icon,
-                size: 16,
-                color: widget.selected ? Colors.white : const Color(0xFF888888),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  widget.label,
-                  style: TextStyle(
-                    color: widget.selected ? Colors.white : const Color(0xFF888888),
-                    fontSize: 13,
-                    fontWeight: widget.selected ? FontWeight.w500 : FontWeight.w400,
-                    fontFamily: 'Inter',
-                  ),
-                ),
-              ),
-              if (widget.badgeCount != null && widget.badgeCount! > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A1A1A),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF2E2E2E)),
-                  ),
-                  child: Text(
-                    '${widget.badgeCount}',
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// DESKTOP DIVIDER (Vercel style)
-// ─────────────────────────────────────────────────────────
-class DsHorizontalDivider extends StatelessWidget {
-  final EdgeInsetsGeometry margin;
-  const DsHorizontalDivider({super.key, this.margin = const EdgeInsets.symmetric(vertical: 8)});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: margin,
-      height: 1,
-      color: const Color(0xFF1A1A1A),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// DESKTOP LABEL (Vercel section label style)
-// ─────────────────────────────────────────────────────────
-class DsLabel extends StatelessWidget {
-  final String text;
-  const DsLabel(this.text, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
-      child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          color: Color(0xFF444444),
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.8,
-          fontFamily: 'Inter',
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// SNACKBAR (adaptive)
-// ─────────────────────────────────────────────────────────
-void showLumynSnack(BuildContext context, String message, {bool isError = false}) {
-  final isDesktop = LumynTheme.isDesktop(context);
-  if (isDesktop) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: const TextStyle(color: Colors.white, fontSize: 13, fontFamily: 'Inter'),
-        ),
-        backgroundColor: const Color(0xFF0A0A0A),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-            color: isError ? const Color(0xFF4A1A1A) : const Color(0xFF1A1A1A),
-          ),
-        ),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? const Color(0xFF2A0A0A) : const Color(0xFF1A1A2E),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// BELOW: all existing components unchanged
-// ─────────────────────────────────────────────────────────
 
 class VerifiedBadge extends StatelessWidget {
   final double size;
@@ -1249,7 +123,7 @@ class StoryRingAvatar extends StatelessWidget {
         child: Container(
           width: radius * 2 + 1,
           height: radius * 2 + 1,
-          decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.black),
+          decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF111214)), // Змінено на темний фон
           child: Center(
             child: SafeAvatar(avatarBase64: avatarBase64, fallbackName: fallbackName, radius: radius - 2, isGroup: isGroup),
           ),
@@ -1275,8 +149,8 @@ class _ReactionPickerState extends State<ReactionPicker> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-    _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
+    _scale = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack);
     _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _ctrl.forward();
   }
@@ -1291,37 +165,31 @@ class _ReactionPickerState extends State<ReactionPicker> with SingleTickerProvid
       alignment: Alignment.bottomCenter,
       child: FadeTransition(
         opacity: _opacity,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 24, offset: const Offset(0, 6))],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: _emojis.asMap().entries.map((entry) {
-                  return TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    duration: Duration(milliseconds: 200 + entry.key * 30),
-                    curve: Curves.elasticOut,
-                    builder: (ctx, v, child) => Transform.scale(scale: v, child: child),
-                    child: GestureDetector(
-                      onTap: () => widget.onSelect(entry.value),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        child: Text(entry.value, style: const TextStyle(fontSize: 26)),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2B2D31), // Solid колір
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 8))],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: _emojis.asMap().entries.map((entry) {
+              return TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: Duration(milliseconds: 150 + entry.key * 20),
+                curve: Curves.easeOutBack,
+                builder: (ctx, v, child) => Transform.scale(scale: v, child: child),
+                child: GestureDetector(
+                  onTap: () => widget.onSelect(entry.value),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    child: Text(entry.value, style: const TextStyle(fontSize: 26)),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ),
       ),
@@ -1378,9 +246,9 @@ class _PopBadgeState extends State<_PopBadge> with SingleTickerProviderStateMixi
     super.initState();
     _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
     _scale = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.5).chain(CurveTween(curve: Curves.easeOut)), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.5, end: 0.85).chain(CurveTween(curve: Curves.easeIn)), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.85, end: 1.0).chain(CurveTween(curve: Curves.elasticOut)), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.3).chain(CurveTween(curve: Curves.easeOut)), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.3, end: 0.9).chain(CurveTween(curve: Curves.easeIn)), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.0).chain(CurveTween(curve: Curves.easeOutBack)), weight: 30),
     ]).animate(_ctrl);
   }
 
@@ -1394,16 +262,16 @@ class _PopBadgeState extends State<_PopBadge> with SingleTickerProviderStateMixi
       scale: _scale,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
-          color: widget.isMine ? const Color(0xFFB026FF).withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: widget.isMine ? const Color(0xFFB026FF).withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.18)),
+          color: widget.isMine ? const Color(0xFFB026FF).withValues(alpha: 0.15) : const Color(0xFF2B2D31), // Solid
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: widget.isMine ? const Color(0xFFB026FF) : Colors.white.withValues(alpha: 0.1)),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(widget.emoji, style: const TextStyle(fontSize: 15)),
+          Text(widget.emoji, style: const TextStyle(fontSize: 14)),
           const SizedBox(width: 4),
-          Text('${widget.count}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text('${widget.count}', style: TextStyle(color: widget.isMine ? const Color(0xFFE5B3FF) : Colors.white70, fontSize: 12, fontWeight: FontWeight.w700)),
         ]),
       ),
     );
@@ -1430,7 +298,7 @@ class HighlightedText extends StatelessWidget {
       if (idx > start) spans.add(TextSpan(text: text.substring(start, idx), style: baseStyle));
       spans.add(TextSpan(
         text: text.substring(idx, idx + query.length),
-        style: baseStyle.copyWith(backgroundColor: const Color(0xFFFFD700).withValues(alpha: 0.5), color: Colors.white),
+        style: baseStyle.copyWith(backgroundColor: const Color(0xFFDA373C), color: Colors.white), // Червоний акцент пошуку
       ));
       start = idx + query.length;
     }
@@ -1500,13 +368,13 @@ class HoldToRevealWrapper extends StatefulWidget {
   final int durationSeconds;
 
   const HoldToRevealWrapper({
-    super.key,
-    required this.child,
-    required this.isEphemeral,
+    super.key, 
+    required this.child, 
+    required this.isEphemeral, 
     this.onRevealStarted,
     this.durationSeconds = 5,
   });
-
+  
   @override
   State<HoldToRevealWrapper> createState() => _HoldToRevealWrapperState();
 }
@@ -1535,10 +403,10 @@ class _HoldToRevealWrapperState extends State<HoldToRevealWrapper> with SingleTi
       onPointerDown: (_) {
         if (!mounted) return;
         setState(() => _isRevealed = true);
-        if (!_hasBeenRevealedOnce) {
-          _hasBeenRevealedOnce = true;
-          _timerController.forward();
-          widget.onRevealStarted?.call();
+        if (!_hasBeenRevealedOnce) { 
+          _hasBeenRevealedOnce = true; 
+          _timerController.forward(); 
+          widget.onRevealStarted?.call(); 
         }
       },
       onPointerUp: (_) { if (mounted) setState(() => _isRevealed = false); },
@@ -1549,11 +417,161 @@ class _HoldToRevealWrapperState extends State<HoldToRevealWrapper> with SingleTi
         children: [
           TweenAnimationBuilder<double>(
             tween: Tween<double>(begin: 20.0, end: _isRevealed ? 0.0 : 20.0),
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
             builder: (context, blurValue, child) => ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: blurValue, sigmaY: blurValue), child: widget.child),
           ),
+          
+          if (!_hasBeenRevealedOnce)
+            IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: _isRevealed ? 0.0 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1F22).withValues(alpha: 0.9), // Темний фон підказки
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFB026FF), width: 1),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.fingerprint, color: Color(0xFFE5B3FF), size: 16),
+                    const SizedBox(width: 6),
+                    Text(t("Утримуйте", "Hold to reveal"), style: const TextStyle(color: Color(0xFFE5B3FF), fontSize: 12, fontWeight: FontWeight.bold)),
+                  ]),
+                ),
+              ),
+            ),
+            
+          if (_hasBeenRevealedOnce)
+            Positioned(
+              top: -6, right: -6,
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _timerController,
+                  builder: (context, child) {
+                    final timeLeft = widget.durationSeconds - (_timerController.value * widget.durationSeconds).ceil();
+                    if (timeLeft <= 0) return const SizedBox.shrink(); 
+                    
+                    return Container(
+                      width: 24, height: 24,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF111214), shape: BoxShape.circle,
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircularProgressIndicator(value: 1.0 - _timerController.value, color: const Color(0xFFDA373C), backgroundColor: const Color(0xFF2B2D31), strokeWidth: 2.5),
+                          Text('$timeLeft', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
+                        ],
+                      ),
+                    );
+                  }
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+}
+
+class SwipeToReplyWrapper extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onSwipe;
+  final Key messageKey;
+  const SwipeToReplyWrapper({super.key, required this.child, required this.onSwipe, required this.messageKey});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dismissible(
+      key: messageKey,
+      direction: DismissDirection.endToStart,
+      dismissThresholds: const {DismissDirection.endToStart: 0.15},
+      movementDuration: const Duration(milliseconds: 200),
+      confirmDismiss: (direction) async { HapticFeedback.lightImpact(); onSwipe(); return false; },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: const BoxDecoration(color: Color(0xFF2B2D31), shape: BoxShape.circle),
+          child: const Icon(Icons.reply, color: Colors.white70, size: 20),
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+class GlassInput extends StatefulWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final bool obscureText;
+  final List<TextInputFormatter>? inputFormatters;
+  final FocusNode? focusNode;
+  final TextInputType? keyboardType;
+  final Widget? suffixIcon;
+  const GlassInput({super.key, required this.controller, required this.hintText, this.obscureText = false, this.inputFormatters, this.focusNode, this.keyboardType, this.suffixIcon});
+  @override
+  State<GlassInput> createState() => _GlassInputState();
+}
+
+class _GlassInputState extends State<GlassInput> {
+  late FocusNode _focusNode;
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = widget.focusNode ?? FocusNode();
+    _focusNode.addListener(() { setState(() { _isFocused = _focusNode.hasFocus; }); });
+  }
+
+  @override
+  void dispose() {
+    if (widget.focusNode == null) _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: _isFocused
+            ? const LinearGradient(
+                colors: [Color(0xFFB026FF), Color(0xFF00C7FF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+        color: _isFocused ? null : Colors.transparent,
+      ),
+      padding: EdgeInsets.all(_isFocused ? 1.5 : 0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1F22),
+          borderRadius: BorderRadius.circular(_isFocused ? 11 : 12),
+          border: _isFocused ? null : Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1),
+        ),
+        child: TextField(
+          controller: widget.controller,
+          focusNode: _focusNode,
+          obscureText: widget.obscureText,
+          inputFormatters: widget.inputFormatters,
+          keyboardType: widget.keyboardType,
+          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+          decoration: InputDecoration(
+            hintText: widget.hintText,
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
+            border: InputBorder.none,
+            suffixIcon: widget.suffixIcon,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+        ),
       ),
     );
   }
@@ -1577,16 +595,91 @@ class _ElegantButtonState extends State<ElegantButton> {
       onTapDown: (_) => setState(() => _isHovered = true),
       onTapUp: (_) { setState(() => _isHovered = false); widget.onPressed(); },
       onTapCancel: () => setState(() => _isHovered = false),
-      child: AnimatedContainer( 
-        duration: const Duration(milliseconds: 400),
-        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         decoration: BoxDecoration(
-          color: _isHovered ? Colors.white.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05),
-          border: Border.all(color: _isHovered ? Colors.white.withValues(alpha: 0.4) : Colors.white.withValues(alpha: 0.1), width: 1.5),
-          borderRadius: BorderRadius.circular(30),
+          color: _isHovered ? const Color(0xFF383A40) : const Color(0xFF2B2D31),
+          borderRadius: BorderRadius.circular(12), // Тепер це чистий солідний квадрат із закругленнями
         ),
         alignment: Alignment.center,
-        child: Text(widget.text, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+        child: Text(widget.text, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+      ),
+    );
+  }
+}
+
+class ShineButton extends StatefulWidget {
+  final String text;
+  final VoidCallback? onPressed;
+  final bool isLoading;
+  const ShineButton({super.key, required this.text, this.onPressed, this.isLoading = false});
+  @override
+  State<ShineButton> createState() => _ShineButtonState();
+}
+
+class _ShineButtonState extends State<ShineButton> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  
+  @override
+  void initState() { 
+    super.initState(); 
+    // Загальна тривалість анімації - 3 секунди, як у CSS
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(); 
+  }
+  
+  @override
+  void dispose() { 
+    _controller.dispose(); 
+    super.dispose(); 
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: (widget.onPressed == null || widget.isLoading) ? null : widget.onPressed,
+      // HitTestBehavior.opaque гарантує, що кнопка натискатиметься навіть там, де фон прозорий
+      behavior: HitTestBehavior.opaque, 
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: (widget.onPressed == null || widget.isLoading) ? 0.5 : 1.0,
+        child: Container(
+          height: 50,
+          alignment: Alignment.center,
+          child: widget.isLoading
+            ? const SizedBox(
+                height: 20, 
+                width: 20, 
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+              )
+            : AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  // Згідно з CSS (0% - 60% рух, 60% - 100% пауза)
+                  double progress = _controller.value <= 0.6 ? (_controller.value / 0.6) : 1.0;
+                  
+                  return ShaderMask(
+                    blendMode: BlendMode.srcIn,
+                    shaderCallback: (bounds) => LinearGradient(
+                      // Кольори точнісінько як у вашому CSS-коді
+                      colors: const [Color(0xFF9F9F9F), Colors.white, Color(0xFF868686)],
+                      // Вузький градієнт для ефекту різкого відблиску
+                      stops: const [0.4, 0.5, 0.6], 
+                      begin: Alignment(-2.5 + (progress * 5.0), 0),
+                      end: Alignment(-1.5 + (progress * 5.0), 0),
+                    ).createShader(bounds),
+                    child: Text(
+                      widget.text, 
+                      style: const TextStyle(
+                        fontSize: 18, // Трохи збільшив шрифт, щоб текст без фону читався краще
+                        fontWeight: FontWeight.w700, 
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  );
+                },
+              ),
+        ),
       ),
     );
   }
@@ -1621,31 +714,13 @@ class _SafeAvatarState extends State<SafeAvatar> {
     } else { _imageBytes = null; _lastBase64 = null; }
   }
 
-  Widget _buildFallback() {
-    final initials = widget.fallbackName.isNotEmpty ? widget.fallbackName[0].toUpperCase() : '?';
-    return Container(
-      color: const Color(0xFF1A1A1A),
-      child: Center(
-        child: Text(
-          initials,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: widget.radius * 0.7,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Inter',
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final avatarContent = widget.isGroup
         ? Container(
             key: const ValueKey<String>('group_avatar'),
-            color: const Color(0xFF1A1A1A),
-            child: Icon(Icons.group, color: Colors.white54, size: widget.radius * 0.9),
+            color: const Color(0xFF2B2D31),
+            child: Icon(Icons.group, color: Colors.white70, size: widget.radius * 0.9),
           )
         : (_imageBytes != null
             ? Image.memory(
@@ -1673,24 +748,185 @@ class _SafeAvatarState extends State<SafeAvatar> {
       ),
     );
   }
+
+  Widget _buildFallback() => Container(
+    key: ValueKey<String>('fallback_${widget.fallbackName}'),
+    color: const Color(0xFF5865F2), // Discord blurple fallback
+    alignment: Alignment.center,
+    child: Text(
+      widget.fallbackName.isNotEmpty ? widget.fallbackName[0].toUpperCase() : '?',
+      style: TextStyle(color: Colors.white, fontSize: widget.radius * 0.7, fontWeight: FontWeight.w600),
+    ),
+  );
 }
 
-// Waveform painter (unchanged)
+class AetherLoader extends StatefulWidget {
+  final double size;
+  final Color color;
+  const AetherLoader({super.key, this.size = 40, this.color = Colors.white});
+
+  @override
+  State<AetherLoader> createState() => _AetherLoaderState();
+}
+
+class _AetherLoaderState extends State<AetherLoader> with TickerProviderStateMixin {
+  late final AnimationController _motionController;
+  late final AnimationController _rotationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _motionController = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat();
+    _rotationController = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _motionController.dispose();
+    _rotationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_motionController, _rotationController]),
+        builder: (context, _) {
+          final p = _motionController.value;
+          final quarterTurn = ((_rotationController.value * 4).floor() % 4) * (pi / 2);
+          final unit = widget.size / 40.0;
+
+          double leftX;
+          double rightX;
+          double dotY;
+
+          if (p < 0.33) {
+            final t = p / 0.33;
+            leftX = lerpDouble(12, 2, t)!;
+            rightX = lerpDouble(20, 30, t)!;
+            dotY = lerpDouble(5, 15, t)!;
+          } else if (p < 0.66) {
+            leftX = 2;
+            rightX = 30;
+            final t = (p - 0.33) / 0.33;
+            dotY = lerpDouble(15, 30, t)!;
+          } else {
+            final t = (p - 0.66) / 0.34;
+            leftX = lerpDouble(2, 12, t)!;
+            rightX = lerpDouble(30, 20, t)!;
+            dotY = 30;
+          }
+
+          return Transform.rotate(
+            angle: quarterTurn,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: leftX * unit,
+                  top: 16 * unit,
+                  child: _bar(16 * unit, 8 * unit),
+                ),
+                Positioned(
+                  left: rightX * unit,
+                  top: 16 * unit,
+                  child: _bar(16 * unit, 8 * unit),
+                ),
+                Positioned(
+                  left: 15 * unit,
+                  top: dotY * unit,
+                  child: Container(
+                    width: 10 * unit,
+                    height: 10 * unit,
+                    decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _bar(double width, double height) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: widget.color,
+        borderRadius: BorderRadius.circular(height * 0.5),
+      ),
+    );
+  }
+}
+
+class AnimatedSearchInput extends StatefulWidget {
+  final TextEditingController controller;
+  final Function(String) onSubmitted;
+  const AnimatedSearchInput({super.key, required this.controller, required this.onSubmitted});
+  @override
+  State<AnimatedSearchInput> createState() => _AnimatedSearchInputState();
+}
+
+class _AnimatedSearchInputState extends State<AnimatedSearchInput> {
+  final FocusNode _focusNode = FocusNode();
+  bool _isFocused = false;
+
+  @override
+  void initState() { super.initState(); _focusNode.addListener(() { setState(() { _isFocused = _focusNode.hasFocus; }); }); }
+  @override
+  void dispose() { _focusNode.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final double targetWidth = _isFocused ? MediaQuery.of(context).size.width - 32 : 150.0;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      width: targetWidth,
+      height: 36,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1F22),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: TextField(
+        controller: widget.controller,
+        focusNode: _focusNode,
+        style: const TextStyle(color: Colors.white, fontSize: 14),
+        textAlignVertical: TextAlignVertical.center,
+        decoration: InputDecoration(
+          isCollapsed: true,
+          hintText: t("Пошук", "Search"),
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), height: 1.2),
+          prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.4), size: 18),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+        ),
+        onSubmitted: widget.onSubmitted,
+      ),
+    );
+  }
+}
+
 class WaveformPainter extends CustomPainter {
   final List<double> amplitudes;
   final double progress;
   final Color activeColor;
   final Color inactiveColor;
 
-  const WaveformPainter({required this.amplitudes, required this.progress, required this.activeColor, required this.inactiveColor});
+  WaveformPainter({required this.amplitudes, this.progress = 0.0, required this.activeColor, required this.inactiveColor});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final count = amplitudes.length;
-    const barWidth = 2.5;
-    final spacing = (size.width - barWidth * count) / (count - 1);
-    final centerY = size.height / 2;
-    final paint = Paint()..strokeWidth = barWidth..strokeCap = StrokeCap.round;
+    final int count = amplitudes.length;
+    if (count == 0) return;
+    final double spacing = 3.0;
+    final double barWidth = (size.width - (spacing * (count - 1))) / count;
+    final paint = Paint()..strokeCap = StrokeCap.round..strokeWidth = barWidth > 0 ? barWidth : 2.0;
+    final double centerY = size.height / 2;
     for (int i = 0; i < count; i++) {
       final double x = i * (barWidth + spacing) + (barWidth / 2);
       paint.color = (i / count) <= progress ? activeColor : inactiveColor;
@@ -1734,10 +970,20 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
   void _bindSharedEventsIfNeeded() {
     if (_sharedEventsBound) return;
     _sharedEventsBound = true;
-    _sharedAudioPlayer.onPlayerStateChanged.listen((state) { _sharedPlayerState.value = state; });
-    _sharedAudioPlayer.onDurationChanged.listen((d) { _sharedDuration.value = d; });
-    _sharedAudioPlayer.onPositionChanged.listen((p) { _sharedPosition.value = p; });
-    _sharedAudioPlayer.onPlayerComplete.listen((_) { _activeAudioInstance.value = null; _sharedPosition.value = Duration.zero; });
+
+    _sharedAudioPlayer.onPlayerStateChanged.listen((state) {
+      _sharedPlayerState.value = state;
+    });
+    _sharedAudioPlayer.onDurationChanged.listen((d) {
+      _sharedDuration.value = d;
+    });
+    _sharedAudioPlayer.onPositionChanged.listen((p) {
+      _sharedPosition.value = p;
+    });
+    _sharedAudioPlayer.onPlayerComplete.listen((_) {
+      _activeAudioInstance.value = null;
+      _sharedPosition.value = Duration.zero;
+    });
   }
 
   void _syncFromShared() {
@@ -1747,13 +993,20 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
     final nextDuration = isActive ? _sharedDuration.value : _duration;
     final nextPosition = isActive ? _sharedPosition.value : (_isPlaying ? Duration.zero : _position);
     if (_isPlaying != nextIsPlaying || _duration != nextDuration || _position != nextPosition) {
-      setState(() { _isPlaying = nextIsPlaying; _duration = nextDuration; _position = nextPosition; });
+      setState(() {
+        _isPlaying = nextIsPlaying;
+        _duration = nextDuration;
+        _position = nextPosition;
+      });
     }
   }
 
   int _computeStableSeed(String data) {
     int hash = 0x811C9DC5;
-    for (final b in utf8.encode(data)) { hash ^= b; hash = (hash * 0x01000193) & 0x7fffffff; }
+    for (final b in utf8.encode(data)) {
+      hash ^= b;
+      hash = (hash * 0x01000193) & 0x7fffffff;
+    }
     return hash;
   }
 
@@ -1779,9 +1032,13 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
   void didUpdateWidget(covariant AudioMessagePlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.base64Audio != widget.base64Audio) {
-      _position = Duration.zero; _duration = Duration.zero; _isPlaying = false;
+      _position = Duration.zero;
+      _duration = Duration.zero;
+      _isPlaying = false;
       _waveHeights = _buildWaveHeights(widget.base64Audio);
-      if (_activeAudioInstance.value == _instanceId) _activeAudioInstance.value = null;
+      if (_activeAudioInstance.value == _instanceId) {
+        _activeAudioInstance.value = null;
+      }
       _prepareAudio();
     }
   }
@@ -1789,19 +1046,28 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
   Future<void> _prepareAudio() async {
     try {
       if (_filePath != null) {
-        try { final prev = File(_filePath!); if (await prev.exists()) await prev.delete(); } catch (_) {}
+        try {
+          final prev = File(_filePath!);
+          if (await prev.exists()) {
+            await prev.delete();
+          }
+        } catch (_) {}
       }
       final bytes = base64Decode(widget.base64Audio);
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/audio_${_computeStableSeed(widget.base64Audio)}.m4a');
       await file.writeAsBytes(bytes);
-      if (mounted) _filePath = file.path;
+      if (mounted) {
+        _filePath = file.path;
+      }
     } catch (e) { debugPrint("Audio load error: $e"); }
   }
 
   @override
   void dispose() {
-    if (_activeAudioInstance.value == _instanceId) _activeAudioInstance.value = null;
+    if (_activeAudioInstance.value == _instanceId) {
+      _activeAudioInstance.value = null;
+    }
     _activeAudioInstance.removeListener(_syncFromShared);
     _sharedPlayerState.removeListener(_syncFromShared);
     _sharedDuration.removeListener(_syncFromShared);
@@ -1812,8 +1078,12 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
 
   @override
   Widget build(BuildContext context) {
-    final onTheme = widget.themeColor != null && ThemeData.estimateBrightnessForColor(widget.themeColor!) == Brightness.dark ? Colors.white : Colors.black;
-    final color = widget.isEphemeral ? const Color(0xFFE5B3FF) : (widget.isMe ? Colors.black : (widget.themeColor != null ? onTheme : Colors.white));
+    final onTheme = widget.themeColor != null && ThemeData.estimateBrightnessForColor(widget.themeColor!) == Brightness.dark
+      ? Colors.white
+      : Colors.black;
+    final color = widget.isEphemeral
+      ? const Color(0xFFE5B3FF)
+      : (widget.isMe ? Colors.black : (widget.themeColor != null ? onTheme : Colors.white));
     final bgColor = widget.isEphemeral ? const Color(0xFFB026FF).withValues(alpha: 0.4) : (widget.isMe ? Colors.white.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.1));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -1864,70 +1134,6 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
           ),
         ),
       ]),
-    );
-  }
-  
-}
-
-// ─────────────────────────────────────────────────────────
-// Віджет для свайпу повідомлення (Reply)
-// ─────────────────────────────────────────────────────────
-class SwipeToReplyWrapper extends StatelessWidget {
-  final Widget child;
-  final VoidCallback onSwipe;
-  final Key messageKey;
-
-  const SwipeToReplyWrapper({
-    super.key,
-    required this.child,
-    required this.onSwipe,
-    required this.messageKey,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onHorizontalDragEnd: (details) {
-        // Якщо свайпнули вправо
-        if (details.primaryVelocity != null && details.primaryVelocity! > 0) {
-          onSwipe();
-        }
-      },
-      child: child,
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// Анімований пошук (Search Input)
-// ─────────────────────────────────────────────────────────
-class AnimatedSearchInput extends StatefulWidget {
-  final TextEditingController controller;
-  final ValueChanged<String>? onSubmitted;
-
-  const AnimatedSearchInput({
-    super.key, 
-    required this.controller, 
-    this.onSubmitted
-  });
-
-  @override
-  State<AnimatedSearchInput> createState() => _AnimatedSearchInputState();
-}
-
-class _AnimatedSearchInputState extends State<AnimatedSearchInput> {
-  @override
-  Widget build(BuildContext context) {
-    return GlassInput(
-      controller: widget.controller,
-      hintText: "Пошук...",
-      prefixIcon: const Icon(Icons.search, color: Colors.white54),
-      onEditingComplete: () {
-        if (widget.onSubmitted != null) {
-          widget.onSubmitted!(widget.controller.text);
-        }
-        FocusScope.of(context).unfocus();
-      },
     );
   }
 }

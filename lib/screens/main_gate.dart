@@ -20,10 +20,7 @@ class _MainGateState extends State<MainGate> {
   final _storage = const FlutterSecureStorage();
 
   @override
-  void initState() {
-    super.initState();
-    _init();
-  }
+  void initState() { super.initState(); _init(); }
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -31,41 +28,23 @@ class _MainGateState extends State<MainGate> {
     String? id = prefs.getString('device_id');
     String? pub = prefs.getString('public_key');
     String? priv = await _storage.read(key: 'private_key');
-
-    if (id == null) {
+    if (id == null || pub == null || priv == null) {
       id = const Uuid().v4();
-      await prefs.setString('device_id', id);
-    }
-    if (pub == null || priv == null) {
       final keyPair = await X25519().newKeyPair();
       final pubKeyBytes = await keyPair.extractPublicKey();
       final privKeyBytes = await keyPair.extractPrivateKeyBytes();
+      await prefs.setString('device_id', id);
       await prefs.setString('public_key', base64Encode(pubKeyBytes.bytes));
       await _storage.write(key: 'private_key', value: base64Encode(privKeyBytes));
       pub = base64Encode(pubKeyBytes.bytes);
     }
-
-    if (mounted) {
-      setState(() {
-        _deviceId = id;
-        _publicKey = pub;
-        _userName = prefs.getString('user_name');
-        _isLoading = false;
-      });
-    }
+    setState(() { _deviceId = id; _publicKey = pub; _userName = prefs.getString('user_name'); _isLoading = false; });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(backgroundColor: Colors.black);
-    
-    if (_userName == null) {
-      return AuthScreen(
-        deviceId: _deviceId!,
-        publicKey: _publicKey!,
-        onSuccess: (name) { setState(() { _userName = name; }); },
-      );
-    }
+    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.white)));
+    if (_userName == null) return AuthScreen(deviceId: _deviceId!, publicKey: _publicKey!, onSuccess: (name) { setState(() { _userName = name; }); });
     return ContactsScreen(deviceId: _deviceId!, userName: _userName!, publicKey: _publicKey!);
   }
 }
