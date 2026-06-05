@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="/icons/favicon.png?v=1">
+  <link rel="apple-touch-icon" href="/icons/logo-192.png?v=6">
+  <meta property="og:title" content="LUMYN | ЧаПи">
+  <meta property="og:description" content="Найпоширеніші питання про LUMYN.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://lumyn.space/faq">
+  <meta property="og:image" content="https://lumyn.space/icons/favicon.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="LUMYN | ЧаПи">
+  <meta name="twitter:image" content="https://lumyn.space/icons/favicon.png">
+  <title>Lumyn</title>
+  <script defer src="/locale-routing.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { overflow-y: scroll; color-scheme: dark; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) #000000; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #000000; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+    :root {
+      --c-bg: #000000; --c-surface: #0a0a0a;
+      --c-border: rgba(255,255,255,0.08); --c-border-h: rgba(255,255,255,0.22);
+      --c-txt: #ffffff; --c-muted: #888888;
+      --font-main: 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body { background: var(--c-bg); color: var(--c-txt); font-family: var(--font-main); overflow-x: hidden; display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ─── CANVAS ─── */
+    #bg-canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+    /* ─── CIRCLE TOGGLE ─── */
+    .faq-toggle-wrap {
+      position: relative; flex-shrink: 0;
+      width: 36px; height: 36px;
+    }
+    .faq-toggle-wrap input { display: none; }
+    .faq-circle {
+      display: block; position: relative;
+      width: 36px; height: 36px; border-radius: 50%;
+      background-color: #2e2e2e;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      cursor: pointer; transition: background-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+    .faq-circle:hover { background-color: #3a3a3a; box-shadow: 0 6px 14px rgba(0,0,0,0.5); }
+    .faq-circle:active { transform: scale(0.9); }
+    .faq-circle svg {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%) rotate(0deg);
+      width: 14px; height: 14px;
+      transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+    }
+    /* When open */
+    .faq-item.open .faq-toggle-wrap .faq-circle { background-color: #1b1b1b; }
+    .faq-item.open .faq-toggle-wrap .faq-circle svg { transform: translate(-50%, -50%) rotate(45deg); }
+
+    /* ─── NAV ─── */
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 200; padding: 0 40px; height: 80px; display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.75); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-bottom: 1px solid var(--c-border); }
+    .nav-logo { font-family: var(--font-main); font-size: 16px; font-weight: 900; letter-spacing: 4px; text-transform: uppercase; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff; }
+    .nav-logo img { width: 28px; height: 28px; border-radius: 6px; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a { color: #888; text-decoration: none; font-size: 12px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; transition: color 0.2s; }
+    .nav-links a:hover, .nav-links a.active { color: #fff; }
+    .btn-outline { border: 1px solid var(--c-border-h); background: transparent; color: #fff !important; padding: 8px 16px; border-radius: 100px; font-size: 11px !important; font-weight: 600 !important; letter-spacing: 1px; text-transform: uppercase; text-decoration: none; transition: all 0.2s; margin-left: 20px; }
+    .btn-outline:hover { background: #fff; color: #000 !important; }
+    @media (max-width: 768px) { .nav-links { display: none; } nav { padding: 0 20px; } #mobile-menu-btn { display: block !important; } }
+
+    /* ─── MAIN ─── */
+    main { flex: 1; display: flex; flex-direction: column; align-items: center; padding-top: 160px; padding-bottom: 100px; position: relative; z-index: 10; }
+
+    /* ─── HEADER ─── */
+    .page-header { text-align: center; margin-bottom: 70px; }
+    .page-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 1px solid var(--c-border); background: rgba(255,255,255,0.03);
+      border-radius: 100px; padding: 6px 16px; margin-bottom: 28px;
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #fff;
+      animation: fadeUp 0.9s ease both;
+    }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: blinkDot 2s infinite; }
+    @keyframes blinkDot { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+
+    .page-header h1 {
+      font-size: clamp(48px, 8vw, 96px); font-weight: 900;
+      letter-spacing: -3px; text-transform: uppercase; margin-bottom: 20px;
+      line-height: 0.95; animation: fadeUp 0.9s ease 0.1s both;
+    }
+    .page-header p { color: var(--c-muted); font-size: 17px; max-width: 600px; margin: 0 auto; line-height: 1.5; animation: fadeUp 0.9s ease 0.2s both; }
+
+    /* ─── COUNTER BAR ─── */
+    .faq-meta {
+      display: flex; gap: 32px; justify-content: center; margin-bottom: 50px;
+      animation: fadeUp 0.9s ease 0.3s both;
+    }
+    .faq-meta-item {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .faq-meta-num { font-family: var(--font-mono); font-size: 28px; font-weight: 700; color: #fff; }
+    .faq-meta-label { font-family: var(--font-mono); font-size: 9px; color: #555; letter-spacing: 2px; text-transform: uppercase; }
+    .faq-meta-divider { width: 1px; background: var(--c-border); align-self: stretch; }
+
+    /* ─── FAQ CONTAINER ─── */
+    .faq-container { width: 100%; max-width: 800px; margin: 0 auto; padding: 0 24px; }
+
+    /* ─── SCROLL REVEAL ─── */
+    .reveal {
+      opacity: 0; transform: translateY(30px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ─── FAQ ITEMS ─── */
+    .faq-item {
+      background: rgba(10,10,10,0.7);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 28px 32px; margin-bottom: 16px;
+      cursor: pointer; transition: border-color 0.3s, background 0.3s;
+      position: relative; overflow: hidden; backdrop-filter: blur(10px);
+    }
+    .faq-item::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+      background: linear-gradient(180deg, transparent, rgba(255,255,255,0.5), transparent);
+      transform: scaleY(0); transition: transform 0.4s ease; transform-origin: top;
+    }
+    .faq-item:hover { border-color: rgba(255,255,255,0.3); background: rgba(15,15,15,0.9); }
+    .faq-item:hover::before { transform: scaleY(1); }
+
+    .faq-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+    .faq-q {
+      font-size: 17px; font-weight: 700; color: #fff;
+      display: flex; gap: 12px; align-items: flex-start; flex: 1;
+    }
+    .faq-q-prefix { color: #fff; opacity: 0.3; font-family: var(--font-mono); font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+
+
+    .faq-a {
+      font-size: 15px; color: var(--c-muted); line-height: 1.7;
+      padding: 0 0 0 28px; margin-top: 16px;
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease, margin 0.3s ease;
+      opacity: 0;
+    }
+    .faq-item.open .faq-a { max-height: 400px; opacity: 1; }
+
+    /* ─── SPECIAL LAST ITEM ─── */
+    .faq-item.highlight { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.025); }
+
+    /* ─── APPLE FOOTER ─── */
+    .apple-footer { background: #111111; color: #86868b; font-family: var(--font-main); font-size: 12px; line-height: 1.33337; font-weight: 400; padding: 0 22px; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; position: relative; z-index: 10; }
+    .apple-footer-content { max-width: 980px; margin: 0 auto; padding: 20px 0; }
+    .footer-breadcrumbs { display: flex; align-items: center; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
+    .footer-breadcrumbs a { color: #f5f5f7; text-decoration: none; font-weight: 500; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .footer-breadcrumbs img { width: 18px !important; height: 18px !important; border-radius: 4px; object-fit: contain; filter: invert(1); opacity: 0.9; }
+    .footer-breadcrumbs span { color: #86868b; font-size: 12px; }
+    .footer-directory { display: flex; flex-wrap: wrap; margin-bottom: 20px; }
+    .footer-directory-column { flex: 1; flex-basis: 20%; min-width: 150px; margin-bottom: 20px; }
+    .footer-directory-column-title { color: #f5f5f7; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+    .footer-directory-list { list-style: none; padding: 0; margin: 0; }
+    .footer-directory-list li { margin-bottom: 8px; }
+    .footer-directory-list a { color: #86868b; text-decoration: none; transition: color 0.2s; }
+    .footer-directory-list a:hover { color: #f5f5f7; text-decoration: underline; }
+    .footer-mini { padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 12px; }
+    .footer-mini-legal { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    @media (max-width: 833px) { .footer-directory { display: flex; flex-direction: column; gap: 10px; } .footer-directory-column { flex-basis: 100%; min-width: 100%; margin-bottom: 10px; } .footer-mini-legal { flex-direction: column; align-items: flex-start; } }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div id="landing">
+
+  <nav>
+    <a href="/" class="nav-logo">
+      <img src="/icons/logo-192.png" alt="Logo">
+      LUMYN
+    </a>
+    <div class="nav-links">
+      <a href="/">Головна</a>
+      <a href="/download">Додатки</a>
+      <a href="/faq">ЧаПи</a>
+      <a href="/support">Підтримка</a>
+      <a href="/updates">Оновлення</a>
+      <a href="/api">API</a>
+      <a href="/protocol">Protocol</a>
+      <a href="/schema">Schema</a>
+      <a href="/moderation">Moderation</a>
+      <a href="/en" class="btn-outline" style="margin-left: 20px;">EN</a>
+    </div>
+    
+    <button id="mobile-menu-btn" style="display:none; background:none; border:none; color:white; font-size:26px; cursor:pointer;">☰</button>
+  </nav>
+
+  <div id="mobile-dropdown" style="display:none; position:fixed; top:80px; left:0; right:0; background:rgba(0,0,0,0.95); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,0.1); padding:20px; z-index:199; flex-direction:column; gap:16px; text-align:center;">
+      <a href="/" style="color:white; text-decoration:none; font-size:16px;">Головна</a>
+      <a href="/download" style="color:white; text-decoration:none; font-size:16px;">Додатки</a>
+      <a href="/faq" style="color:white; text-decoration:none; font-size:16px;">ЧаПи</a>
+      <a href="/support" style="color:white; text-decoration:none; font-size:16px;">Підтримка</a>
+      <a href="/updates" style="color:white; text-decoration:none; font-size:16px;">Оновлення</a>
+      <a href="/api" style="color:white; text-decoration:none; font-size:16px;">API</a>
+      <a href="/protocol" style="color:white; text-decoration:none; font-size:16px;">Protocol</a>
+      <a href="/schema" style="color:white; text-decoration:none; font-size:16px;">Schema</a>
+      <a href="/moderation" style="color:white; text-decoration:none; font-size:16px;">Moderation</a>
+      <a href="/en" style="color:white; text-decoration:none; font-size:16px; opacity:0.5; margin-top:8px;">EN (English)</a>
+  </div>
+
+<main>
+  <header class="page-header">
+    <h1>ЧАСТІ<br>ПИТАННЯ.</h1>
+    <p>Все, що вам потрібно знати про архітектуру та безпеку протоколу LUMYN.</p>
+  </header>
+
+  <div class="faq-meta reveal">
+    <div class="faq-meta-item">
+      <div class="faq-meta-num">9</div>
+      <div class="faq-meta-label">Питань</div>
+    </div>
+    <div class="faq-meta-divider"></div>
+    <div class="faq-meta-item">
+      <div class="faq-meta-num">E2E</div>
+      <div class="faq-meta-label">Encrypted</div>
+    </div>
+    <div class="faq-meta-divider"></div>
+    <div class="faq-meta-item">
+      <div class="faq-meta-num">ZK</div>
+      <div class="faq-meta-label">Zero-Knowledge</div>
+    </div>
+  </div>
+
+  <div class="faq-container">
+
+    <div class="faq-item reveal" onclick="toggleFaq(this)">
+      <div class="faq-header">
+        <div class="faq-q"><span class="faq-q-prefix">01</span> Як працює шифрування в Lumyn?</div>
+        <div class="faq-toggle-wrap"><label class="faq-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg></label></div>
+      </div>
+      <div class="faq-a">Ми використовуємо протокол на базі X25519 (Elliptic Curve Diffie-Hellman) для обміну ключами та AES-256-GCM для симетричного шифрування кожного повідомлення. Ключі зберігаються виключно на вашому пристрої.</div>
+    </div>
+
+    <div class="faq-item reveal" onclick="toggleFaq(this)">
+      <div class="faq-header">
+        <div class="faq-q"><span class="faq-q-prefix">02</span> Чи зберігаються мої повідомлення на сервері?</div>
+        <div class="faq-toggle-wrap"><label class="faq-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg></label></div>
+      </div>
+      <div class="faq-a">Сервер виступає лише як маршрутизатор. Як тільки повідомлення доставлено отримувачу, воно видаляється з оперативної пам'яті. У разі використання "Ефірних повідомлень", вони зникають навіть з пристроїв після перегляду.</div>
+    </div>
+
+    <div class="faq-item reveal" onclick="toggleFaq(this)">
+      <div class="faq-header">
+        <div class="faq-q"><span class="faq-q-prefix">03</span> Чи підтримується додаток на iPhone?</div>
+        <div class="faq-toggle-wrap"><label class="faq-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg></label></div>
+      </div>
+      <div class="faq-a">Так, Lumyn працює як Progressive Web App (PWA). Вам достатньо відкрити сайт у Safari, натиснути "Поділитися" та вибрати "На екран Домів".</div>
+    </div>
+
+    <div class="faq-item reveal" onclick="toggleFaq(this)">
+      <div class="faq-header">
+        <div class="faq-q"><span class="faq-q-prefix">04</span> Чи можу я відновити чати на новому телефоні?</div>
+        <div class="faq-toggle-wrap"><label class="faq-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg></label></div>
+      </div>
+      <div class="faq-a">Наразі, заради максимальної безпеки (Zero-Knowledge Architecture), історія чатів прив'язана до криптографічних ключів конкретного пристрою. Синхронізація між пристроями знаходиться в розробці.</div>
+    </div>
+
+    <div class="faq-item reveal" onclick="toggleFaq(this)">
+      <div class="faq-header">
+        <div class="faq-q"><span class="faq-q-prefix">05</span> Чи потрібен номер телефону для реєстрації?</div>
+        <div class="faq-toggle-wrap"><label class="faq-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg></label></div>
+      </div>
+      <div class="faq-a">Ні. На відміну від Signal чи Telegram, LUMYN не прив'язується до вашого номера телефону чи SIM-карти. Ваша ідентичність — це ваш криптографічний ключ, який генерується локально.</div>
+    </div>
+
+    <div class="faq-item reveal" onclick="toggleFaq(this)">
+      <div class="faq-header">
+        <div class="faq-q"><span class="faq-q-prefix">06</span> Де зберігаються мої ключі шифрування?</div>
+        <div class="faq-toggle-wrap"><label class="faq-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg></label></div>
+      </div>
+      <div class="faq-a">Ключі (Private Keys) ніколи не залишають ваш пристрій. Вони зберігаються у захищеному локальному сховищі вашого смартфона. Сервер LUMYN бачить лише публічні ключі, яких достатньо для маршрутизації, але неможливо використати для розшифровки.</div>
+    </div>
+
+    <div class="faq-item reveal" onclick="toggleFaq(this)">
+      <div class="faq-header">
+        <div class="faq-q"><span class="faq-q-prefix">07</span> Що якщо я втрачу телефон?</div>
+        <div class="faq-toggle-wrap"><label class="faq-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg></label></div>
+      </div>
+      <div class="faq-a">Оскільки ми використовуємо архітектуру Zero-Knowledge, приватні ключі зберігаються виключно на вашому поточному пристрої і ніколи не потрапляють на сервер. Якщо ви втратите пристрій без збереженої сесії, доступ до старих переписок відновити буде неможливо. Це свідомий компроміс заради абсолютної безпеки ваших даних.</div>
+    </div>
+
+    <div class="faq-item reveal" onclick="toggleFaq(this)">
+      <div class="faq-header">
+        <div class="faq-q"><span class="faq-q-prefix">08</span> Чи є у LUMYN відкритий вихідний код?</div>
+        <div class="faq-toggle-wrap"><label class="faq-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg></label></div>
+      </div>
+      <div class="faq-a">Прозорість — це основа довіри до будь-якої криптографії. Найближчим часом ми плануємо відкрити вихідний код клієнтських додатків на GitHub, щоб будь-який розробник чи аудитор міг перевірити надійність протоколів шифрування.</div>
+    </div>
+
+    <div class="faq-item highlight reveal" onclick="toggleFaq(this)">
+      <div class="faq-header">
+        <div class="faq-q"><span class="faq-q-prefix">09</span> Хто стоїть за розробкою LUMYN?</div>
+        <div class="faq-toggle-wrap"><label class="faq-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg></label></div>
+      </div>
+      <div class="faq-a">LUMYN — це незалежний український проєкт. Його створює один розробник з Хмельницького.<br><br>Мета проєкту проста: довести, що справжня приватність, мінімалістичний дизайн та архітектура Zero-Knowledge не обов'язково мають належати мегакорпораціям з мільярдними бюджетами. Безпека має бути швидкою, прозорою та доступною для кожного.</div>
+    </div>
+
+  </div>
+</main>
+
+<footer class="apple-footer">
+  <div class="apple-footer-content">
+    <div class="footer-breadcrumbs">
+      <a href="/"><img src="/icons/logo-192.png" alt="LUMYN"> LUMYN</a>
+      <span>›</span><span>ЧаПи</span>
+    </div>
+    <div class="footer-directory">
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">LUMYN</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/">Головна</a></li>
+          <li><a href="/download">Додатки</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Ресурси</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/faq">ЧаПи</a></li>
+          <li><a href="/support">Підтримка</a></li>
+          <li><a href="/updates">Оновлення</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Документація</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/api">API</a></li>
+          <li><a href="/protocol">Protocol</a></li>
+          <li><a href="/schema">Schema</a></li>
+          <li><a href="/moderation">Moderation</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Проєкт</h3>
+        <ul class="footer-directory-list">
+          <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li>
+          <li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li>
+          <li><a href="https://t.me/lumynspace" target="_blank" rel="noopener noreferrer">Telegram</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-mini">
+      <div class="footer-mini-legal">
+        <div>Copyright © 2026 LUMYN Protocol. All rights reserved.</div>
+        <div><span style="color:#86868b;">Made in Ukraine 🇺🇦</span></div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ─── PARTICLE CANVAS ─── */
+(function(){
+  var canvas = document.getElementById('bg-canvas');
+  var ctx = canvas.getContext('2d');
+  var W, H, particles = [], time = 0;
+
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  window.addEventListener('resize', resize); resize();
+
+  for (var i = 0; i < 60; i++) {
+    particles.push({
+      x: Math.random() * 1920, y: Math.random() * 1080,
+      vx: (Math.random()-0.5)*0.2, vy: (Math.random()-0.5)*0.2,
+      r: Math.random() * 1.4 + 0.2, a: Math.random() * 0.3 + 0.05,
+      phase: Math.random() * Math.PI * 2
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    time += 0.005;
+    particles.forEach(function(p) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      var alpha = p.a * (0.6 + 0.4 * Math.sin(time + p.phase));
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')'; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ─── ACCORDION ─── */
+function toggleFaq(el) {
+  var isOpen = el.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(function(item) {
+    item.classList.remove('open');
+  });
+  if (!isOpen) el.classList.add('open');
+}
+
+/* ─── SCROLL REVEAL ─── */
+(function(){
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(function(el, i) {
+    el.style.transitionDelay = (i * 0.06) + 's';
+    observer.observe(el);
+  });
+})();
+
+/* ─── MOBILE MENU ─── */
+var mobileBtn = document.getElementById('mobile-menu-btn');
+if (mobileBtn) {
+  mobileBtn.addEventListener('click', function() {
+    var dd = document.getElementById('mobile-dropdown');
+    if (dd.style.display === 'none' || !dd.style.display) { dd.style.display = 'flex'; this.textContent = '✕'; }
+    else { dd.style.display = 'none'; this.textContent = '☰'; }
+  });
+}
+</script>
+</body>
+</html>

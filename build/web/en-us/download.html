@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="/icons/favicon.png?v=1">
+  <link rel="apple-touch-icon" href="/icons/logo-192.png?v=6">
+  <link rel="manifest" href="/manifest.json">
+  <meta property="og:title" content="LUMYN | Apps">
+  <meta property="og:description" content="Download LUMYN for your device.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://lumyn.space/en-us/download">
+  <meta property="og:image" content="https://lumyn.space/icons/logo-512.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="LUMYN | Apps">
+  <meta name="twitter:image" content="https://lumyn.space/icons/logo-512.png">
+  <title>LUMYN | Apps</title>
+  <script defer src="/locale-routing.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { overflow-y: scroll; color-scheme: dark; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) #000000; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #000000; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+
+    :root {
+      --c-bg: #000000; --c-surface: #0a0a0a;
+      --c-border: rgba(255,255,255,0.08); --c-border-h: rgba(255,255,255,0.2);
+      --font-main: 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body { background: var(--c-bg); color: #fff; font-family: var(--font-main); overflow-x: hidden; display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ─── CANVAS BG ─── */
+    #bg-canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+    /* ─── RADIAL GLOW (center top) ─── */
+    .top-glow {
+      position: fixed; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 400px; z-index: 1; pointer-events: none;
+      background: radial-gradient(ellipse at center, rgba(255,255,255,0.04) 0%, transparent 70%);
+    }
+
+    /* ─── NAV ─── */
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 200; padding: 0 40px; height: 80px; display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.75); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-bottom: 1px solid var(--c-border); }
+    .nav-logo { font-size: 16px; font-weight: 900; letter-spacing: 4px; text-transform: uppercase; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff; }
+    .nav-logo img { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a { color: #888; text-decoration: none; font-size: 12px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; transition: color 0.2s; }
+    .nav-links a:hover, .nav-links a.active { color: #fff; }
+    .btn-outline { border: 1px solid var(--c-border-h); background: transparent; color: #fff !important; padding: 8px 16px; border-radius: 100px; font-size: 11px !important; font-weight: 600 !important; letter-spacing: 1px; text-transform: uppercase; text-decoration: none; transition: all 0.2s; margin-left: 20px; }
+    .btn-outline:hover { background: #fff; color: #000 !important; }
+    @media (max-width: 768px) { .nav-links { display: none; } nav { padding: 0 20px; } #mobile-menu-btn { display: block !important; } }
+
+    /* ─── MAIN ─── */
+    main { flex: 1; display: flex; flex-direction: column; align-items: center; padding-top: 160px; padding-bottom: 100px; position: relative; z-index: 10; }
+
+    /* ─── PAGE HEADER ─── */
+    .page-header { text-align: center; margin-bottom: 60px; }
+    .page-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 1px solid var(--c-border); background: rgba(255,255,255,0.03);
+      border-radius: 100px; padding: 6px 16px; margin-bottom: 28px;
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #fff;
+      animation: fadeUp 0.9s ease both;
+    }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: blinkDot 2s infinite; }
+    @keyframes blinkDot { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+
+    .page-header h1 {
+      font-size: clamp(48px, 8vw, 96px); font-weight: 900;
+      letter-spacing: -3px; text-transform: uppercase;
+      margin-bottom: 18px; line-height: 0.95;
+      animation: fadeUp 0.9s ease 0.1s both;
+    }
+    .page-header p { color: #888; font-size: 17px; max-width: 600px; margin: 0 auto; line-height: 1.5; animation: fadeUp 0.9s ease 0.2s both; }
+
+    /* ─── PLATFORMS GRID ─── */
+    .platforms { width: 100%; max-width: 760px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; animation: fadeUp 0.9s ease 0.3s both; }
+
+    /* ─── PLATFORM CARD ─── */
+    .card {
+      background: rgba(10,10,10,0.8);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px; padding: 44px 36px 36px;
+      text-align: center; display: flex; flex-direction: column; justify-content: space-between;
+      position: relative; overflow: hidden;
+      transition: border-color 0.4s, transform 0.4s, box-shadow 0.4s;
+      backdrop-filter: blur(16px);
+    }
+    /* Animated top glow line */
+    .card::before {
+      content: ''; position: absolute; top: 0; left: 20%; right: 20%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+      opacity: 0; transition: opacity 0.4s;
+    }
+    /* Corner accent */
+    .card::after {
+      content: ''; position: absolute; top: -60px; right: -60px;
+      width: 160px; height: 160px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
+      transition: opacity 0.4s;
+    }
+    .card:hover { border-color: rgba(255,255,255,0.35); transform: translateY(-6px); box-shadow: 0 30px 60px rgba(0,0,0,0.6), 0 0 40px rgba(255,255,255,0.03); }
+    .card:hover::before { opacity: 1; }
+
+    .card-icon { height: 52px; margin-bottom: 28px; display: flex; justify-content: center; align-items: center; }
+    .card-icon svg, .card-icon img { transition: transform 0.4s ease; }
+    .card:hover .card-icon svg, .card:hover .card-icon img { transform: scale(1.1); }
+
+    .card h2 { font-size: 22px; font-weight: 800; margin-bottom: 14px; letter-spacing: -0.5px; }
+    .card p { font-size: 14px; color: #777; margin-bottom: 32px; line-height: 1.7; }
+
+    /* ─── STEPS (iOS GUIDE) ─── */
+    .steps-list { text-align: left; margin-bottom: 28px; }
+    .step-row {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .step-row:last-child { border-bottom: none; }
+    .step-num-badge {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono); font-size: 10px; color: #fff; flex-shrink: 0; margin-top: 1px;
+    }
+    .step-text { font-size: 13px; color: #888; line-height: 1.5; }
+    .step-text strong { color: #ccc; }
+
+    /* ─── BUTTONS ─── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      background: #fff; color: #000; padding: 14px 28px; border-radius: 100px;
+      text-decoration: none; font-weight: 700; font-size: 13px;
+      letter-spacing: 0.5px; transition: all 0.3s; cursor: pointer; border: none;
+      box-shadow: 0 4px 16px rgba(255,255,255,0.12);
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,255,255,0.25); }
+    .btn.outline { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.2); box-shadow: none; }
+    .btn.outline:hover { background: #fff; color: #000; }
+    .btn.disabled { background: transparent; border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.2); cursor: not-allowed; pointer-events: none; box-shadow: none; }
+
+    .status-msg { font-family: var(--font-mono); font-size: 10px; color: #555; margin-top: 14px; letter-spacing: 0.5px; text-transform: uppercase; }
+
+    /* ─── BOTTOM DATA FLOW BAR ─── */
+    .data-flow-wrap { width: 100%; max-width: 760px; padding: 0 24px; margin-top: 40px; animation: fadeUp 0.9s ease 0.5s both; }
+    .data-flow-bar {
+      position: relative;
+      background: linear-gradient(180deg, rgba(18,18,18,0.92) 0%, rgba(8,8,8,0.92) 100%);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      overflow: hidden;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .data-flow-bar::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(ellipse at top center, rgba(255,255,255,0.07), transparent 55%);
+    }
+    .data-flow-label {
+      position: relative;
+      z-index: 1;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: #d6d6d6;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.03);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+    .data-flow-label::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      box-shadow: 0 0 0 0 rgba(255,255,255,0.25);
+      animation: pulseDot 2s infinite;
+    }
+    .data-flow-label.right::before { animation-delay: 0.6s; }
+    #flow-canvas {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      height: 32px;
+      min-width: 80px;
+      display: block;
+    }
+
+    @media (max-width: 640px) {
+      .data-flow-bar {
+        padding: 12px;
+        gap: 8px;
+      }
+      .data-flow-label {
+        font-size: 8px;
+        letter-spacing: 1px;
+        padding: 6px 8px;
+      }
+    }
+
+    @keyframes pulseDot {
+      0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.22); }
+      70% { box-shadow: 0 0 0 7px rgba(255,255,255,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+    }
+
+    /* ─── APPLE FOOTER ─── */
+    .apple-footer { background: #111111; color: #86868b; font-family: var(--font-main); font-size: 12px; line-height: 1.33337; font-weight: 400; padding: 0 22px; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; position: relative; z-index: 10; }
+    .apple-footer-content { max-width: 980px; margin: 0 auto; padding: 20px 0; }
+    .footer-breadcrumbs { display: flex; align-items: center; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
+    .footer-breadcrumbs a { color: #f5f5f7; text-decoration: none; font-weight: 500; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .footer-breadcrumbs img { width: 18px !important; height: 18px !important; border-radius: 4px; object-fit: contain; filter: invert(1); opacity: 0.9; }
+    .footer-breadcrumbs span { color: #86868b; font-size: 12px; }
+    .footer-directory { display: flex; flex-wrap: wrap; margin-bottom: 20px; }
+    .footer-directory-column { flex: 1; flex-basis: 20%; min-width: 150px; margin-bottom: 20px; }
+    .footer-directory-column-title { color: #f5f5f7; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+    .footer-directory-list { list-style: none; padding: 0; margin: 0; }
+    .footer-directory-list li { margin-bottom: 8px; }
+    .footer-directory-list a { color: #86868b; text-decoration: none; transition: color 0.2s; }
+    .footer-directory-list a:hover { color: #f5f5f7; text-decoration: underline; }
+    .footer-mini { padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 12px; }
+    .footer-mini-legal { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    @media (max-width: 833px) { .footer-directory { display: flex; flex-direction: column; gap: 10px; } .footer-directory-column { flex-basis: 100%; min-width: 100%; margin-bottom: 10px; } .footer-mini-legal { flex-direction: column; align-items: flex-start; } }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="top-glow"></div>
+
+<nav>
+    <a href="/" class="nav-logo">
+      <img src="../icons/logo-192.png" alt="Logo">
+      LUMYN
+    </a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/download">Apps</a>
+      <a href="/faq">FAQ</a>
+      <a href="/support">Support</a>
+      <a href="/updates">Updates</a>
+      <a href="/api">API</a>
+      <a href="/protocol">Protocol</a>
+      <a href="/schema">Schema</a>
+      <a href="/moderation">Moderation</a>
+      <a href="/en" class="btn-outline" style="margin-left: 20px;">EN</a>
+    </div>
+    
+    <button id="mobile-menu-btn" style="display:none; background:none; border:none; color:white; font-size:26px; cursor:pointer;">☰</button>
+  </nav>
+
+<div id="mobile-dropdown" style="display:none;position:fixed;top:80px;left:0;right:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.1);padding:20px;z-index:199;flex-direction:column;gap:16px;text-align:center;">
+  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Home</a>
+  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Apps</a>
+  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">FAQ</a>
+  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Support</a>
+  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Updates</a>
+  <a href="/api" style="color:white;text-decoration:none;font-size:16px;">API</a>
+  <a href="/protocol" style="color:white;text-decoration:none;font-size:16px;">Protocol</a>
+  <a href="/schema" style="color:white;text-decoration:none;font-size:16px;">Schema</a>
+  <a href="/moderation" style="color:white;text-decoration:none;font-size:16px;">Moderation</a>
+  <a href="/en" style="color:white;text-decoration:none;font-size:16px;opacity:0.5;margin-top:8px;">EN (English)</a>
+</div>
+
+<main>
+  <header class="page-header">
+    <h1>CHOOSE<br>YOUR PLATFORM.</h1>
+    <p>LUMYN is available on smartphones and PCs. Secure communication on all your devices.</p>
+  </header>
+
+  <div class="platforms">
+
+    <!-- WINDOWS CARD -->
+    <div class="card">
+      <div>
+        <div class="card-icon">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
+            <path d="M2 3.75 10.5 2v9.25H2V3.75Zm9.5-1.94L22 0v11.25H11.5V1.81ZM2 12.75h8.5V22L2 20.25v-7.5Zm9.5 0H22V24l-10.5-1.81v-9.44Z"/>
+          </svg>
+        </div>
+        <h2>Windows Installer</h2>
+        <div class="steps-list">
+          <div class="step-row">
+            <div class="step-num-badge">1</div>
+            <div class="step-text">Click <strong>Download .EXE</strong></div>
+          </div>
+          <div class="step-row">
+            <div class="step-num-badge">2</div>
+            <div class="step-text">Run the installer and confirm installation</div>
+          </div>
+          <div class="step-row">
+            <div class="step-num-badge">3</div>
+            <div class="step-text">Open LUMYN from the desktop shortcut</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <a
+          class="btn"
+          href="https://github.com/user4032/aether-mobile/releases/latest"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Open Latest Release
+        </a>
+        <div class="status-msg">// SELECT LumynMessengerSetup.exe IN RELEASE ATTACHMENTS</div>
+      </div>
+    </div>
+
+    <!-- iOS CARD -->
+    <div class="card">
+      <div>
+        <div class="card-icon">
+          <img src="/icons/white-apple-logo-transparent.png" alt="Apple Logo" style="height:42px;width:auto;">
+        </div>
+        <h2>iOS / iPadOS</h2>
+        <div class="steps-list">
+          <div class="step-row">
+            <div class="step-num-badge">1</div>
+            <div class="step-text">Open the website in <strong>Safari</strong></div>
+          </div>
+          <div class="step-row">
+            <div class="step-num-badge">2</div>
+            <div class="step-text">Tap the <strong>"Share"</strong> button at the bottom of the screen</div>
+          </div>
+          <div class="step-row">
+            <div class="step-num-badge">3</div>
+            <div class="step-text">Select <strong>"Add to Home Screen"</strong></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <button type="button" class="btn" id="ios-share-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+          Open in Safari
+        </button>
+        <div class="status-msg">// SAFARI → SHARE → HOME</div>
+      </div>
+    </div>
+
+    <!-- ANDROID CARD -->
+    <div class="card">
+      <div>
+        <div class="card-icon">
+          <svg width="46" height="46" viewBox="0 0 24 24" fill="#ffffff">
+            <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-1.0003 0-.5516.4482-.9993.9993-.9993.5511 0 .9993.4477.9993.9993 0 .5517-.4482 1.0003-.9993 1.0003zm-11.046 0c-.5511 0-.9993-.4486-.9993-1.0003 0-.5516.4482-.9993.9993-.9993.5511 0 .9993.4477.9993.9993 0 .5517-.4482 1.0003-.9993 1.0003zm11.4045-6.02L19.8 6.467c.1377-.2385.0561-.5433-.1824-.681-.2385-.1385-.5441-.0561-.681.1824l-1.9566 3.391c-1.467-.665-3.136-1.0366-4.98-1.0366-1.8449 0-3.5139.3716-4.981 1.0366L5.0624 5.9684c-.1377-.2385-.4425-.3209-.681-.1824-.2385.1377-.3209.4425-.1824.681l1.918 3.8544C2.654 12.1645.244 15.9189.049 20.354h23.902c-.195-4.4351-2.605-8.1895-6.0685-10.0326z"/>
+          </svg>
+        </div>
+        <h2>Android</h2>
+        <div class="steps-list">
+          <div class="step-row">
+            <div class="step-num-badge">1</div>
+            <div class="step-text">Open the website in <strong>Google Chrome</strong></div>
+          </div>
+          <div class="step-row">
+            <div class="step-num-badge">2</div>
+            <div class="step-text">Tap the menu <strong>⋮</strong> in the top right corner</div>
+          </div>
+          <div class="step-row">
+            <div class="step-num-badge">3</div>
+            <div class="step-text">Select <strong>"Add to Home Screen"</strong></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <button class="btn disabled">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Install PWA
+        </button>
+        <div class="status-msg">// INSTALLATION THROUGH BROWSER</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="data-flow-wrap">
+    <div class="data-flow-bar">
+      <div class="data-flow-label">SECURE COMMUNICATION</div>
+      <canvas id="flow-canvas"></canvas>
+      <div class="data-flow-label right">X25519 + AES-256-GCM</div>
+    </div>
+  </div>
+</main>
+
+<footer class="apple-footer">
+  <div class="apple-footer-content">
+    <div class="footer-breadcrumbs">
+      <a href="/"><img src="/icons/logo-192.png" alt="LUMYN"> LUMYN</a>
+      <span>›</span><span>Apps</span>
+    </div>
+    <div class="footer-directory">
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">LUMYN</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/">Home</a></li>
+          <li><a href="/download">Apps</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Resources</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/faq">FAQ</a></li>
+          <li><a href="/support">Support</a></li>
+          <li><a href="/updates">Updates</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Documentation</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/api">API</a></li>
+          <li><a href="/protocol">Protocol</a></li>
+          <li><a href="/schema">Schema</a></li>
+          <li><a href="/moderation">Moderation</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Project</h3>
+        <ul class="footer-directory-list">
+          <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li>
+          <li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li>
+          <li><a href="https://t.me/lumynspace" target="_blank" rel="noopener noreferrer">Telegram</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-mini">
+      <div class="footer-mini-legal">
+        <div>Copyright © 2026 LUMYN Protocol. All rights reserved.</div>
+        <div><span style="color:#86868b;">Made in Ukraine 🇺🇦</span></div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ─── PARTICLE CANVAS ─── */
+(function(){
+  var canvas = document.getElementById('bg-canvas');
+  var ctx = canvas.getContext('2d');
+  var W, H, particles = [];
+
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  window.addEventListener('resize', resize); resize();
+
+  for (var i = 0; i < 70; i++) {
+    particles.push({
+      x: Math.random() * 1920, y: Math.random() * 1080,
+      vx: (Math.random()-0.5)*0.22, vy: (Math.random()-0.5)*0.22,
+      r: Math.random() * 1.3 + 0.2, a: Math.random() * 0.3 + 0.04
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(function(p) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,' + p.a + ')'; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ─── DATA FLOW BAR CANVAS ─── */
+(function(){
+  var cv = document.getElementById('flow-canvas');
+  if (!cv) return;
+  var cx = cv.getContext('2d');
+  var cW, cH;
+  function resize() { cW = cv.width = cv.offsetWidth; cH = cv.height = cv.offsetHeight; }
+  window.addEventListener('resize', resize); resize();
+
+  var packets = [];
+  for (var i = 0; i < 6; i++) {
+    packets.push({
+      x: Math.random() * cW, speed: 1.5 + Math.random() * 2.5,
+      width: 20 + Math.random() * 40, y: cH / 2,
+      alpha: 0.4 + Math.random() * 0.6
+    });
+  }
+
+  function drawFlow() {
+    cx.clearRect(0, 0, cW, cH);
+    /* Background line */
+    cx.beginPath(); cx.moveTo(0, cH/2); cx.lineTo(cW, cH/2);
+    cx.strokeStyle = 'rgba(255,255,255,0.04)'; cx.lineWidth = 1; cx.stroke();
+
+    packets.forEach(function(p) {
+      p.x += p.speed;
+      if (p.x > cW + p.width) p.x = -p.width;
+
+      var grad = cx.createLinearGradient(p.x - p.width, 0, p.x + 4, 0);
+      grad.addColorStop(0, 'rgba(255,255,255,0)');
+      grad.addColorStop(0.6, 'rgba(255,255,255,' + p.alpha + ')');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+
+      cx.beginPath(); cx.moveTo(p.x - p.width, p.y); cx.lineTo(p.x + 4, p.y);
+      cx.strokeStyle = grad; cx.lineWidth = 2; cx.stroke();
+
+      cx.beginPath(); cx.arc(p.x, p.y, 2, 0, Math.PI*2);
+      cx.fillStyle = 'rgba(255,255,255,' + p.alpha + ')'; cx.fill();
+    });
+    requestAnimationFrame(drawFlow);
+  }
+  drawFlow();
+})();
+
+/* ─── MOBILE MENU ─── */
+var mobileBtn = document.getElementById('mobile-menu-btn');
+if (mobileBtn) {
+  mobileBtn.addEventListener('click', function() {
+    var dd = document.getElementById('mobile-dropdown');
+    if (dd.style.display === 'none' || !dd.style.display) { dd.style.display = 'flex'; this.textContent = '✕'; }
+    else { dd.style.display = 'none'; this.textContent = '☰'; }
+  });
+}
+
+/* ─── IOS SAFARI SHARE SHEET ─── */
+var iosShareBtn = document.getElementById('ios-share-btn');
+if (iosShareBtn) {
+  iosShareBtn.addEventListener('click', async function() {
+    var shareData = {
+      title: 'LUMYN',
+      text: 'Встановіть LUMYN на екран Домів',
+      url: window.location.origin + '/'
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        /* User may cancel the share action. */
+      }
+      return;
+    }
+
+    alert('Цей браузер не підтримує вікно Поділитися. Відкрийте сайт у Safari та натисніть Поділитися вручну.');
+  });
+}
+</script>
+</body>
+</html>

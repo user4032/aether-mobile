@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="LUMYN">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="LUMYN - Messenger updates">
+  
+  <link rel="icon" href="../icons/favicon.png?v=1">
+  <link rel="apple-touch-icon" href="../icons/logo-192.png?v=6">
+  <link rel="manifest" href="/manifest.json">
+
+  <title>LUMYN | Updates</title> 
+  <script defer src="/locale-routing.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ─── SCROLLBAR ─── */
+    html {
+      overflow-y: scroll;
+      color-scheme: dark;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.2) #000000;
+    }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #000000; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+    :root {
+      --c-bg:       #000000;
+      --c-surface:  #0a0a0a;
+      --c-border:   rgba(255, 255, 255, 0.08);
+      --c-border-h: rgba(255, 255, 255, 0.2);
+      --c-txt:      #ffffff;
+      --c-muted:    #888888;
+      --font-main:  'Inter', sans-serif;
+      --font-mono:  'JetBrains Mono', monospace;
+    }
+
+    body {
+      width: 100%; height: 100%;
+      min-height: 100dvh;
+      background: var(--c-bg);
+      color: var(--c-txt);
+      font-family: var(--font-main);
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+      scroll-behavior: smooth;
+    }
+
+    /* ─── NAV ─── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      padding: 0 40px; height: 80px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--c-border);
+    }
+    .nav-logo {
+      font-family: var(--font-main);
+      font-size: 16px; font-weight: 900; letter-spacing: 4px;
+      text-transform: uppercase; display: flex; align-items: center; gap: 12px;
+      text-decoration: none; color: #fff;
+    }
+    .nav-logo img { width: 28px; height: 28px; border-radius: 6px; }
+    
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a {
+      color: var(--c-muted); text-decoration: none; font-size: 12px; 
+      font-weight: 500; letter-spacing: 1px; text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover, .nav-links a.active { color: #fff; }
+
+    .btn-outline {
+      border: 1px solid var(--c-border-h); background: transparent; color: #fff !important;
+      padding: 8px 16px; border-radius: 100px; font-size: 11px !important; font-weight: 600 !important;
+      letter-spacing: 1px; text-transform: uppercase; text-decoration: none;
+      transition: all 0.2s; cursor: pointer; margin-left: 16px;
+    }
+    .btn-outline:hover { background: #fff; color: #000 !important; }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      nav { padding: 0 20px; }
+      #mobile-menu-btn { display: block !important; }
+    }
+
+    /* ─── MAIN CONTENT ─── */
+    main {
+      max-width: 840px;
+      margin: 0 auto;
+      padding: 140px 24px 80px;
+    }
+
+    .sec-label {
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px; 
+      text-transform: uppercase; color: var(--c-muted); margin-bottom: 16px; 
+    }
+    h1 {
+      font-size: clamp(32px, 6vw, 56px);
+      font-weight: 900; line-height: 1.05; letter-spacing: -1.5px;
+      margin-bottom: 24px; color: #fff;
+    }
+    .hero-desc {
+      font-size: clamp(14px, 2vw, 16px);
+      color: var(--c-muted); max-width: 600px; margin-bottom: 60px;
+      line-height: 1.6; font-weight: 400;
+    }
+
+    /* ─── UPDATES CARDS ─── */
+    .updates-grid {
+      display: flex; flex-direction: column; gap: 16px;
+      margin-bottom: 80px;
+    }
+    .update-card {
+      background: var(--c-surface); border: 1px solid var(--c-border); 
+      border-radius: 12px; padding: 28px 24px; transition: border-color 0.3s;
+    }
+    .update-card:hover { border-color: var(--c-border-h); }
+    
+    .update-meta {
+      display: flex; justify-content: space-between; align-items: center; 
+      margin-bottom: 16px; border-bottom: 1px solid var(--c-border);
+      padding-bottom: 16px;
+    }
+    .ver {
+      font-family: var(--font-mono); font-size: 12px; color: #fff; letter-spacing: 1px;
+    }
+    .tag {
+      font-family: var(--font-mono); font-size: 10px; padding: 4px 10px; 
+      border-radius: 100px; border: 1px solid var(--c-border); 
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+    .tag-new { color: #fff; background: rgba(255,255,255,0.05); }
+    .tag-fix { color: var(--c-muted); }
+    
+    .update-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 12px; color: #fff; }
+    .update-card p { color: var(--c-muted); font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+    
+    .update-list {
+      list-style: none; padding-left: 0;
+    }
+    .update-list li {
+      position: relative; padding-left: 20px; color: #cfcfcf; 
+      font-size: 14px; line-height: 1.6; margin-bottom: 8px;
+    }
+    .update-list li::before {
+      content: ""; position: absolute; left: 0; top: 8px;
+      width: 6px; height: 6px; border-radius: 50%; background: var(--c-border-h);
+    }
+
+    /* ─── DOCS GRID ─── */
+    .docs-section h2 {
+      font-size: 28px; font-weight: 800; margin-bottom: 24px; letter-spacing: -1px;
+    }
+    .feat-grid { 
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; 
+      margin-bottom: 60px;
+    }
+    .feat-card { 
+      background: var(--c-surface); border: 1px solid var(--c-border); 
+      border-radius: 12px; padding: 24px; transition: border-color 0.3s;
+      text-decoration: none; display: block;
+    }
+    .feat-card:hover { border-color: var(--c-border-h); }
+    .feat-name { font-family: var(--font-mono); font-size: 14px; font-weight: 700; margin-bottom: 8px; color: #fff; }
+    .feat-desc { font-size: 13px; color: var(--c-muted); line-height: 1.5; }
+
+    /* ─── BUTTONS ─── */
+    .actions-row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .btn-primary { 
+      background: #ffffff; color: #000000 !important; 
+      padding: 16px 32px; border-radius: 100px; font-weight: 800; font-size: 14px; 
+      text-decoration: none; transition: all 0.3s ease; display: inline-flex; 
+      align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2); }
+    .btn-secondary { 
+      background: transparent; color: #fff; border: 1px solid var(--c-border-h); 
+      padding: 16px 32px; border-radius: 100px; font-weight: 600; font-size: 14px; 
+      text-decoration: none; transition: background 0.2s, color 0.2s;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .btn-secondary:hover { background: #fff; color: #000; }
+
+    /* ─── APPLE STYLE FOOTER ─── */
+    .apple-footer { background: #111111; color: #86868b; font-size: 12px; line-height: 1.33337; font-weight: 400; padding: 0 22px; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; position: relative; z-index: 10;}
+    .apple-footer-content { max-width: 980px; margin: 0 auto; padding: 20px 0; }
+    
+    .footer-breadcrumbs { display: flex; align-items: center; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
+    .footer-breadcrumbs a { color: #f5f5f7; text-decoration: none; font-weight: 500; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .footer-breadcrumbs img { width: 18px !important; height: 18px !important; border-radius: 4px; object-fit: contain; filter: invert(1); opacity: 0.9; }
+    .footer-breadcrumbs span { color: #86868b; font-size: 12px; }
+
+    .footer-directory { display: flex; flex-wrap: wrap; margin-bottom: 20px; }
+    .footer-directory-column { flex: 1; flex-basis: 20%; min-width: 150px; margin-bottom: 20px; }
+    .footer-directory-column-title { color: #f5f5f7; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+    .footer-directory-list { list-style: none; padding: 0; margin: 0; }
+    .footer-directory-list li { margin-bottom: 8px; }
+    .footer-directory-list a { color: #86868b; text-decoration: none; transition: color 0.2s; }
+    .footer-directory-list a:hover { color: #f5f5f7; text-decoration: underline; }
+
+    .footer-mini { padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 12px; }
+    .footer-mini-legal { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .footer-mini-legal-links { display: flex; gap: 12px; flex-wrap: wrap; }
+    .footer-mini-legal-links a { color: #86868b; text-decoration: none; border-right: 1px solid rgba(255,255,255,0.2); padding-right: 12px; }
+    .footer-mini-legal-links a:last-child { border-right: none; padding-right: 0; }
+    .footer-mini-legal-links a:hover { color: #f5f5f7; text-decoration: underline; }
+
+    @media (max-width: 833px) {
+      .footer-directory { display: flex; flex-direction: column; gap: 10px; }
+      .footer-directory-column { flex-basis: 100%; min-width: 100%; margin-bottom: 10px; }
+      .footer-mini-legal { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="/" class="nav-logo">
+      <img src="../icons/logo-192.png" alt="Logo">
+      LUMYN
+    </a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/download">Apps</a>
+      <a href="/faq">FAQ</a>
+      <a href="/support">Support</a>
+      <a href="/updates" class="active">Updates</a>
+      <a href="/api">API</a>
+      <a href="/protocol">Protocol</a>
+      <a href="/schema">Schema</a>
+      <a href="/moderation">Moderation</a>
+      <a href="/uk-ua" class="btn-outline">UA</a>
+    </div>
+    <button id="mobile-menu-btn" style="display:none; background:none; border:none; color:white; font-size:26px; cursor:pointer;">☰</button>
+  </nav>
+
+  <div id="mobile-dropdown" style="display:none; position:fixed; top:80px; left:0; right:0; background:rgba(0,0,0,0.95); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,0.1); padding:20px; z-index:199; flex-direction:column; gap:16px; text-align:center;">
+      <a href="/" style="color:white; text-decoration:none; font-size:16px;">Home</a>
+      <a href="/download" style="color:white; text-decoration:none; font-size:16px;">Apps</a>
+      <a href="/faq" style="color:white; text-decoration:none; font-size:16px;">FAQ</a>
+      <a href="/support" style="color:white; text-decoration:none; font-size:16px;">Support</a>
+      <a href="/updates" style="color:white; text-decoration:none; font-size:16px;">Updates</a>
+      <a href="/api" style="color:white; text-decoration:none; font-size:16px;">API</a>
+      <a href="/protocol" style="color:white; text-decoration:none; font-size:16px;">Protocol</a>
+      <a href="/schema" style="color:white; text-decoration:none; font-size:16px;">Schema</a>
+      <a href="/moderation" style="color:white; text-decoration:none; font-size:16px;">Moderation</a>
+      <a href="/uk-ua" style="color:white; text-decoration:none; font-size:16px; opacity:0.5; margin-top:8px;">UA (Ukrainian)</a>
+  </div>
+
+  <main>
+    <div class="sec-label">LUMYN // RELEASE NOTES</div>
+    <h1>Latest updates</h1>
+    <p class="hero-desc">Transparent changelog and roadmap in technical notes style: what is already shipped, what is in progress, and which protocol/API blocks are coming next.</p>
+
+    <div class="updates-grid">
+      <article class="update-card">
+        <div class="update-meta">
+          <span class="ver">v1.6.0 · Mar 2026</span>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <h3>Group Info + group management</h3>
+        <p>Added a full Group Info screen, editing for members/description/group name, and direct entry from the chat menu.</p>
+        <ul class="update-list">
+          <li>Dedicated sections: avatar, shared media, members list</li>
+          <li>More stable group id routing</li>
+          <li>Better group title refresh after save</li>
+        </ul>
+      </article>
+
+      <article class="update-card">
+        <div class="update-meta">
+          <span class="ver">v1.5.3 · Mar 2026</span>
+          <span class="tag tag-fix">FIX</span>
+        </div>
+        <h3>iOS PWA viewport stabilization</h3>
+        <p>Fixed screen clipping and incorrect safe-area behavior on iPhone in standalone/browser modes.</p>
+      </article>
+
+      <article class="update-card">
+        <div class="update-meta">
+          <span class="ver">v1.5.2 · Mar 2026</span>
+          <span class="tag tag-fix">FIX</span>
+        </div>
+        <h3>System unlock without loops</h3>
+        <p>Fixed a lock-screen race condition: no repeated auto-lock after authentication.</p>
+      </article>
+    </div>
+
+    <section class="docs-section">
+      <div class="sec-label">ROADMAP</div>
+      <h2>Documentation and API</h2>
+      <div class="feat-grid">
+        <a href="/protocol" class="feat-card">
+          <div class="feat-name">// Protocol Notes</div>
+          <div class="feat-desc">X3DH + message flow explanation for client and backend. (In progress)</div>
+        </a>
+        <a href="/api" class="feat-card">
+          <div class="feat-name">// Client API Surface</div>
+          <div class="feat-desc">Socket.IO events, error codes, auth/verification scenarios. (In progress)</div>
+        </a>
+        <a href="/schema" class="feat-card">
+          <div class="feat-name">// Message Schema</div>
+          <div class="feat-desc">Payload format, reactions, ephemeral metadata, versioning. (Planned)</div>
+        </a>
+        <a href="/moderation" class="feat-card">
+          <div class="feat-name">// Moderation Policy</div>
+          <div class="feat-desc">Abuse-handling policy and security response model. (Planned)</div>
+        </a>
+      </div>
+    </section>
+
+    <div class="actions-row">
+      <a class="btn-primary" href="/download">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Download LUMYN
+      </a>
+      <a class="btn-secondary" href="/faq">Open FAQ</a>
+    </div>
+  </main>
+
+  <footer class="apple-footer">
+    <div class="apple-footer-content">
+      <div class="footer-breadcrumbs">
+        <a href="/">
+          <img src="../icons/logo-192.png" alt="LUMYN"> LUMYN
+        </a>
+        <span>›</span>
+        <span>Updates</span>
+      </div>
+
+      <div class="footer-directory">
+        <div class="footer-directory-column">
+          <h3 class="footer-directory-column-title">LUMYN</h3>
+          <ul class="footer-directory-list">
+            <li><a href="/">Home</a></li>
+            <li><a href="/download">Apps</a></li>
+          </ul>
+        </div>
+        <div class="footer-directory-column">
+          <h3 class="footer-directory-column-title">Resources</h3>
+          <ul class="footer-directory-list">
+            <li><a href="/faq">FAQ</a></li>
+            <li><a href="/support">Support</a></li>
+            <li><a href="/updates" style="color: #f5f5f7;">Updates</a></li>
+          </ul>
+        </div>
+        <div class="footer-directory-column">
+          <h3 class="footer-directory-column-title">Documentation</h3>
+          <ul class="footer-directory-list">
+            <li><a href="/api">API</a></li>
+            <li><a href="/protocol">Protocol</a></li>
+            <li><a href="/schema">Schema</a></li>
+            <li><a href="/moderation">Moderation</a></li>
+          </ul>
+        </div>
+        <div class="footer-directory-column">
+          <h3 class="footer-directory-column-title">Project</h3>
+          <ul class="footer-directory-list">
+            <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li>
+            <li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li>
+            <li><a href="https://t.me/lumynspace" target="_blank" rel="noopener noreferrer">Telegram</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="footer-mini">
+        <div class="footer-mini-legal">
+          <div>Copyright © 2026 LUMYN Protocol. All rights reserved.</div>
+          <div class="footer-mini-legal-links">
+            <span style="color: #86868b;">Made in Ukraine 🇺🇦</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    /* Mobile menu */
+    document.getElementById('mobile-menu-btn').addEventListener('click', function() {
+      var dropdown = document.getElementById('mobile-dropdown');
+      if (dropdown.style.display === 'none') {
+        dropdown.style.display = 'flex';
+        this.textContent = '✕';
+      } else {
+        dropdown.style.display = 'none';
+        this.textContent = '☰';
+      }
+    });
+  </script>
+</body>
+</html>

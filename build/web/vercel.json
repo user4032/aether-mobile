@@ -1,0 +1,62 @@
+{
+  "version": 2,
+  "framework": null,
+  "installCommand": "set -e; rm -rf ../flutter; git clone https://github.com/flutter/flutter.git --depth 1 -b stable ../flutter; ../flutter/bin/flutter --disable-analytics; ../flutter/bin/flutter pub get",
+  "buildCommand": "rm -rf build/web && ../flutter/bin/flutter build web --release",
+  "outputDirectory": "build/web",
+  "cleanUrls": true,
+  "trailingSlash": false,
+
+  "redirects": [
+    { "source": "/uk-ua/", "destination": "/uk-ua", "permanent": true },
+    { "source": "/en-us/", "destination": "/en-us", "permanent": true }
+  ],
+
+  "rewrites": [
+    { "source": "/uk-ua",          "destination": "/uk-ua.html" },
+    { "source": "/en-us",          "destination": "/en-us.html" },
+
+    { "source": "/uk-ua/download", "destination": "/download.html" },
+    { "source": "/en-us/download", "destination": "/en-us/download.html" },
+
+    { "source": "/uk-ua/faq",      "destination": "/faq.html" },
+    { "source": "/en-us/faq",      "destination": "/en-us/faq.html" },
+
+    { "source": "/uk-ua/updates",  "destination": "/updates.html" },
+    { "source": "/en-us/updates",  "destination": "/en-us/updates.html" },
+
+    { "source": "/uk-ua/api",      "destination": "/api.html" },
+    { "source": "/en-us/api",      "destination": "/en-us/api.html" },
+
+    { "source": "/uk-ua/protocol", "destination": "/protocol.html" },
+    { "source": "/en-us/protocol", "destination": "/en-us/protocol.html" },
+
+    { "source": "/uk-ua/schema",   "destination": "/schema.html" },
+    { "source": "/en-us/schema",   "destination": "/en-us/schema.html" },
+
+    { "source": "/uk-ua/moderation","destination": "/moderation.html" },
+    { "source": "/en-us/moderation","destination": "/en-us/moderation.html" },
+
+    { "source": "/uk-ua/support",  "destination": "/support.html" },
+    { "source": "/en-us/support",  "destination": "/en-us/support.html" },
+    
+    { "source": "/uk-ua/status",   "destination": "/status.html" },
+    { "source": "/en-us/status",   "destination": "/en-us/status.html" },
+
+    { "source": "/download",       "destination": "/download.html" },
+    { "source": "/faq",            "destination": "/faq.html" },
+    { "source": "/support",        "destination": "/support.html" },
+    { "source": "/status",         "destination": "/status.html" },
+    { "source": "/updates",        "destination": "/updates.html" },
+    { "source": "/api",            "destination": "/api.html" },
+    { "source": "/protocol",       "destination": "/protocol.html" },
+    { "source": "/schema",         "destination": "/schema.html" },
+    { "source": "/moderation",     "destination": "/moderation.html" },
+    { "source": "/en",             "destination": "/en.html" },
+
+    { "source": "/uk-ua/404",      "destination": "/404.html" },
+    { "source": "/en-us/404",      "destination": "/en-us/404.html" },
+
+    { "source": "/(.*)",           "destination": "/index.html" }
+  ]
+}

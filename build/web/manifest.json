@@ -1,0 +1,25 @@
+{
+    "name": "Lumyn",
+    "short_name": "Lumyn",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#000000",
+    "theme_color": "#000000",
+    "gcm_sender_id": "103953800507",
+    "description": "Aether Core Protocol",
+    "orientation": "portrait-primary",
+    "display_override": ["standalone", "minimal-ui"],
+    "prefer_related_applications": false,
+    "icons": [
+       {
+            "src": "/icons/logo-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/logo-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

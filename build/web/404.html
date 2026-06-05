@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="LUMYN — Сторінку не знайдено">
+  <link rel="icon" href="icons/favicon.png?v=1">
+  <link rel="apple-touch-icon" href="icons/logo-192.png?v=6">
+  <title>404 — Lumyn</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      overflow-y: scroll;
+      color-scheme: dark;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.2) #000000;
+    }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #000000; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+    :root {
+      --c-bg:       #000000;
+      --c-surface:  #0a0a0a;
+      --c-border:   rgba(255,255,255,0.08);
+      --c-border-h: rgba(255,255,255,0.2);
+      --c-txt:      #ffffff;
+      --c-muted:    #888888;
+      --font-main:  'Inter', sans-serif;
+      --font-mono:  'JetBrains Mono', monospace;
+    }
+
+    body {
+      width: 100%;
+      min-height: 100dvh;
+      background: var(--c-bg);
+      color: var(--c-txt);
+      font-family: var(--font-main);
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── NAV ─── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      padding: 0 40px; height: 80px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--c-border);
+    }
+    .nav-logo {
+      font-family: var(--font-main);
+      font-size: 16px; font-weight: 900; letter-spacing: 4px;
+      text-transform: uppercase; display: flex; align-items: center; gap: 12px;
+      text-decoration: none; color: #fff;
+    }
+    .nav-logo img { width: 28px; height: 28px; border-radius: 6px; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a {
+      color: var(--c-muted); text-decoration: none; font-size: 12px;
+      font-weight: 500; letter-spacing: 1px; text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: #fff; }
+    .btn-outline {
+      border: 1px solid var(--c-border-h); background: transparent; color: #fff !important;
+      padding: 8px 16px; border-radius: 100px; font-size: 11px !important; font-weight: 600 !important;
+      letter-spacing: 1px; text-transform: uppercase; text-decoration: none;
+      transition: all 0.2s; cursor: pointer; margin-left: 16px;
+    }
+    .btn-outline:hover { background: #fff; color: #000 !important; }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      nav { padding: 0 20px; }
+      #mobile-menu-btn { display: block !important; }
+    }
+
+    /* ─── 404 MAIN ─── */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+
+    canvas#bg-canvas {
+      position: absolute;
+      inset: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 0;
+    }
+
+    .content-wrapper {
+      position: relative; z-index: 2;
+      display: flex; flex-direction: column;
+      align-items: center;
+      max-width: 720px;
+      animation: fadeUp 1s ease both;
+    }
+
+    .error-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 1px solid var(--c-border);
+      background: rgba(255,255,255,0.03);
+      border-radius: 100px; padding: 6px 16px;
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: #fff; margin-bottom: 40px;
+    }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: blink 1.5s infinite; }
+
+    .error-code {
+      font-family: var(--font-mono);
+      font-size: clamp(100px, 20vw, 200px);
+      font-weight: 700;
+      letter-spacing: -6px;
+      line-height: 0.9;
+      color: transparent;
+      -webkit-text-stroke: 1px rgba(255,255,255,0.15);
+      margin-bottom: 0;
+      user-select: none;
+      position: relative;
+    }
+
+    .error-code-overlay {
+      font-family: var(--font-mono);
+      font-size: clamp(100px, 20vw, 200px);
+      font-weight: 700;
+      letter-spacing: -6px;
+      line-height: 0.9;
+      color: #fff;
+      position: absolute;
+      top: 0; left: 50%; transform: translateX(-50%);
+      clip-path: inset(0 0 50% 0);
+      user-select: none;
+    }
+
+    .error-wrap { position: relative; display: inline-block; margin-bottom: 32px; }
+
+    .error-title {
+      font-size: clamp(20px, 4vw, 32px);
+      font-weight: 900;
+      letter-spacing: -1px;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+
+    .error-desc {
+      font-size: clamp(13px, 2vw, 16px);
+      color: var(--c-muted);
+      line-height: 1.6;
+      max-width: 440px;
+      margin-bottom: 48px;
+    }
+
+    /* ─── TERMINAL BLOCK ─── */
+    .terminal {
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: 12px;
+      overflow: hidden;
+      width: 100%;
+      max-width: 540px;
+      margin-bottom: 56px;
+      text-align: left;
+    }
+    .terminal-header {
+      padding: 12px 20px;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--c-border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .t-dot { width: 10px; height: 10px; border-radius: 50%; background: #333; }
+    .terminal-title { font-family: var(--font-mono); font-size: 11px; color: #888; margin-left: 8px; }
+    .terminal-body { padding: 20px 24px; font-family: var(--font-mono); font-size: 13px; line-height: 1.8; }
+    .t-line { display: block; }
+    .t-prompt { color: #888; }
+    .t-cmd { color: #fff; }
+    .t-err { color: rgba(255,255,255,0.4); }
+    .t-cursor {
+      display: inline-block; width: 8px; height: 14px;
+      background: #fff; vertical-align: -2px;
+      animation: blink 1s step-start infinite;
+    }
+
+    /* ─── NAVIGATION CARDS ─── */
+    .nav-cards-label {
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px;
+      text-transform: uppercase; color: #fff; margin-bottom: 24px;
+    }
+
+    .nav-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      width: 100%;
+      max-width: 680px;
+    }
+
+    .nav-card {
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: 12px;
+      padding: 24px 20px;
+      text-decoration: none;
+      transition: border-color 0.3s, transform 0.2s;
+      display: flex; flex-direction: column; gap: 10px;
+      animation: fadeUp 1s ease both;
+    }
+    .nav-card:nth-child(1) { animation-delay: 0.1s; }
+    .nav-card:nth-child(2) { animation-delay: 0.15s; }
+    .nav-card:nth-child(3) { animation-delay: 0.2s; }
+    .nav-card:nth-child(4) { animation-delay: 0.25s; }
+    .nav-card:nth-child(5) { animation-delay: 0.3s; }
+    .nav-card:nth-child(6) { animation-delay: 0.35s; }
+
+    .nav-card:hover {
+      border-color: var(--c-border-h);
+      transform: translateY(-2px);
+    }
+
+    .nav-card-icon {
+      width: 36px; height: 36px;
+      border: 1px solid var(--c-border);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .nav-card-name {
+      font-size: 14px; font-weight: 700; color: #fff;
+    }
+    .nav-card-hint {
+      font-size: 12px; color: var(--c-muted); line-height: 1.4;
+    }
+
+    /* ─── BACK HOME BTN ─── */
+    .btn-primary {
+      background: #ffffff;
+      color: #000000 !important;
+      padding: 16px 36px;
+      border-radius: 100px;
+      font-weight: 800;
+      font-size: 15px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 20px rgba(255,255,255,0.15);
+      margin-bottom: 48px;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 6px 25px rgba(255,255,255,0.3);
+    }
+
+    /* ─── FOOTER ─── */
+    .apple-footer {
+      background: #111111; color: #86868b;
+      font-family: 'Inter', sans-serif; font-size: 12px;
+      line-height: 1.33337; font-weight: 400;
+      padding: 0 22px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      width: 100%; position: relative; z-index: 10;
+    }
+    .apple-footer-content { max-width: 980px; margin: 0 auto; padding: 20px 0; }
+
+    .footer-breadcrumbs {
+      display: flex; align-items: center; gap: 8px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 20px;
+    }
+    .footer-breadcrumbs a {
+      color: #f5f5f7; text-decoration: none;
+      font-weight: 500; font-size: 12px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .footer-breadcrumbs img {
+      width: 18px !important; height: 18px !important;
+      border-radius: 4px; object-fit: contain;
+      filter: invert(1); opacity: 0.9;
+    }
+    .footer-breadcrumbs span { color: #86868b; font-size: 12px; }
+
+    .footer-directory { display: flex; flex-wrap: wrap; margin-bottom: 20px; }
+    .footer-directory-column { flex: 1; flex-basis: 20%; min-width: 150px; margin-bottom: 20px; }
+    .footer-directory-column-title { color: #f5f5f7; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+    .footer-directory-list { list-style: none; padding: 0; margin: 0; }
+    .footer-directory-list li { margin-bottom: 8px; }
+    .footer-directory-list a { color: #86868b; text-decoration: none; transition: color 0.2s; }
+    .footer-directory-list a:hover { color: #f5f5f7; text-decoration: underline; }
+
+    .footer-mini {
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .footer-mini-legal {
+      display: flex; justify-content: space-between;
+      align-items: center; flex-wrap: wrap; gap: 10px;
+    }
+    .footer-mini-legal-links { display: flex; gap: 12px; flex-wrap: wrap; }
+    .footer-mini-legal-links a {
+      color: #86868b; text-decoration: none;
+      border-right: 1px solid rgba(255,255,255,0.2); padding-right: 12px;
+    }
+    .footer-mini-legal-links a:last-child { border-right: none; padding-right: 0; }
+    .footer-mini-legal-links a:hover { color: #f5f5f7; text-decoration: underline; }
+
+    @media (max-width: 833px) {
+      .footer-directory { flex-direction: column; gap: 10px; }
+      .footer-directory-column { flex-basis: 100%; min-width: 100%; margin-bottom: 10px; }
+      .footer-mini-legal { flex-direction: column; align-items: flex-start; }
+    }
+
+    /* ─── MOBILE DROPDOWN ─── */
+    #mobile-dropdown {
+      display: none;
+      position: fixed; top: 80px; left: 0; right: 0;
+      background: rgba(0,0,0,0.95);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 20px; z-index: 199;
+      flex-direction: column; gap: 16px; text-align: center;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── NAV ─── -->
+<nav>
+  <a href="/" class="nav-logo">
+    <img src="icons/logo-192.png" alt="Logo">
+    LUMYN
+  </a>
+  <div class="nav-links">
+    <a href="/">Головна</a>
+    <a href="/download">Додатки</a>
+    <a href="/faq">ЧаПи</a>
+    <a href="/support">Підтримка</a>
+    <a href="/updates">Оновлення</a>
+    <a href="/api">API</a>
+    <a href="/protocol">Protocol</a>
+    <a href="/schema">Schema</a>
+    <a href="/moderation">Moderation</a>
+    <a href="/en" class="btn-outline" style="margin-left: 20px;">EN</a>
+  </div>
+  <button id="mobile-menu-btn" style="display:none; background:none; border:none; color:white; font-size:26px; cursor:pointer;">☰</button>
+</nav>
+
+<div id="mobile-dropdown">
+  <a href="/" style="color:white; text-decoration:none; font-size:16px;">Головна</a>
+  <a href="/download" style="color:white; text-decoration:none; font-size:16px;">Додатки</a>
+  <a href="/faq" style="color:white; text-decoration:none; font-size:16px;">ЧаПи</a>
+  <a href="/support" style="color:white; text-decoration:none; font-size:16px;">Підтримка</a>
+  <a href="/updates" style="color:white; text-decoration:none; font-size:16px;">Оновлення</a>
+  <a href="/api" style="color:white; text-decoration:none; font-size:16px;">API</a>
+  <a href="/protocol" style="color:white; text-decoration:none; font-size:16px;">Протокол</a>
+  <a href="/schema" style="color:white; text-decoration:none; font-size:16px;">Schema</a>
+  <a href="/moderation" style="color:white; text-decoration:none; font-size:16px;">Moderation</a>
+  <a href="/en" style="color:white; text-decoration:none; font-size:16px; opacity:0.5; margin-top:8px;">EN (English)</a>
+</div>
+
+<!-- ─── MAIN 404 ─── -->
+<main>
+  <canvas id="bg-canvas"></canvas>
+
+  <div class="content-wrapper">
+
+    <div class="error-badge">
+      <div class="badge-dot"></div>
+      Сторінку не знайдено
+    </div>
+
+    <div class="error-wrap">
+      <div class="error-code">404</div>
+      <div class="error-code-overlay">404</div>
+    </div>
+
+    <div class="error-title">З'єднання розірвано.</div>
+    <p class="error-desc">Цей маршрут не існує або його було видалено. Пакет не доставлено — але всі інші шляхи відкриті.</p>
+
+    <!-- Terminal -->
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="t-dot"></div>
+        <div class="t-dot"></div>
+        <div class="t-dot"></div>
+        <div class="terminal-title">lumyn/router — trace</div>
+      </div>
+      <div class="terminal-body">
+        <span class="t-line"><span class="t-prompt">$ </span><span class="t-cmd" id="t-cmd1"></span></span>
+        <span class="t-line t-err" id="t-line2" style="opacity:0">ERROR 404: route not found</span>
+        <span class="t-line t-err" id="t-line3" style="opacity:0">packet dropped at edge node</span>
+        <span class="t-line" id="t-line4" style="opacity:0"><span class="t-prompt">$ </span><span class="t-cmd" id="t-cmd4"></span><span class="t-cursor" id="t-cursor" style="display:none"></span></span>
+      </div>
+    </div>
+
+    <a href="/" class="btn-primary">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+      Повернутися на головну
+    </a>
+
+    <!-- Nav cards -->
+    <div class="nav-cards-label">Куди далі?</div>
+    <div class="nav-cards">
+
+      <a href="/download" class="nav-card">
+        <div class="nav-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>
+        <div class="nav-card-name">Додатки</div>
+        <div class="nav-card-hint">Завантажити LUMYN на свій пристрій</div>
+      </a>
+
+      <a href="/faq" class="nav-card">
+        <div class="nav-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div class="nav-card-name">ЧаПи</div>
+        <div class="nav-card-hint">Відповіді на поширені запитання</div>
+      </a>
+
+      <a href="/support" class="nav-card">
+        <div class="nav-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="nav-card-name">Підтримка</div>
+        <div class="nav-card-hint">Зв'язатися з командою LUMYN</div>
+      </a>
+
+      <a href="/protocol" class="nav-card">
+        <div class="nav-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="nav-card-name">Protocol</div>
+        <div class="nav-card-hint">Технічна документація протоколу</div>
+      </a>
+
+      <a href="/api" class="nav-card">
+        <div class="nav-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </div>
+        <div class="nav-card-name">API</div>
+        <div class="nav-card-hint">Інтеграція та документація</div>
+      </a>
+
+      <a href="/updates" class="nav-card">
+        <div class="nav-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </div>
+        <div class="nav-card-name">Оновлення</div>
+        <div class="nav-card-hint">Останні зміни та реліз-нотатки</div>
+      </a>
+
+    </div>
+  </div>
+</main>
+
+<!-- ─── FOOTER ─── -->
+<footer class="apple-footer">
+  <div class="apple-footer-content">
+
+    <div class="footer-breadcrumbs">
+      <a href="/"><img src="icons/logo-192.png" alt="LUMYN"> LUMYN</a>
+      <span>›</span>
+      <span>404</span>
+    </div>
+
+    <div class="footer-directory">
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">LUMYN</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/">Головна</a></li>
+          <li><a href="/download">Додатки</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Ресурси</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/faq">ЧаПи</a></li>
+          <li><a href="/support">Підтримка</a></li>
+          <li><a href="/updates">Оновлення</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Документація</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/api">API</a></li>
+          <li><a href="/protocol">Protocol</a></li>
+          <li><a href="/schema">Schema</a></li>
+          <li><a href="/moderation">Moderation</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Проєкт</h3>
+        <ul class="footer-directory-list">
+          <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li>
+          <li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li>
+          <li><a href="https://t.me/lumynspace" target="_blank" rel="noopener noreferrer">Telegram</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-mini">
+      <div class="footer-mini-legal">
+        <div>Copyright © 2026 LUMYN Protocol. All rights reserved.</div>
+        <div class="footer-mini-legal-links">
+          <span style="color:#86868b;">Made in Ukraine 🇺🇦</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</footer>
+
+<script>
+/* Mobile menu */
+document.getElementById('mobile-menu-btn').addEventListener('click', function() {
+  var d = document.getElementById('mobile-dropdown');
+  if (d.style.display === 'none' || d.style.display === '') {
+    d.style.display = 'flex'; this.textContent = '✕';
+  } else {
+    d.style.display = 'none'; this.textContent = '☰';
+  }
+});
+
+/* Particle background */
+(function() {
+  var cv = document.getElementById('bg-canvas');
+  var ctx = cv.getContext('2d');
+  var W, H, pts = [];
+  function resize() { W = cv.width = cv.offsetWidth; H = cv.height = cv.offsetHeight; }
+  window.addEventListener('resize', resize); resize();
+  for (var i = 0; i < 60; i++) {
+    pts.push({ x: Math.random()*W, y: Math.random()*H,
+               vx: (Math.random()-0.5)*0.25, vy: (Math.random()-0.5)*0.25,
+               r: Math.random()*1.2+0.3, a: Math.random()*0.35+0.05 });
+  }
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    pts.forEach(function(p) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,'+p.a+')'; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* Terminal typewriter */
+(function() {
+  function typeInto(el, text, delay, cb) {
+    var i = 0;
+    var t = setInterval(function() {
+      el.textContent += text[i++];
+      if (i >= text.length) { clearInterval(t); if (cb) cb(); }
+    }, delay);
+  }
+
+  var cmd1 = document.getElementById('t-cmd1');
+  var l2   = document.getElementById('t-line2');
+  var l3   = document.getElementById('t-line3');
+  var l4   = document.getElementById('t-line4');
+  var cmd4 = document.getElementById('t-cmd4');
+  var cur  = document.getElementById('t-cursor');
+
+  typeInto(cmd1, 'route resolve /'+window.location.pathname.replace('/',''), 55, function() {
+    setTimeout(function() {
+      l2.style.opacity = '1';
+      setTimeout(function() {
+        l3.style.opacity = '1';
+        setTimeout(function() {
+          l4.style.opacity = '1';
+          typeInto(cmd4, 'redirect → /', 55, function() {
+            cur.style.display = 'inline-block';
+          });
+        }, 500);
+      }, 400);
+    }, 500);
+  });
+})();
+</script>
+
+</body>
+</html>

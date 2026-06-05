@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="LUMYN">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="LUMYN Message Schema — формат payload, типи повідомлень, Socket.IO події">
+  <link rel="icon" href="/icons/favicon.png?v=1">
+  <link rel="apple-touch-icon" href="/icons/logo-192.png?v=6">
+  <link rel="manifest" href="/manifest.json">
+  <meta property="og:title" content="LUMYN | Schema">
+  <meta property="og:description" content="Формат повідомлень і Socket.IO API для клієнта та бекенду LUMYN.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://lumyn.space/schema">
+  <meta property="og:image" content="https://lumyn.space/icons/favicon.png">
+  <title>Lumyn</title>
+  <script defer src="/locale-routing.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { overflow-y: scroll; color-scheme: dark; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) #000; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #000; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+    :root {
+      --c-bg: #000000; --c-surface: #0a0a0a;
+      --c-border: rgba(255,255,255,0.08); --c-border-h: rgba(255,255,255,0.2);
+      --c-txt: #ffffff; --c-muted: #888888;
+      --font-main: 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body { background: var(--c-bg); color: var(--c-txt); font-family: var(--font-main); overflow-x: hidden; display: flex; flex-direction: column; min-height: 100vh; scroll-behavior: smooth; user-select: none; -webkit-tap-highlight-color: transparent; }
+    #bg-canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+    /* NAV */
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 200; padding: 0 40px; height: 80px; display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--c-border); }
+    .nav-logo { font-family: var(--font-main); font-size: 16px; font-weight: 900; letter-spacing: 4px; text-transform: uppercase; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff; }
+    .nav-logo img { width: 28px; height: 28px; border-radius: 6px; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a { color: var(--c-muted); text-decoration: none; font-size: 12px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; transition: color 0.2s; }
+    .nav-links a:hover, .nav-links a.active { color: #fff; }
+    .btn-outline { border: 1px solid var(--c-border-h); background: transparent; color: #fff !important; padding: 8px 16px; border-radius: 100px; font-size: 11px !important; font-weight: 600 !important; letter-spacing: 1px; text-transform: uppercase; text-decoration: none; transition: all 0.2s; cursor: pointer; margin-left: 16px; }
+    .btn-outline:hover { background: #fff; color: #000 !important; }
+    @media (max-width: 768px) { .nav-links { display: none; } nav { padding: 0 20px; } #mobile-menu-btn { display: block !important; } }
+
+    main { flex: 1; display: flex; flex-direction: column; align-items: center; padding-top: 140px; padding-bottom: 100px; position: relative; z-index: 10; }
+
+    .page-hero { text-align: center; margin-bottom: 80px; padding: 0 24px; animation: fadeUp 0.9s ease both; }
+    .page-badge { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--c-border); background: rgba(255,255,255,0.03); border-radius: 100px; padding: 6px 16px; margin-bottom: 28px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #fff; }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: blinkDot 2s infinite; }
+    @keyframes blinkDot { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    .page-hero h1 { font-size: clamp(48px, 8vw, 96px); font-weight: 900; letter-spacing: -3px; text-transform: uppercase; margin-bottom: 20px; line-height: 0.95; }
+    .page-hero p { color: var(--c-muted); font-size: 17px; max-width: 600px; margin: 0 auto; line-height: 1.55; }
+
+    .content-wrap { width: 100%; max-width: 800px; padding: 0 24px; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 8px; color: var(--c-muted); text-decoration: none; font-size: 13px; font-family: var(--font-mono); letter-spacing: 1px; margin-bottom: 48px; transition: color 0.2s; }
+    .back-link:hover { color: #fff; }
+    .docs-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: -28px 0 38px; }
+    .docs-tabs a { border: 1px solid var(--c-border); color: var(--c-muted); text-decoration: none; padding: 8px 12px; border-radius: 999px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .docs-tabs a:hover, .docs-tabs a.active { color: #fff; border-color: var(--c-border-h); }
+
+    .doc-section { margin-bottom: 60px; }
+    .sec-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #fff; margin-bottom: 12px; opacity: 0.5; }
+    .sec-title { font-size: clamp(24px, 4vw, 36px); font-weight: 900; letter-spacing: -1px; margin-bottom: 24px; color: #fff; }
+    .sec-desc { font-size: 15px; color: var(--c-muted); line-height: 1.65; margin-bottom: 24px; }
+
+    /* CODE BLOCK */
+    .code-block { background: #000; border: 1px solid var(--c-border); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+    .code-header { padding: 10px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--c-border); display: flex; align-items: center; gap: 10px; }
+    .code-dot { width: 10px; height: 10px; border-radius: 50%; background: #333; }
+    .code-lang { font-family: var(--font-mono); font-size: 10px; color: #555; letter-spacing: 2px; text-transform: uppercase; margin-left: auto; }
+    .code-body { padding: 24px; font-family: var(--font-mono); font-size: 13px; line-height: 1.9; overflow-x: auto; }
+    .ck { color: #aaa; }   /* key */
+    .cs { color: #fff; }   /* string value */
+    .cc { color: #555; }   /* comment */
+    .ct { color: #888; }   /* type annotation */
+
+    /* TYPE CARDS */
+    .type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .type-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 10px; padding: 16px; transition: border-color 0.25s; cursor: default; }
+    .type-card:hover { border-color: var(--c-border-h); }
+    .type-name { font-family: var(--font-mono); font-size: 12px; color: #fff; margin-bottom: 6px; letter-spacing: 0.5px; }
+    .type-desc { font-size: 12px; color: var(--c-muted); line-height: 1.5; }
+
+    /* EVENT TABLE */
+    .event-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    .event-table th { padding: 14px 16px; border-bottom: 1px solid var(--c-border-h); font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; text-align: left; color: #fff; font-weight: 600; }
+    .event-table td { padding: 14px 16px; border-bottom: 1px solid var(--c-border); font-size: 13px; vertical-align: top; }
+    .event-table tr:last-child td { border-bottom: none; }
+    .event-name { font-family: var(--font-mono); color: #fff; font-size: 12px; }
+    .event-dir { font-family: var(--font-mono); font-size: 10px; padding: 3px 8px; border-radius: 4px; }
+    .event-dir.emit { background: rgba(255,255,255,0.06); color: #aaa; border: 1px solid var(--c-border); }
+    .event-dir.on { background: rgba(255,255,255,0.03); color: #666; border: 1px solid rgba(255,255,255,0.04); }
+    .event-desc { color: var(--c-muted); font-size: 13px; line-height: 1.5; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--c-border); border-radius: 12px; }
+
+    /* REVEAL */
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* APPLE FOOTER */
+    .apple-footer { background: #111; color: #86868b; font-family: var(--font-main); font-size: 12px; line-height: 1.33337; font-weight: 400; padding: 0 22px; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; position: relative; z-index: 10; }
+    .apple-footer-content { max-width: 980px; margin: 0 auto; padding: 20px 0; }
+    .footer-breadcrumbs { display: flex; align-items: center; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
+    .footer-breadcrumbs a { color: #f5f5f7; text-decoration: none; font-weight: 500; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .footer-breadcrumbs img { width: 18px !important; height: 18px !important; border-radius: 4px; object-fit: contain; filter: invert(1); opacity: 0.9; }
+    .footer-breadcrumbs span { color: #86868b; font-size: 12px; }
+    .footer-directory { display: flex; flex-wrap: wrap; margin-bottom: 20px; }
+    .footer-directory-column { flex: 1; flex-basis: 20%; min-width: 150px; margin-bottom: 20px; }
+    .footer-directory-column-title { color: #f5f5f7; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+    .footer-directory-list { list-style: none; padding: 0; margin: 0; }
+    .footer-directory-list li { margin-bottom: 8px; }
+    .footer-directory-list a { color: #86868b; text-decoration: none; transition: color 0.2s; }
+    .footer-directory-list a:hover { color: #f5f5f7; text-decoration: underline; }
+    .footer-mini { padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 12px; }
+    .footer-mini-legal { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    @media (max-width: 833px) { .footer-directory { flex-direction: column; gap: 10px; } .footer-directory-column { flex-basis: 100%; min-width: 100%; margin-bottom: 10px; } .footer-mini-legal { flex-direction: column; align-items: flex-start; } }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<nav>
+  <a href="/" class="nav-logo"><img src="/icons/logo-192.png" alt="Logo"> LUMYN</a>
+  <div class="nav-links">
+    <a href="/">Головна</a>
+    <a href="/download">Додатки</a>
+    <a href="/faq">ЧаПи</a>
+    <a href="/support">Підтримка</a>
+    <a href="/updates" class="active">Оновлення</a>
+    <a href="/api">API</a>
+    <a href="/protocol">Protocol</a>
+    <a href="/schema">Schema</a>
+    <a href="/moderation">Moderation</a>
+    <a href="/en" class="btn-outline" style="margin-left:20px;">EN</a>
+  </div>
+  <button id="mobile-menu-btn" style="display:none;background:none;border:none;color:white;font-size:26px;cursor:pointer;">☰</button>
+</nav>
+
+<div id="mobile-dropdown" style="display:none;position:fixed;top:80px;left:0;right:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.1);padding:20px;z-index:199;flex-direction:column;gap:16px;text-align:center;">
+  <a href="/" style="color:white;text-decoration:none;font-size:16px;">Головна</a>
+  <a href="/download" style="color:white;text-decoration:none;font-size:16px;">Додатки</a>
+  <a href="/faq" style="color:white;text-decoration:none;font-size:16px;">ЧаПи</a>
+  <a href="/support" style="color:white;text-decoration:none;font-size:16px;">Підтримка</a>
+  <a href="/updates" style="color:white;text-decoration:none;font-size:16px;">Оновлення</a>
+  <a href="/api" style="color:white;text-decoration:none;font-size:16px;">API</a>
+  <a href="/protocol" style="color:white;text-decoration:none;font-size:16px;">Protocol</a>
+  <a href="/schema" style="color:white;text-decoration:none;font-size:16px;">Schema</a>
+  <a href="/moderation" style="color:white;text-decoration:none;font-size:16px;">Moderation</a>
+  <a href="/en" style="color:white;text-decoration:none;font-size:16px;opacity:0.5;margin-top:8px;">EN (English)</a>
+</div>
+
+<main>
+  <div class="page-hero">
+    <div class="page-badge"><div class="badge-dot"></div> API Reference</div>
+    <h1>MESSAGE<br>SCHEMA.</h1>
+    <p>Формат payload повідомлень, типи подій Socket.IO та структура даних для клієнта і бекенду LUMYN.</p>
+  </div>
+
+  <div class="content-wrap">
+    <a href="/updates" class="back-link">← Назад до оновлень</a>
+    <div class="docs-tabs">
+      <a href="/api">API</a>
+      <a href="/protocol">Protocol</a>
+      <a href="/schema" class="active">Schema</a>
+      <a href="/moderation">Moderation</a>
+    </div>
+
+    <!-- BASE MESSAGE SCHEMA -->
+    <div class="doc-section reveal">
+      <div class="sec-label">// 01</div>
+      <div class="sec-title">Base Message Payload</div>
+      <div class="sec-desc">Базова структура зашифрованого повідомлення. Всі поля, крім ciphertext, передаються у відкритому вигляді для маршрутизації. Ciphertext — зашифрований AES-256-GCM контент.</div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div>
+          <div class="code-lang">JSON · Message Envelope</div>
+        </div>
+        <div class="code-body">{
+  <span class="ck">"type"</span>:         <span class="cs">"text"</span>,           <span class="cc">// тип повідомлення</span>
+  <span class="ck">"senderName"</span>:   <span class="cs">"alice"</span>,          <span class="cc">// ідентифікатор відправника</span>
+  <span class="ck">"receiverName"</span>: <span class="cs">"bob"</span>,            <span class="cc">// або "GROUP_uuid" для груп</span>
+  <span class="ck">"ciphertext"</span>:   <span class="cs">"base64..."</span>,      <span class="cc">// AES-256-GCM зашифрований контент</span>
+  <span class="ck">"nonce"</span>:        <span class="cs">"base64..."</span>,      <span class="cc">// 96-bit унікальний nonce</span>
+  <span class="ck">"mac"</span>:          <span class="cs">"base64..."</span>,      <span class="cc">// 128-bit GCM authentication tag</span>
+  <span class="ck">"timestamp"</span>:    <span class="cs">"2026-03-30T..."</span>, <span class="cc">// ISO-8601</span>
+  <span class="ck">"messageId"</span>:    <span class="cs">"uuid-v4"</span>,        <span class="cc">// UUID v4 для дедуплікації</span>
+  <span class="ck">"isEphemeral"</span>:  <span class="cs">false</span>             <span class="cc">// true = ефірне повідомлення</span>
+}</div>
+      </div>
+    </div>
+
+    <!-- MESSAGE TYPES -->
+    <div class="doc-section reveal">
+      <div class="sec-label">// 02</div>
+      <div class="sec-title">Типи повідомлень</div>
+      <div class="sec-desc">Поле <code style="font-family:var(--font-mono);font-size:13px;color:#ccc;">type</code> визначає як клієнт декодує та відображає вміст ciphertext після розшифрування.</div>
+      <div class="type-grid">
+        <div class="type-card">
+          <div class="type-name">text</div>
+          <div class="type-desc">Звичайне текстове повідомлення. Ciphertext містить UTF-8 рядок.</div>
+        </div>
+        <div class="type-card">
+          <div class="type-name">image</div>
+          <div class="type-desc">Зображення. Ciphertext — зашифрований base64 JPEG/PNG файл.</div>
+        </div>
+        <div class="type-card">
+          <div class="type-name">voice</div>
+          <div class="type-desc">Голосове повідомлення. Ciphertext — зашифрований аудіофайл.</div>
+        </div>
+        <div class="type-card">
+          <div class="type-name">ephemeral_text</div>
+          <div class="type-desc">Ефірний текст. Видаляється після прочитання на всіх пристроях.</div>
+        </div>
+        <div class="type-card">
+          <div class="type-name">ephemeral_image</div>
+          <div class="type-desc">Ефірне зображення. Автоматично знищується після перегляду.</div>
+        </div>
+        <div class="type-card">
+          <div class="type-name">reaction</div>
+          <div class="type-desc">Emoji реакція на повідомлення. Містить messageId та emoji символ.</div>
+        </div>
+        <div class="type-card">
+          <div class="type-name">system</div>
+          <div class="type-desc">Системне повідомлення: учасник приєднався, ключі синхронізовано.</div>
+        </div>
+        <div class="type-card">
+          <div class="type-name">deleted</div>
+          <div class="type-desc">Маркер видаленого повідомлення. Замінює вміст на стороні клієнта.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOCKET.IO EVENTS -->
+    <div class="doc-section reveal">
+      <div class="sec-label">// 03</div>
+      <div class="sec-title">Socket.IO Events</div>
+      <div class="sec-desc">Транспортний рівень LUMYN базується на Socket.IO. Нижче наведені ключові події клієнт↔сервер.</div>
+      <div class="table-wrap">
+        <table class="event-table">
+          <thead>
+            <tr>
+              <th>Подія</th>
+              <th>Напрям</th>
+              <th>Опис</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><div class="event-name">register</div></td>
+              <td><span class="event-dir emit">emit →</span></td>
+              <td><div class="event-desc">Реєстрація клієнта: передає username та публічний ключ X25519.</div></td>
+            </tr>
+            <tr>
+              <td><div class="event-name">sendMessage</div></td>
+              <td><span class="event-dir emit">emit →</span></td>
+              <td><div class="event-desc">Надсилання зашифрованого повідомлення одному отримувачу.</div></td>
+            </tr>
+            <tr>
+              <td><div class="event-name">sendGroupMessage</div></td>
+              <td><span class="event-dir emit">emit →</span></td>
+              <td><div class="event-desc">Надсилання повідомлення до групи по groupId.</div></td>
+            </tr>
+            <tr>
+              <td><div class="event-name">sendEphemeral</div></td>
+              <td><span class="event-dir emit">emit →</span></td>
+              <td><div class="event-desc">Ефірне повідомлення для прямого чату. Видаляється після доставки.</div></td>
+            </tr>
+            <tr>
+              <td><div class="event-name">sendEphemeralGroup</div></td>
+              <td><span class="event-dir emit">emit →</span></td>
+              <td><div class="event-desc">Ефірне повідомлення для групи.</div></td>
+            </tr>
+            <tr>
+              <td><div class="event-name">sendVoice</div></td>
+              <td><span class="event-dir emit">emit →</span></td>
+              <td><div class="event-desc">Передача зашифрованого голосового повідомлення.</div></td>
+            </tr>
+            <tr>
+              <td><div class="event-name">sendImage</div></td>
+              <td><span class="event-dir emit">emit →</span></td>
+              <td><div class="event-desc">Передача зашифрованого зображення.</div></td>
+            </tr>
+            <tr>
+              <td><div class="event-name">receiveMessage</div></td>
+              <td><span class="event-dir on">← on</span></td>
+              <td><div class="event-desc">Клієнт отримує нове зашифроване повідомлення від сервера.</div></td>
+            </tr>
+            <tr>
+              <td><div class="event-name">getPublicKey</div></td>
+              <td><span class="event-dir emit">emit →</span></td>
+              <td><div class="event-desc">Запит публічного ключа іншого користувача для ECDH обміну.</div></td>
+            </tr>
+            <tr>
+              <td><div class="event-name">typing</div></td>
+              <td><span class="event-dir emit">emit →</span></td>
+              <td><div class="event-desc">Індикатор набору тексту. Передає sender, receiver, isTyping.</div></td>
+            </tr>
+            <tr>
+              <td><div class="event-name">deleteMessage</div></td>
+              <td><span class="event-dir emit">emit →</span></td>
+              <td><div class="event-desc">Видалення повідомлення по messageId. Сервер розсилає всім учасникам.</div></td>
+            </tr>
+            <tr>
+              <td><div class="event-name">createGroup</div></td>
+              <td><span class="event-dir emit">emit →</span></td>
+              <td><div class="event-desc">Створення групи з назвою та списком учасників.</div></td>
+            </tr>
+            <tr>
+              <td><div class="event-name">fcmToken</div></td>
+              <td><span class="event-dir emit">emit →</span></td>
+              <td><div class="event-desc">Реєстрація FCM токена для push-повідомлень через Firebase.</div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- GROUP SCHEMA -->
+    <div class="doc-section reveal">
+      <div class="sec-label">// 04</div>
+      <div class="sec-title">Group Schema</div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div>
+          <div class="code-lang">JSON · Group Object</div>
+        </div>
+        <div class="code-body">{
+  <span class="ck">"groupId"</span>:      <span class="cs">"GROUP_uuid-v4"</span>,  <span class="cc">// унікальний префікс GROUP_</span>
+  <span class="ck">"groupName"</span>:    <span class="cs">"Team Alpha"</span>,
+  <span class="ck">"members"</span>:      <span class="cs">["alice", "bob", "carol"]</span>,
+  <span class="ck">"createdBy"</span>:    <span class="cs">"alice"</span>,
+  <span class="ck">"createdAt"</span>:    <span class="cs">"2026-03-30T12:00:00Z"</span>,
+  <span class="ck">"avatarBase64"</span>: <span class="cs">"base64..."</span>          <span class="cc">// nullable</span>
+}</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="apple-footer">
+  <div class="apple-footer-content">
+    <div class="footer-breadcrumbs">
+      <a href="/"><img src="/icons/logo-192.png" alt="LUMYN"> LUMYN</a>
+      <span>›</span><a href="/updates">Оновлення</a>
+      <span>›</span><span>Schema</span>
+    </div>
+    <div class="footer-directory">
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">LUMYN</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/">Головна</a></li>
+          <li><a href="/download">Додатки</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Ресурси</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/faq">ЧаПи</a></li>
+          <li><a href="/support">Підтримка</a></li>
+          <li><a href="/updates">Оновлення</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Документація</h3>
+        <ul class="footer-directory-list">
+          <li><a href="/api">API</a></li>
+          <li><a href="/protocol">Protocol</a></li>
+          <li><a href="/schema">Schema</a></li>
+          <li><a href="/moderation">Moderation</a></li>
+        </ul>
+      </div>
+      <div class="footer-directory-column">
+        <h3 class="footer-directory-column-title">Проєкт</h3>
+        <ul class="footer-directory-list">
+          <li><a href="https://github.com/user4032/aether-mobile" target="_blank" rel="noopener noreferrer">GitHub (client)</a></li>
+          <li><a href="https://github.com/user4032/aether-backend" target="_blank" rel="noopener noreferrer">GitHub (backend)</a></li>
+          <li><a href="https://t.me/lumynspace" target="_blank" rel="noopener noreferrer">Telegram</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-mini">
+      <div class="footer-mini-legal">
+        <div>Copyright © 2026 LUMYN Protocol. All rights reserved.</div>
+        <div><span style="color:#86868b;">Made in Ukraine 🇺🇦</span></div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var cv = document.getElementById('bg-canvas');
+  var ctx = cv.getContext('2d');
+  var W, H, ps = [], t = 0;
+  function resize(){ W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }
+  window.addEventListener('resize', resize); resize();
+  for(var i=0;i<55;i++) ps.push({x:Math.random()*1920,y:Math.random()*1080,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2,r:Math.random()*1.4+.2,a:Math.random()*.25+.04,ph:Math.random()*Math.PI*2});
+  function draw(){
+    ctx.clearRect(0,0,W,H); t+=.005;
+    ps.forEach(function(p){
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+      if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,'+(p.a*(0.6+0.4*Math.sin(t+p.ph)))+')'; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+var btn = document.getElementById('mobile-menu-btn');
+if(btn) btn.addEventListener('click',function(){
+  var dd=document.getElementById('mobile-dropdown');
+  if(dd.style.display==='none'||!dd.style.display){dd.style.display='flex';this.textContent='✕';}
+  else{dd.style.display='none';this.textContent='☰';}
+});
+
+(function(){
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target);} });
+  },{threshold:0.08,rootMargin:'0px 0px -30px 0px'});
+  document.querySelectorAll('.reveal').forEach(function(el,i){
+    el.style.transitionDelay=(i*0.07)+'s'; obs.observe(el);
+  });
+})();
+</script>
+</body>
+</html>
