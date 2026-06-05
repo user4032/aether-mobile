@@ -138,13 +138,23 @@
       animation: breathe 3s infinite ease-in-out;
     }
     
-    .loader-ring {
-      width: 30px; height: 30px;
-      border: 2px solid rgba(255,255,255,0.1);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
+    .loader-bar-wrap {
+  width: 120px; height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.loader-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #B026FF, #00C7FF);
+  border-radius: 4px;
+  animation: bar 1.2s ease-in-out infinite;
+}
+@keyframes bar {
+  0%   { width: 0%;   margin-left: 0; }
+  50%  { width: 100%; margin-left: 0; }
+  100% { width: 0%;   margin-left: 100%; }
+}
 
     @keyframes breathe {
       0%, 100% { opacity: 1; transform: scale(1); }
@@ -453,7 +463,9 @@
 
 <div id="flutter-loading" style="display:none">
   <img src="icons/logo-192.png" alt="LUMYN" class="fl-logo-img">
-  <div class="loader-ring"></div>
+  <div class="loader-bar-wrap">
+  <div class="loader-bar"></div>
+</div>
 </div>
 
 <div id="landing">
