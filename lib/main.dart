@@ -38,7 +38,7 @@ class MyApp extends StatelessWidget {
         colorScheme: const ColorScheme.dark(
           primary: Colors.white,
           secondary: Color(0xFF888888),
-          surface: Colors.transparent,
+          surface: Color(0xFF1C1C1E), // Apple Dark Surface
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,

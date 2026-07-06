@@ -11,28 +11,20 @@ import '../utils/globals.dart';
 class LiquidBackground extends StatelessWidget {
   final Widget child;
   final Color accentColor;
-  const LiquidBackground({super.key, required this.child, this.accentColor = const Color(0xFF1E1E2C)});
+  const LiquidBackground({super.key, required this.child, this.accentColor = const Color(0xFF1C1C1E)});
 
   @override
   Widget build(BuildContext context) {
-    // Зменшено контрастність фону. Замість яскравого градієнта — глибокий темний, 
-    // який лише злегка відливає акцентним кольором.
-    return AnimatedContainer(
-      duration: const Duration(seconds: 1),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111214), // Базовий колір фону a-la Discord
-        gradient: RadialGradient(
-          center: const Alignment(-0.8, -0.5),
-          radius: 1.5,
-          colors: [accentColor.withValues(alpha: 0.15), const Color(0xFF111214)],
-        ),
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF000000), // Vercel Pitch Black
       ),
       child: child,
     );
   }
 }
 
-// Назва залишена для сумісності з вашим кодом, але тепер це Solid Surface
+// Apple-style solid dark surface
 class GlassContainer extends StatelessWidget {
   final Widget child;
   final double borderRadius;
@@ -49,12 +41,9 @@ class GlassContainer extends StatelessWidget {
     return Container(
       width: width, height: height, margin: margin, padding: padding,
       decoration: BoxDecoration(
-        color: color ?? const Color(0xFF2B2D31), // Класичний колір карток Discord
+        color: color ?? const Color(0xFF1C1C1E),
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.04), width: 1), // Ледь помітна рамка для глибини
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 4))
-        ],
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 1),
       ),
       child: child,
     );
@@ -64,22 +53,16 @@ class GlassContainer extends StatelessWidget {
 class VerifiedBadge extends StatelessWidget {
   final double size;
   final Color color;
-  const VerifiedBadge({super.key, this.size = 14, this.color = const Color(0xFF1DA1F2)});
+  const VerifiedBadge({super.key, this.size = 14, this.color = const Color(0xFF0A84FF)}); // Apple Blue
 
   @override
   Widget build(BuildContext context) {
-    final dark = Color.lerp(color, Colors.black, 0.35) ?? color;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: [color, dark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 6)],
+        color: color,
       ),
       child: Icon(Icons.check, color: Colors.white, size: size * 0.65),
     );
@@ -92,6 +75,8 @@ class StoryRingAvatar extends StatelessWidget {
   final double radius;
   final bool isGroup;
   final bool hasUnread;
+  final List<String>? groupAvatars; // Додано для груп
+  final List<String>? groupFallbackNames; // Додано для груп
 
   const StoryRingAvatar({
     super.key,
@@ -100,32 +85,43 @@ class StoryRingAvatar extends StatelessWidget {
     this.radius = 26,
     this.isGroup = false,
     this.hasUnread = false,
+    this.groupAvatars,
+    this.groupFallbackNames,
   });
 
   @override
   Widget build(BuildContext context) {
     if (!hasUnread) {
-      return SafeAvatar(avatarBase64: avatarBase64, fallbackName: fallbackName, radius: radius, isGroup: isGroup);
+      return SafeAvatar(
+        avatarBase64: avatarBase64, 
+        fallbackName: fallbackName, 
+        radius: radius, 
+        isGroup: isGroup,
+        groupAvatars: groupAvatars,
+        groupFallbackNames: groupFallbackNames,
+      );
     }
     return Container(
-      width: radius * 2 + 6,
-      height: radius * 2 + 6,
+      width: radius * 2 + 4,
+      height: radius * 2 + 4,
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: [Color(0xFFB026FF), Color(0xFF00C7FF), Color(0xFFB026FF)],
-          stops: [0.0, 0.5, 1.0],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white, // Pure white ring for Vercel style
       ),
       child: Center(
         child: Container(
           width: radius * 2 + 1,
           height: radius * 2 + 1,
-          decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF111214)), // Змінено на темний фон
+          decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.black),
           child: Center(
-            child: SafeAvatar(avatarBase64: avatarBase64, fallbackName: fallbackName, radius: radius - 2, isGroup: isGroup),
+            child: SafeAvatar(
+              avatarBase64: avatarBase64, 
+              fallbackName: fallbackName, 
+              radius: radius - 2, 
+              isGroup: isGroup,
+              groupAvatars: groupAvatars,
+              groupFallbackNames: groupFallbackNames,
+            ),
           ),
         ),
       ),
@@ -168,25 +164,18 @@ class _ReactionPickerState extends State<ReactionPicker> with SingleTickerProvid
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFF2B2D31), // Solid колір
+            color: const Color(0xFF1C1C1E),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 8))],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: _emojis.asMap().entries.map((entry) {
-              return TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: Duration(milliseconds: 150 + entry.key * 20),
-                curve: Curves.easeOutBack,
-                builder: (ctx, v, child) => Transform.scale(scale: v, child: child),
-                child: GestureDetector(
-                  onTap: () => widget.onSelect(entry.value),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    child: Text(entry.value, style: const TextStyle(fontSize: 26)),
-                  ),
+              return GestureDetector(
+                onTap: () => widget.onSelect(entry.value),
+                child: Padding(
+                  padding: const EdgeInsets.all(6.0),
+                  child: Text(entry.value, style: const TextStyle(fontSize: 26)),
                 ),
               );
             }).toList(),
@@ -207,8 +196,6 @@ class ReactionsBar extends StatefulWidget {
 }
 
 class _ReactionsBarState extends State<ReactionsBar> {
-  final Map<String, GlobalKey<_PopBadgeState>> _keys = {};
-
   @override
   Widget build(BuildContext context) {
     if (widget.reactions.isEmpty) return const SizedBox.shrink();
@@ -218,62 +205,24 @@ class _ReactionsBarState extends State<ReactionsBar> {
         final emoji = entry.key;
         final users = entry.value;
         final isMine = users.contains(widget.myName);
-        _keys[emoji] ??= GlobalKey<_PopBadgeState>();
         return GestureDetector(
-          onTap: () { _keys[emoji]?.currentState?.pop(); widget.onToggle(emoji); },
-          child: _PopBadge(key: _keys[emoji], emoji: emoji, count: users.length, isMine: isMine),
+          onTap: () => widget.onToggle(emoji),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isMine ? Colors.white.withValues(alpha: 0.15) : const Color(0xFF2C2C2E),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: isMine ? Colors.white : Colors.transparent),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(emoji, style: const TextStyle(fontSize: 14)),
+              const SizedBox(width: 4),
+              Text('${users.length}', style: TextStyle(color: isMine ? Colors.white : Colors.white70, fontSize: 12, fontWeight: FontWeight.w700)),
+            ]),
+          ),
         );
       }).toList(),
-    );
-  }
-}
-
-class _PopBadge extends StatefulWidget {
-  final String emoji;
-  final int count;
-  final bool isMine;
-  const _PopBadge({super.key, required this.emoji, required this.count, required this.isMine});
-  @override
-  State<_PopBadge> createState() => _PopBadgeState();
-}
-
-class _PopBadgeState extends State<_PopBadge> with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
-    _scale = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.3).chain(CurveTween(curve: Curves.easeOut)), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.3, end: 0.9).chain(CurveTween(curve: Curves.easeIn)), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.0).chain(CurveTween(curve: Curves.easeOutBack)), weight: 30),
-    ]).animate(_ctrl);
-  }
-
-  void pop() { _ctrl.forward(from: 0); }
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _scale,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        decoration: BoxDecoration(
-          color: widget.isMine ? const Color(0xFFB026FF).withValues(alpha: 0.15) : const Color(0xFF2B2D31), // Solid
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: widget.isMine ? const Color(0xFFB026FF) : Colors.white.withValues(alpha: 0.1)),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(widget.emoji, style: const TextStyle(fontSize: 14)),
-          const SizedBox(width: 4),
-          Text('${widget.count}', style: TextStyle(color: widget.isMine ? const Color(0xFFE5B3FF) : Colors.white70, fontSize: 12, fontWeight: FontWeight.w700)),
-        ]),
-      ),
     );
   }
 }
@@ -298,7 +247,7 @@ class HighlightedText extends StatelessWidget {
       if (idx > start) spans.add(TextSpan(text: text.substring(start, idx), style: baseStyle));
       spans.add(TextSpan(
         text: text.substring(idx, idx + query.length),
-        style: baseStyle.copyWith(backgroundColor: const Color(0xFFDA373C), color: Colors.white), // Червоний акцент пошуку
+        style: baseStyle.copyWith(backgroundColor: Colors.white.withValues(alpha: 0.3), color: Colors.white, fontWeight: FontWeight.bold),
       ));
       start = idx + query.length;
     }
@@ -367,14 +316,7 @@ class HoldToRevealWrapper extends StatefulWidget {
   final VoidCallback? onRevealStarted;
   final int durationSeconds;
 
-  const HoldToRevealWrapper({
-    super.key, 
-    required this.child, 
-    required this.isEphemeral, 
-    this.onRevealStarted,
-    this.durationSeconds = 5,
-  });
-  
+  const HoldToRevealWrapper({super.key, required this.child, required this.isEphemeral, this.onRevealStarted, this.durationSeconds = 5});
   @override
   State<HoldToRevealWrapper> createState() => _HoldToRevealWrapperState();
 }
@@ -391,10 +333,7 @@ class _HoldToRevealWrapperState extends State<HoldToRevealWrapper> with SingleTi
   }
 
   @override
-  void dispose() {
-    _timerController.dispose();
-    super.dispose();
-  }
+  void dispose() { _timerController.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -421,7 +360,6 @@ class _HoldToRevealWrapperState extends State<HoldToRevealWrapper> with SingleTi
             curve: Curves.easeOut,
             builder: (context, blurValue, child) => ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: blurValue, sigmaY: blurValue), child: widget.child),
           ),
-          
           if (!_hasBeenRevealedOnce)
             IgnorePointer(
               child: AnimatedOpacity(
@@ -430,19 +368,18 @@ class _HoldToRevealWrapperState extends State<HoldToRevealWrapper> with SingleTi
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1F22).withValues(alpha: 0.9), // Темний фон підказки
+                    color: const Color(0xFF1C1C1E).withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFB026FF), width: 1),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.fingerprint, color: Color(0xFFE5B3FF), size: 16),
+                    const Icon(Icons.fingerprint, color: Colors.white, size: 16),
                     const SizedBox(width: 6),
-                    Text(t("Утримуйте", "Hold to reveal"), style: const TextStyle(color: Color(0xFFE5B3FF), fontSize: 12, fontWeight: FontWeight.bold)),
+                    Text(t("Утримуйте", "Hold to reveal"), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                   ]),
                 ),
               ),
             ),
-            
           if (_hasBeenRevealedOnce)
             Positioned(
               top: -6, right: -6,
@@ -452,16 +389,13 @@ class _HoldToRevealWrapperState extends State<HoldToRevealWrapper> with SingleTi
                   builder: (context, child) {
                     final timeLeft = widget.durationSeconds - (_timerController.value * widget.durationSeconds).ceil();
                     if (timeLeft <= 0) return const SizedBox.shrink(); 
-                    
                     return Container(
                       width: 24, height: 24,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF111214), shape: BoxShape.circle,
-                      ),
+                      decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          CircularProgressIndicator(value: 1.0 - _timerController.value, color: const Color(0xFFDA373C), backgroundColor: const Color(0xFF2B2D31), strokeWidth: 2.5),
+                          CircularProgressIndicator(value: 1.0 - _timerController.value, color: Colors.white, backgroundColor: Colors.white.withValues(alpha: 0.2), strokeWidth: 2.5),
                           Text('$timeLeft', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
                         ],
                       ),
@@ -495,8 +429,8 @@ class SwipeToReplyWrapper extends StatelessWidget {
         padding: const EdgeInsets.only(right: 24),
         child: Container(
           padding: const EdgeInsets.all(8),
-          decoration: const BoxDecoration(color: Color(0xFF2B2D31), shape: BoxShape.circle),
-          child: const Icon(Icons.reply, color: Colors.white70, size: 20),
+          decoration: const BoxDecoration(color: Color(0xFF2C2C2E), shape: BoxShape.circle),
+          child: const Icon(Icons.reply, color: Colors.white, size: 20),
         ),
       ),
       child: child,
@@ -541,36 +475,22 @@ class _GlassInputState extends State<GlassInput> {
       curve: Curves.easeOut,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        gradient: _isFocused
-            ? const LinearGradient(
-                colors: [Color(0xFFB026FF), Color(0xFF00C7FF)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
-        color: _isFocused ? null : Colors.transparent,
+        border: Border.all(color: _isFocused ? Colors.white : Colors.white.withValues(alpha: 0.1), width: 1.5),
+        color: const Color(0xFF1C1C1E),
       ),
-      padding: EdgeInsets.all(_isFocused ? 1.5 : 0),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E1F22),
-          borderRadius: BorderRadius.circular(_isFocused ? 11 : 12),
-          border: _isFocused ? null : Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1),
-        ),
-        child: TextField(
-          controller: widget.controller,
-          focusNode: _focusNode,
-          obscureText: widget.obscureText,
-          inputFormatters: widget.inputFormatters,
-          keyboardType: widget.keyboardType,
-          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
-          decoration: InputDecoration(
-            hintText: widget.hintText,
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
-            border: InputBorder.none,
-            suffixIcon: widget.suffixIcon,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          ),
+      child: TextField(
+        controller: widget.controller,
+        focusNode: _focusNode,
+        obscureText: widget.obscureText,
+        inputFormatters: widget.inputFormatters,
+        keyboardType: widget.keyboardType,
+        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+        decoration: InputDecoration(
+          hintText: widget.hintText,
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+          border: InputBorder.none,
+          suffixIcon: widget.suffixIcon,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
       ),
     );
@@ -599,8 +519,9 @@ class _ElegantButtonState extends State<ElegantButton> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         decoration: BoxDecoration(
-          color: _isHovered ? const Color(0xFF383A40) : const Color(0xFF2B2D31),
-          borderRadius: BorderRadius.circular(12), // Тепер це чистий солідний квадрат із закругленнями
+          color: _isHovered ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
         alignment: Alignment.center,
         child: Text(widget.text, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
@@ -618,27 +539,11 @@ class ShineButton extends StatefulWidget {
   State<ShineButton> createState() => _ShineButtonState();
 }
 
-class _ShineButtonState extends State<ShineButton> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  
-  @override
-  void initState() { 
-    super.initState(); 
-    // Загальна тривалість анімації - 3 секунди, як у CSS
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(); 
-  }
-  
-  @override
-  void dispose() { 
-    _controller.dispose(); 
-    super.dispose(); 
-  }
-
+class _ShineButtonState extends State<ShineButton> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: (widget.onPressed == null || widget.isLoading) ? null : widget.onPressed,
-      // HitTestBehavior.opaque гарантує, що кнопка натискатиметься навіть там, де фон прозорий
       behavior: HitTestBehavior.opaque, 
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 200),
@@ -646,51 +551,38 @@ class _ShineButtonState extends State<ShineButton> with SingleTickerProviderStat
         child: Container(
           height: 50,
           alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Colors.white, // Apple style primary white button
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: widget.isLoading
-            ? const SizedBox(
-                height: 20, 
-                width: 20, 
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-              )
-            : AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  // Згідно з CSS (0% - 60% рух, 60% - 100% пауза)
-                  double progress = _controller.value <= 0.6 ? (_controller.value / 0.6) : 1.0;
-                  
-                  return ShaderMask(
-                    blendMode: BlendMode.srcIn,
-                    shaderCallback: (bounds) => LinearGradient(
-                      // Кольори точнісінько як у вашому CSS-коді
-                      colors: const [Color(0xFF9F9F9F), Colors.white, Color(0xFF868686)],
-                      // Вузький градієнт для ефекту різкого відблиску
-                      stops: const [0.4, 0.5, 0.6], 
-                      begin: Alignment(-2.5 + (progress * 5.0), 0),
-                      end: Alignment(-1.5 + (progress * 5.0), 0),
-                    ).createShader(bounds),
-                    child: Text(
-                      widget.text, 
-                      style: const TextStyle(
-                        fontSize: 18, // Трохи збільшив шрифт, щоб текст без фону читався краще
-                        fontWeight: FontWeight.w700, 
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  );
-                },
-              ),
+            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+            : Text(widget.text, style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold)),
         ),
       ),
     );
   }
 }
 
+// === ОНОВЛЕНИЙ ТА ЄДИНИЙ КЛАС SAFE AVATAR ===
 class SafeAvatar extends StatefulWidget {
   final String? avatarBase64;
   final String fallbackName;
   final double radius;
   final bool isGroup;
-  const SafeAvatar({super.key, this.avatarBase64, required this.fallbackName, this.radius = 26, this.isGroup = false});
+  final List<String>? groupAvatars; 
+  final List<String>? groupFallbackNames; 
+
+  const SafeAvatar({
+    super.key,
+    this.avatarBase64,
+    required this.fallbackName,
+    this.radius = 26,
+    this.isGroup = false,
+    this.groupAvatars,
+    this.groupFallbackNames,
+  });
+
   @override
   State<SafeAvatar> createState() => _SafeAvatarState();
 }
@@ -717,11 +609,7 @@ class _SafeAvatarState extends State<SafeAvatar> {
   @override
   Widget build(BuildContext context) {
     final avatarContent = widget.isGroup
-        ? Container(
-            key: const ValueKey<String>('group_avatar'),
-            color: const Color(0xFF2B2D31),
-            child: Icon(Icons.group, color: Colors.white70, size: widget.radius * 0.9),
-          )
+        ? _buildGroupAvatar() 
         : (_imageBytes != null
             ? Image.memory(
                 _imageBytes!,
@@ -730,9 +618,9 @@ class _SafeAvatarState extends State<SafeAvatar> {
                 height: widget.radius * 2,
                 fit: BoxFit.cover,
                 gaplessPlayback: true,
-                errorBuilder: (ctx, err, stack) => _buildFallback(),
+                errorBuilder: (ctx, err, stack) => _buildFallback(widget.fallbackName),
               )
-            : _buildFallback());
+            : _buildFallback(widget.fallbackName));
 
     return SizedBox(
       width: widget.radius * 2,
@@ -749,12 +637,52 @@ class _SafeAvatarState extends State<SafeAvatar> {
     );
   }
 
-  Widget _buildFallback() => Container(
-    key: ValueKey<String>('fallback_${widget.fallbackName}'),
-    color: const Color(0xFF5865F2), // Discord blurple fallback
+  Widget _buildGroupAvatar() {
+    final avatars = (widget.groupAvatars ?? []).take(4).toList();
+    final names = (widget.groupFallbackNames ?? []).toList();
+
+    if (avatars.isEmpty && names.isEmpty) {
+      return Container(
+        key: const ValueKey<String>('group_icon_fallback'),
+        color: const Color(0xFF2C2C2E),
+        child: Icon(Icons.group, color: Colors.white70, size: widget.radius * 0.9),
+      );
+    }
+
+    while (names.length < 4) {
+      names.add('?');
+    }
+
+    return Container(
+      key: ValueKey<String>('group_grid_${avatars.length}'),
+      color: const Color(0xFF1E1F22), 
+      child: Padding(
+        padding: const EdgeInsets.all(2.0),
+        child: GridView.count(
+          crossAxisCount: avatars.length <= 1 ? 1 : 2,
+          mainAxisSpacing: 2.0,
+          crossAxisSpacing: 2.0,
+          children: List.generate(avatars.length, (i) {
+            return ClipOval(
+              child: SafeAvatar(
+                avatarBase64: avatars.isNotEmpty ? avatars[i] : null,
+                fallbackName: names[i],
+                radius: widget.radius * 0.4, 
+                isGroup: false,
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFallback(String name) => Container(
+    key: ValueKey<String>('fallback_$name'),
+    color: const Color(0xFF2C2C2E), 
     alignment: Alignment.center,
     child: Text(
-      widget.fallbackName.isNotEmpty ? widget.fallbackName[0].toUpperCase() : '?',
+      name.isNotEmpty ? name[0].toUpperCase() : '?',
       style: TextStyle(color: Colors.white, fontSize: widget.radius * 0.7, fontWeight: FontWeight.w600),
     ),
   );
@@ -986,19 +914,23 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
     });
   }
 
-  void _syncFromShared() {
-    if (!mounted) return;
-    final isActive = _activeAudioInstance.value == _instanceId;
-    final nextIsPlaying = isActive && _sharedPlayerState.value == PlayerState.playing;
-    final nextDuration = isActive ? _sharedDuration.value : _duration;
-    final nextPosition = isActive ? _sharedPosition.value : (_isPlaying ? Duration.zero : _position);
-    if (_isPlaying != nextIsPlaying || _duration != nextDuration || _position != nextPosition) {
-      setState(() {
-        _isPlaying = nextIsPlaying;
-        _duration = nextDuration;
-        _position = nextPosition;
-      });
-    }
+   void _syncFromShared() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return; 
+
+      final isActive = _activeAudioInstance.value == _instanceId;
+      final nextIsPlaying = isActive && _sharedPlayerState.value == PlayerState.playing;
+      final nextDuration = isActive ? _sharedDuration.value : _duration;
+      final nextPosition = isActive ? _sharedPosition.value : (_isPlaying ? Duration.zero : _position);
+      
+      if (_isPlaying != nextIsPlaying || _duration != nextDuration || _position != nextPosition) {
+        setState(() {
+          _isPlaying = nextIsPlaying;
+          _duration = nextDuration;
+          _position = nextPosition;
+        });
+      }
+    });
   }
 
   int _computeStableSeed(String data) {
@@ -1065,14 +997,24 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
 
   @override
   void dispose() {
-    if (_activeAudioInstance.value == _instanceId) {
-      _activeAudioInstance.value = null;
-    }
     _activeAudioInstance.removeListener(_syncFromShared);
     _sharedPlayerState.removeListener(_syncFromShared);
     _sharedDuration.removeListener(_syncFromShared);
     _sharedPosition.removeListener(_syncFromShared);
-    if (_filePath != null) { try { final f = File(_filePath!); if (f.existsSync()) f.deleteSync(); } catch (e) { debugPrint('Error deleting file'); } }
+
+    if (_activeAudioInstance.value == _instanceId) {
+      _activeAudioInstance.value = null;
+      _sharedAudioPlayer.stop(); 
+    }
+    
+    if (_filePath != null) { 
+      try { 
+        final f = File(_filePath!); 
+        if (f.existsSync()) f.deleteSync(); 
+      } catch (e) { 
+        debugPrint('Error deleting file'); 
+      } 
+    }
     super.dispose();
   }
 

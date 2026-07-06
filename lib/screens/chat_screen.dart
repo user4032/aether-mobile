@@ -1106,10 +1106,10 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          width: double.infinity,
-          decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
-          child: ClipRRect(
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          child: Material(
+            color: const Color(0xFF1A1A1A), // Переносимо колір сюди
             borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
             child: Column(
               mainAxisSize: MainAxisSize.min,

@@ -1,20 +1,15 @@
-import 'package:flutter/foundation.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
-const String _defaultServerUrl = 'https://aether-backend-hrmq.onrender.com';
+const String serverUrl = 'https://aether-backend-hrmq.onrender.com';
 
-String get serverUrl {
-  const fromDefine = String.fromEnvironment('AETHER_SERVER_URL');
-  if (fromDefine.isNotEmpty) return fromDefine;
-  return _defaultServerUrl;
-}
-
-Map<String, dynamic> socketOptions({
-  bool forceNew = true,
-  bool reconnection = true,
-}) {
-  return <String, dynamic>{
-    'transports': kIsWeb ? ['websocket', 'polling'] : ['websocket'],
-    'forceNew': forceNew,
-    'reconnection': reconnection,
+Map<String, dynamic> socketOptions() {
+  return {
+    'transports': ['websocket', 'polling'],
+    'upgrade': true,
+    'timeout': 60000, // Збільшено до 60с для Render.com cold start
+    'reconnection': true,
+    'reconnectionAttempts': 10,
+    'reconnectionDelay': 2000,
+    'forceNew': true,
   };
 }
