@@ -75,5 +75,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/ding.mp3
+    - assets/icons/favicon.png
     - web/icons/logo-512.png
     - web/icons/favicon.png
