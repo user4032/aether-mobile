@@ -101,7 +101,7 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  void _login() async {
+   void _login() async {
     final name = _nameController.text.trim();
     final pass = _passController.text.trim();
     if (name.isEmpty || pass.isEmpty) return;
@@ -127,6 +127,7 @@ class _AuthScreenState extends State<AuthScreen> {
       s.emitWithAck('login_device_request', {
         'userName': name, 'password': pass, 'publicKey': widget.publicKey, 'deviceId': widget.deviceId, 'deviceName': _deviceName(),
       }, ack: (dynamic responseRaw) async {
+        ackTimer?.cancel(); // СКАСУЄМО ТАЙМЕР, ЯКЩО ВІДПОВІДЬ ПРИЙШЛА
         final response = Map<String, dynamic>.from(responseRaw as Map);
         if (response['success'] == true) { s.dispose(); await _applyLinkedKeysAndFinish(name, response); return; }
 
@@ -138,6 +139,15 @@ class _AuthScreenState extends State<AuthScreen> {
         s.dispose();
         _stopLoading();
         _showSnack((response['message'] ?? t('Помилка', 'Error')).toString(), isError: true);
+      });
+
+      // ДОДАНО: Таймаут на відповідь сервера (15 секунд)
+      Timer ackTimer = Timer(const Duration(seconds: 15), () {
+        if (mounted && isLoading) {
+          s.dispose();
+          _stopLoading();
+          _showSnack(t('Сервер не відповів. Спробуйте ще раз.', 'Server did not respond. Try again.'), isError: true);
+        }
       });
     });
     
@@ -151,7 +161,6 @@ class _AuthScreenState extends State<AuthScreen> {
     
     setState(() { isLoading = true; _loadingText = t('Пробудження сервера...', 'Waking server...'); });
     
-    // ВИКОРИСТОВУЄМО serverUrl З КОНФІГУ замість хардкоду!
     io.Socket s = io.io(serverUrl, <String, dynamic>{ ...socketOptions(), 'forceNew': true, 'timeout': 30000 });
     Timer? connectionTimeout; bool isConnected = false;
     
@@ -166,9 +175,19 @@ class _AuthScreenState extends State<AuthScreen> {
       s.emitWithAck('send_verification_email', {
         'userName': name, 'email': email, 'password': pass, 'publicKey': widget.publicKey, 'deviceId': widget.deviceId, 'deviceName': _deviceName(),
       }, ack: (dynamic response) {
+        ackTimer?.cancel(); // СКАСУЄМО ТАЙМЕР, ЯКЩО ВІДПОВІДЬ ПРИЙШЛА
         s.dispose(); _stopLoading();
         if (response['success'] == true) { _pendingEmail = email; if (mounted) setState(() => _step = 2); } 
         else { _showSnack(response['message'] ?? t('Помилка', 'Error'), isError: true); }
+      });
+
+      // ДОДАНО: Таймаут на відповідь сервера (15 секунд)
+      Timer ackTimer = Timer(const Duration(seconds: 15), () {
+        if (mounted && isLoading) {
+          s.dispose();
+          _stopLoading();
+          _showSnack(t('Сервер не відповів. Спробуйте ще раз.', 'Server did not respond. Try again.'), isError: true);
+        }
       });
     });
     
